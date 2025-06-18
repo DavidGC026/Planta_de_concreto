@@ -1,0 +1,47 @@
+# Configuración Apache para APIs PHP
+# IMCYC - Sistema de Evaluación de Plantas de Concreto
+
+# Habilitar reescritura de URLs
+RewriteEngine On
+
+# Permitir CORS para todas las APIs
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+
+# Manejar preflight requests
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Redireccionar URLs amigables
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Rutas de autenticación
+RewriteRule ^login/?$ auth/login.php [L,QSA]
+
+# Rutas de evaluaciones
+RewriteRule ^evaluaciones/tipos/?$ evaluaciones/tipos.php [L,QSA]
+RewriteRule ^evaluaciones/roles/?$ evaluaciones/roles.php [L,QSA]
+RewriteRule ^evaluaciones/preguntas/?$ evaluaciones/preguntas.php [L,QSA]
+RewriteRule ^evaluaciones/guardar/?$ evaluaciones/guardar.php [L,QSA]
+RewriteRule ^evaluaciones/historial/?$ evaluaciones/historial.php [L,QSA]
+
+# Rutas de reportes
+RewriteRule ^reportes/generar/?$ reportes/generar.php [L,QSA]
+
+# Configuración de seguridad
+<Files "*.php">
+    Order allow,deny
+    Allow from all
+</Files>
+
+# Ocultar archivos de configuración
+<Files "*.sql">
+    Order deny,allow
+    Deny from all
+</Files>
+
+# Configuración de errores
+ErrorDocument 404 "API endpoint not found"
+ErrorDocument 500 "Internal server error"

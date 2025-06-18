@@ -1,0 +1,141 @@
+<?php
+/**
+ * API para guardar evaluación completa
+ * IMCYC - Sistema de Evaluación de Plantas de Concreto
+ */
+
+require_once '../config/database.php';
+
+setCorsHeaders();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    handleError('Método no permitido', 405);
+}
+
+try {
+    $database = new Database();
+    $db = $database->getConnection();
+    
+    // Obtener datos del request
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    // Validar datos requeridos
+    $required_fields = ['usuario_id', 'tipo_evaluacion', 'respuestas', 'puntuacion_total'];
+    foreach ($required_fields as $field) {
+        if (!isset($input[$field])) {
+            handleError("Campo requerido: $field", 400);
+        }
+    }
+    
+    $usuario_id = $input['usuario_id'];
+    $tipo_evaluacion = $input['tipo_evaluacion'];
+    $rol_personal = $input['rol_personal'] ?? null;
+    $respuestas = $input['respuestas'];
+    $puntuacion_total = $input['puntuacion_total'];
+    $observaciones = $input['observaciones'] ?? null;
+    
+    // Iniciar transacción
+    $db->beginTransaction();
+    
+    // Obtener ID del tipo de evaluación
+    $query = "SELECT id FROM tipos_evaluacion WHERE codigo = :codigo";
+    $stmt = $db->prepare($query);
+    $stmt->bindParam(':codigo', $tipo_evaluacion);
+    $stmt->execute();
+    $tipo_evaluacion_id = $stmt->fetchColumn();
+    
+    if (!$tipo_evaluacion_id) {
+        throw new Exception('Tipo de evaluación no válido');
+    }
+    
+    // Obtener ID del rol de personal si aplica
+    $rol_personal_id = null;
+    if ($rol_personal) {
+        $query = "SELECT id FROM roles_personal WHERE codigo = :codigo";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':codigo', $rol_personal);
+        $stmt->execute();
+        $rol_personal_id = $stmt->fetchColumn();
+    }
+    
+    // Calcular estadísticas de respuestas
+    $respuestas_si = 0;
+    $respuestas_no = 0;
+    $respuestas_na = 0;
+    $total_preguntas = count($respuestas);
+    
+    foreach ($respuestas as $respuesta) {
+        switch ($respuesta['respuesta']) {
+            case 'si':
+                $respuestas_si++;
+                break;
+            case 'no':
+                $respuestas_no++;
+                break;
+            case 'na':
+                $respuestas_na++;
+                break;
+        }
+    }
+    
+    // Insertar evaluación
+    $query = "INSERT INTO evaluaciones 
+              (usuario_id, tipo_evaluacion_id, rol_personal_id, puntuacion_total, 
+               total_preguntas, respuestas_si, respuestas_no, respuestas_na, 
+               estado, fecha_finalizacion, observaciones)
+              VALUES 
+              (:usuario_id, :tipo_evaluacion_id, :rol_personal_id, :puntuacion_total,
+               :total_preguntas, :respuestas_si, :respuestas_no, :respuestas_na,
+               'completada', NOW(), :observaciones)";
+    
+    $stmt = $db->prepare($query);
+    $stmt->execute([
+        ':usuario_id' => $usuario_id,
+        ':tipo_evaluacion_id' => $tipo_evaluacion_id,
+        ':rol_personal_id' => $rol_personal_id,
+        ':puntuacion_total' => $puntuacion_total,
+        ':total_preguntas' => $total_preguntas,
+        ':respuestas_si' => $respuestas_si,
+        ':respuestas_no' => $respuestas_no,
+        ':respuestas_na' => $respuestas_na,
+        ':observaciones' => $observaciones
+    ]);
+    
+    $evaluacion_id = $db->lastInsertId();
+    
+    // Insertar respuestas individuales
+    $query = "INSERT INTO respuestas_evaluacion 
+              (evaluacion_id, pregunta_id, respuesta, observacion)
+              VALUES (:evaluacion_id, :pregunta_id, :respuesta, :observacion)";
+    
+    $stmt = $db->prepare($query);
+    
+    foreach ($respuestas as $respuesta) {
+        $stmt->execute([
+            ':evaluacion_id' => $evaluacion_id,
+            ':pregunta_id' => $respuesta['pregunta_id'],
+            ':respuesta' => $respuesta['respuesta'],
+            ':observacion' => $respuesta['observacion'] ?? null
+        ]);
+    }
+    
+    // Confirmar transacción
+    $db->commit();
+    
+    sendJsonResponse([
+        'success' => true,
+        'data' => [
+            'evaluacion_id' => $evaluacion_id,
+            'puntuacion_total' => $puntuacion_total,
+            'resultado' => $puntuacion_total >= 120 ? 'APROBADO' : 'REPROBADO'
+        ]
+    ]);
+    
+} catch (Exception $e) {
+    // Revertir transacción en caso de error
+    if ($db->inTransaction()) {
+        $db->rollback();
+    }
+    handleError('Error al guardar evaluación: ' . $e->getMessage());
+}
+?>
