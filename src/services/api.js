@@ -3,8 +3,8 @@
  * IMCYC - Sistema de Evaluación de Plantas de Concreto
  */
 
-// Configuración base de la API
-const API_BASE_URL = '/api'; // Ruta relativa para desarrollo local
+// Configuración base de la API - AJUSTAR SEGÚN TU SUBPÁGINA
+const API_BASE_URL = '/imcyc/api'; // Cambia 'imcyc' por el nombre de tu carpeta
 
 class ApiService {
   constructor() {
