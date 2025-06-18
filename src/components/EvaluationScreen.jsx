@@ -214,10 +214,26 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
         let score = 0;
         let correctAnswers = 0;
         
-        // Para cuestionarios, cada respuesta vale 10 puntos
-        Object.values(answers).forEach(() => {
-          score += 10;
-          correctAnswers++;
+        // Calcular puntuación basada en el tipo de respuesta
+        Object.entries(answers).forEach(([key, selectedAnswer]) => {
+          const [roleOrType, sectionIndex, questionIndex] = key.split('-');
+          const question = currentSectionData?.preguntas?.[questionIndex];
+          
+          if (question) {
+            if (question.tipo_pregunta === 'seleccion_multiple') {
+              // Para preguntas de selección múltiple, verificar si la respuesta es correcta
+              if (selectedAnswer === question.respuesta_correcta) {
+                score += 10;
+                correctAnswers++;
+              }
+            } else {
+              // Para preguntas abiertas (Sí/No/NA), dar puntos por responder
+              if (selectedAnswer === 'si') {
+                score += 10;
+                correctAnswers++;
+              }
+            }
+          }
         });
 
         // Preparar datos para guardar
@@ -225,13 +241,13 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
           usuario_id: user.id,
           tipo_evaluacion: evaluationType,
           rol_personal: selectedRole,
-          respuestas: Object.entries(answers).map(([key, selectedOptionIndex]) => {
+          respuestas: Object.entries(answers).map(([key, selectedAnswer]) => {
             const [roleOrType, sectionIndex, questionIndex] = key.split('-');
             const questionId = `${roleOrType}-${sectionIndex}-${questionIndex}`;
             
             return {
               pregunta_id: questionId,
-              respuesta: 'si', // Simplificado para este ejemplo
+              respuesta: selectedAnswer,
               observacion: null
             };
           }),
@@ -487,46 +503,75 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                             {index + 1}. {question.pregunta}
                           </h3>
                           
-                          <div className="space-y-2">
-                            <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                              <input
-                                type="radio"
-                                name={`question-${index}`}
-                                value="si"
-                                checked={selectedAnswer === 'si'}
-                                onChange={() => handleAnswer(index, 'si')}
-                                className="mr-3 text-green-600 focus:ring-green-500"
-                              />
-                              <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                              <span className="text-gray-700">Sí</span>
-                            </label>
-                            
-                            <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                              <input
-                                type="radio"
-                                name={`question-${index}`}
-                                value="no"
-                                checked={selectedAnswer === 'no'}
-                                onChange={() => handleAnswer(index, 'no')}
-                                className="mr-3 text-red-600 focus:ring-red-500"
-                              />
-                              <XCircle className="w-5 h-5 text-red-600 mr-2" />
-                              <span className="text-gray-700">No</span>
-                            </label>
-                            
-                            <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                              <input
-                                type="radio"
-                                name={`question-${index}`}
-                                value="na"
-                                checked={selectedAnswer === 'na'}
-                                onChange={() => handleAnswer(index, 'na')}
-                                className="mr-3 text-gray-600 focus:ring-gray-500"
-                              />
-                              <MinusCircle className="w-5 h-5 text-gray-600 mr-2" />
-                              <span className="text-gray-700">No Aplica</span>
-                            </label>
-                          </div>
+                          {question.tipo_pregunta === 'seleccion_multiple' ? (
+                            // Pregunta de selección múltiple
+                            <div className="space-y-2">
+                              {['a', 'b', 'c'].map((option) => {
+                                const optionText = question[`opcion_${option}`];
+                                if (!optionText) return null;
+                                
+                                return (
+                                  <label 
+                                    key={option}
+                                    className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`question-${index}`}
+                                      value={option}
+                                      checked={selectedAnswer === option}
+                                      onChange={() => handleAnswer(index, option)}
+                                      className="mr-3 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="font-medium text-blue-600 mr-2">{option.toUpperCase()})</span>
+                                    <span className="text-gray-700">{optionText}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            // Pregunta abierta (Sí/No/NA)
+                            <div className="space-y-2">
+                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                                <input
+                                  type="radio"
+                                  name={`question-${index}`}
+                                  value="si"
+                                  checked={selectedAnswer === 'si'}
+                                  onChange={() => handleAnswer(index, 'si')}
+                                  className="mr-3 text-green-600 focus:ring-green-500"
+                                />
+                                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                                <span className="text-gray-700">Sí</span>
+                              </label>
+                              
+                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                                <input
+                                  type="radio"
+                                  name={`question-${index}`}
+                                  value="no"
+                                  checked={selectedAnswer === 'no'}
+                                  onChange={() => handleAnswer(index, 'no')}
+                                  className="mr-3 text-red-600 focus:ring-red-500"
+                                />
+                                <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                                <span className="text-gray-700">No</span>
+                              </label>
+                              
+                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                                <input
+                                  type="radio"
+                                  name={`question-${index}`}
+                                  value="na"
+                                  checked={selectedAnswer === 'na'}
+                                  onChange={() => handleAnswer(index, 'na')}
+                                  className="mr-3 text-gray-600 focus:ring-gray-500"
+                                />
+                                <MinusCircle className="w-5 h-5 text-gray-600 mr-2" />
+                                <span className="text-gray-700">No Aplica</span>
+                              </label>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

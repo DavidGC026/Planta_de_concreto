@@ -62,6 +62,9 @@ try {
     $respuestas_si = 0;
     $respuestas_no = 0;
     $respuestas_na = 0;
+    $respuestas_a = 0;
+    $respuestas_b = 0;
+    $respuestas_c = 0;
     $total_preguntas = count($respuestas);
     
     foreach ($respuestas as $respuesta) {
@@ -74,6 +77,15 @@ try {
                 break;
             case 'na':
                 $respuestas_na++;
+                break;
+            case 'a':
+                $respuestas_a++;
+                break;
+            case 'b':
+                $respuestas_b++;
+                break;
+            case 'c':
+                $respuestas_c++;
                 break;
         }
     }
@@ -111,9 +123,14 @@ try {
     $stmt = $db->prepare($query);
     
     foreach ($respuestas as $respuesta) {
+        // Para preguntas de selección múltiple, usar el ID real de la pregunta
+        $pregunta_id = is_numeric($respuesta['pregunta_id']) ? 
+                      $respuesta['pregunta_id'] : 
+                      null; // Para evaluaciones de estado de planta
+        
         $stmt->execute([
             ':evaluacion_id' => $evaluacion_id,
-            ':pregunta_id' => $respuesta['pregunta_id'],
+            ':pregunta_id' => $pregunta_id,
             ':respuesta' => $respuesta['respuesta'],
             ':observacion' => $respuesta['observacion'] ?? null
         ]);
@@ -122,12 +139,34 @@ try {
     // Confirmar transacción
     $db->commit();
     
+    // Determinar resultado basado en el tipo de evaluación
+    $resultado = 'REPROBADO';
+    if ($tipo_evaluacion === 'operacion') {
+        // Para evaluación de operación, usar escala diferente
+        if ($puntuacion_total >= 80) $resultado = 'EXCELENTE';
+        elseif ($puntuacion_total >= 60) $resultado = 'BUENO';
+        elseif ($puntuacion_total >= 40) $resultado = 'REGULAR';
+        else $resultado = 'DEFICIENTE';
+    } else {
+        // Para evaluaciones de personal y equipo
+        $resultado = $puntuacion_total >= 70 ? 'APROBADO' : 'REPROBADO';
+    }
+    
     sendJsonResponse([
         'success' => true,
         'data' => [
             'evaluacion_id' => $evaluacion_id,
             'puntuacion_total' => $puntuacion_total,
-            'resultado' => $puntuacion_total >= 120 ? 'APROBADO' : 'REPROBADO'
+            'resultado' => $resultado,
+            'estadisticas' => [
+                'total_preguntas' => $total_preguntas,
+                'respuestas_si' => $respuestas_si,
+                'respuestas_no' => $respuestas_no,
+                'respuestas_na' => $respuestas_na,
+                'respuestas_a' => $respuestas_a,
+                'respuestas_b' => $respuestas_b,
+                'respuestas_c' => $respuestas_c
+            ]
         ]
     ]);
     

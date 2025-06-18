@@ -31,6 +31,11 @@ try {
                 s.orden as seccion_orden,
                 p.id as pregunta_id,
                 p.pregunta,
+                p.tipo_pregunta,
+                p.opcion_a,
+                p.opcion_b,
+                p.opcion_c,
+                p.respuesta_correcta,
                 p.orden as pregunta_orden
               FROM secciones_evaluacion s
               JOIN preguntas p ON s.id = p.seccion_id
@@ -72,11 +77,22 @@ try {
             ];
         }
         
-        $secciones[$seccion_id]['preguntas'][] = [
+        $pregunta = [
             'id' => $row['pregunta_id'],
             'pregunta' => $row['pregunta'],
+            'tipo_pregunta' => $row['tipo_pregunta'],
             'orden' => $row['pregunta_orden']
         ];
+        
+        // Agregar opciones de selección múltiple si existen
+        if ($row['tipo_pregunta'] === 'seleccion_multiple') {
+            $pregunta['opcion_a'] = $row['opcion_a'];
+            $pregunta['opcion_b'] = $row['opcion_b'];
+            $pregunta['opcion_c'] = $row['opcion_c'];
+            $pregunta['respuesta_correcta'] = $row['respuesta_correcta'];
+        }
+        
+        $secciones[$seccion_id]['preguntas'][] = $pregunta;
     }
     
     // Convertir a array indexado
