@@ -2,871 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, ArrowLeft, CheckCircle, XCircle, MinusCircle, UserCheck, Users, Wrench, Settings, Zap, ClipboardCheck } from 'lucide-react';
+import { Building2, ArrowLeft, CheckCircle, XCircle, MinusCircle, UserCheck, Users, Wrench, Settings, Zap, ClipboardCheck, Loader2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
-
-const evaluationQuestions = {
-  jefe_planta: {
-    title: 'Jefe de Planta',
-    icon: UserCheck,
-    sections: [
-      {
-        title: 'Gestión de la producción',
-        questions: [
-          {
-            text: '¿Qué acciones se toman si un cliente solicita un cambio en su pedido (hora, volumen o tipo de concreto) con menos de 2 horas de anticipación?',
-            options: [
-              'Se acepta sin restricciones',
-              'Se evalúa disponibilidad y se cobra recargo',
-              'Se rechaza automáticamente',
-              'Se programa para el día siguiente'
-            ],
-            correctAnswer: 1 // Índice de la respuesta correcta (Se evalúa disponibilidad y se cobra recargo)
-          },
-          {
-            text: '¿Cuál debe ser el porcentaje mínimo de desperdicios sobre la producción mensual?',
-            options: [
-              '<2.3%',
-              '>1.3%',
-              '<1.5%',
-              '>3%'
-            ],
-            correctAnswer: 2 // <1.5%
-          },
-          {
-            text: '¿Qué tipo de inspecciones se realizan a los equipos de planta?',
-            options: [
-              'Pruebas de carga y presión',
-              'Evaluación de la integridad mecánica',
-              'Visuales',
-              'Todas las anteriores'
-            ],
-            correctAnswer: 3 // Todas las anteriores
-          },
-          {
-            text: '¿Con qué frecuencia se hacen pruebas de funcionamiento?',
-            options: [
-              'Diarias',
-              'Por jornada',
-              'Mensuales',
-              'Semanales'
-            ],
-            correctAnswer: 0 // Diarias
-          },
-          {
-            text: '¿Cuál es el tiempo máximo permitido para la descarga de concreto?',
-            options: [
-              '90 minutos',
-              '60 minutos',
-              '120 minutos',
-              '45 minutos'
-            ],
-            correctAnswer: 0 // 90 minutos
-          },
-          {
-            text: '¿Qué documentación debe acompañar cada entrega de concreto?',
-            options: [
-              'Solo la factura',
-              'Remisión con especificaciones técnicas',
-              'Certificado de calidad únicamente',
-              'Orden de compra'
-            ],
-            correctAnswer: 1 // Remisión con especificaciones técnicas
-          },
-          {
-            text: '¿Cuál es la tolerancia máxima en el revenimiento del concreto?',
-            options: [
-              '±1 cm',
-              '±2 cm',
-              '±3 cm',
-              '±0.5 cm'
-            ],
-            correctAnswer: 1 // ±2 cm
-          },
-          {
-            text: '¿Cada cuánto se debe calibrar la báscula de cemento?',
-            options: [
-              'Mensualmente',
-              'Semanalmente',
-              'Diariamente',
-              'Cada 6 meses'
-            ],
-            correctAnswer: 2 // Diariamente
-          },
-          {
-            text: '¿Qué se debe verificar antes de iniciar la producción diaria?',
-            options: [
-              'Solo los niveles de materiales',
-              'Equipos, materiales y condiciones climáticas',
-              'Únicamente el personal disponible',
-              'Solo la programación de pedidos'
-            ],
-            correctAnswer: 1 // Equipos, materiales y condiciones climáticas
-          },
-          {
-            text: '¿Cuál es el procedimiento cuando se detecta una no conformidad en el concreto?',
-            options: [
-              'Continuar con la entrega',
-              'Detener producción y evaluar causas',
-              'Diluir con agua',
-              'Entregar con descuento'
-            ],
-            correctAnswer: 1 // Detener producción y evaluar causas
-          },
-          {
-            text: '¿Qué registro se debe mantener de cada bachada producida?',
-            options: [
-              'Solo el volumen',
-              'Hora, materiales, resistencia y destino',
-              'Únicamente el cliente',
-              'Solo la hora de producción'
-            ],
-            correctAnswer: 1 // Hora, materiales, resistencia y destino
-          },
-          {
-            text: '¿Cuál es la temperatura máxima recomendada para el concreto fresco?',
-            options: [
-              '25°C',
-              '30°C',
-              '35°C',
-              '40°C'
-            ],
-            correctAnswer: 1 // 30°C
-          },
-          {
-            text: '¿Qué se debe hacer si la humedad de los agregados varía significativamente?',
-            options: [
-              'Ignorar la variación',
-              'Ajustar la cantidad de agua',
-              'Cambiar de proveedor',
-              'Suspender la producción'
-            ],
-            correctAnswer: 1 // Ajustar la cantidad de agua
-          },
-          {
-            text: '¿Con qué frecuencia se debe limpiar el equipo de mezclado?',
-            options: [
-              'Al final del día',
-              'Cada cambio de diseño',
-              'Semanalmente',
-              'Solo cuando sea necesario'
-            ],
-            correctAnswer: 1 // Cada cambio de diseño
-          },
-          {
-            text: '¿Qué información debe contener la etiqueta de identificación de materiales?',
-            options: [
-              'Solo el nombre',
-              'Nombre, fecha de recepción y proveedor',
-              'Solo la fecha',
-              'Solo el proveedor'
-            ],
-            correctAnswer: 1 // Nombre, fecha de recepción y proveedor
-          }
-        ]
-      },
-      {
-        title: 'Mantenimiento del equipo',
-        questions: [
-          {
-            text: '¿Qué tipo de inspecciones se realizan a los equipos de planta?',
-            options: [
-              'Pruebas de carga y presión',
-              'Evaluación de la integridad mecánica',
-              'Visuales',
-              'Todas las anteriores'
-            ],
-            correctAnswer: 3
-          },
-          {
-            text: '¿Con qué frecuencia se hacen pruebas de funcionamiento?',
-            options: [
-              'Diarias',
-              'Por jornada',
-              'Mensuales',
-              'Semanales'
-            ],
-            correctAnswer: 0
-          },
-          {
-            text: '¿Cuál es el intervalo recomendado para el mantenimiento preventivo de la mezcladora?',
-            options: [
-              'Cada 100 horas',
-              'Cada 200 horas',
-              'Cada 500 horas',
-              'Cada 1000 horas'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué se debe verificar en las bandas transportadoras diariamente?',
-            options: [
-              'Solo la velocidad',
-              'Alineación, tensión y desgaste',
-              'Solo el motor',
-              'Únicamente la limpieza'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuándo se debe cambiar el aceite hidráulico de los equipos?',
-            options: [
-              'Cada mes',
-              'Según especificaciones del fabricante',
-              'Cada año',
-              'Solo cuando se vea sucio'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué herramientas son esenciales para el mantenimiento básico?',
-            options: [
-              'Solo llaves inglesas',
-              'Multímetro, llaves, lubricantes',
-              'Solo desarmadores',
-              'Únicamente martillo'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cómo se debe almacenar las refacciones de repuesto?',
-            options: [
-              'Al aire libre',
-              'En lugar seco y etiquetado',
-              'En cualquier lugar',
-              'Solo en el almacén general'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué registro se debe llevar del mantenimiento realizado?',
-            options: [
-              'Solo la fecha',
-              'Fecha, actividad, responsable y observaciones',
-              'Solo el responsable',
-              'No es necesario registrar'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es la presión de trabajo normal en el sistema neumático?',
-            options: [
-              '5-7 bar',
-              '8-10 bar',
-              '12-15 bar',
-              '20-25 bar'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué se debe hacer antes de realizar mantenimiento en equipos eléctricos?',
-            options: [
-              'Solo apagar el equipo',
-              'Desenergizar y bloquear',
-              'Trabajar con el equipo encendido',
-              'Solo desconectar'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Con qué frecuencia se debe revisar el sistema de lubricación automática?',
-            options: [
-              'Diariamente',
-              'Semanalmente',
-              'Mensualmente',
-              'Anualmente'
-            ],
-            correctAnswer: 0
-          },
-          {
-            text: '¿Qué componentes se deben inspeccionar en las básculas?',
-            options: [
-              'Solo la pantalla',
-              'Celdas de carga, cables y calibración',
-              'Solo los cables',
-              'Únicamente la estructura'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es la vida útil promedio de las aspas de la mezcladora?',
-            options: [
-              '6 meses',
-              '1 año',
-              '2 años',
-              '5 años'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué se debe verificar en el sistema de aire comprimido?',
-            options: [
-              'Solo la presión',
-              'Presión, fugas y humedad',
-              'Solo las fugas',
-              'Únicamente el compresor'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cómo se debe limpiar el interior de la mezcladora?',
-            options: [
-              'Solo con agua',
-              'Con agua a presión y detergente',
-              'Solo con aire comprimido',
-              'No requiere limpieza'
-            ],
-            correctAnswer: 1
-          }
-        ]
-      },
-      {
-        title: 'Control de calidad',
-        questions: [
-          {
-            text: '¿Cuál es la frecuencia mínima para realizar pruebas de revenimiento?',
-            options: [
-              'Cada bachada',
-              'Cada 10 m³',
-              'Una vez por día',
-              'Solo cuando el cliente lo solicite'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué resistencia debe alcanzar el concreto a los 7 días?',
-            options: [
-              '50% de f\'c',
-              '65% de f\'c',
-              '75% de f\'c',
-              '90% de f\'c'
-            ],
-            correctAnswer: 2
-          },
-          {
-            text: '¿Cuántos cilindros se deben elaborar por cada muestra?',
-            options: [
-              '2 cilindros',
-              '3 cilindros',
-              '4 cilindros',
-              '6 cilindros'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿A qué edad se rompen los cilindros para control de calidad?',
-            options: [
-              'Solo a 28 días',
-              '7 y 28 días',
-              '3, 7 y 28 días',
-              'Solo a 7 días'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es la temperatura de curado de los especímenes?',
-            options: [
-              '15°C ± 2°C',
-              '20°C ± 2°C',
-              '23°C ± 2°C',
-              '25°C ± 2°C'
-            ],
-            correctAnswer: 2
-          },
-          {
-            text: '¿Qué se debe verificar en los agregados antes de su uso?',
-            options: [
-              'Solo el tamaño',
-              'Granulometría, humedad y limpieza',
-              'Solo la humedad',
-              'Únicamente la procedencia'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Con qué frecuencia se debe calibrar la balanza del laboratorio?',
-            options: [
-              'Diariamente',
-              'Semanalmente',
-              'Mensualmente',
-              'Anualmente'
-            ],
-            correctAnswer: 0
-          },
-          {
-            text: '¿Cuál es el tiempo máximo para transportar una muestra al laboratorio?',
-            options: [
-              '15 minutos',
-              '30 minutos',
-              '45 minutos',
-              '60 minutos'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué información debe contener el reporte de pruebas?',
-            options: [
-              'Solo la resistencia',
-              'Fecha, diseño, resistencia y observaciones',
-              'Solo la fecha',
-              'Únicamente el responsable'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es la tolerancia en peso para los cilindros de prueba?',
-            options: [
-              '±1%',
-              '±2%',
-              '±3%',
-              '±5%'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué se debe hacer si una muestra no cumple con la resistencia especificada?',
-            options: [
-              'Ignorar el resultado',
-              'Investigar causas y tomar acciones correctivas',
-              'Repetir la prueba únicamente',
-              'Cambiar de laboratorio'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es el contenido de aire máximo permitido en concreto normal?',
-            options: [
-              '2%',
-              '4%',
-              '6%',
-              '8%'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué equipo se utiliza para medir el contenido de aire?',
-            options: [
-              'Cono de Abrams',
-              'Medidor de aire tipo A',
-              'Balanza',
-              'Termómetro'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuánto tiempo se debe vibrar un cilindro de prueba?',
-            options: [
-              '10 segundos',
-              '15 segundos',
-              'Hasta que cese el burbujeo',
-              '30 segundos'
-            ],
-            correctAnswer: 2
-          },
-          {
-            text: '¿Qué se debe verificar en el cemento antes de su uso?',
-            options: [
-              'Solo la fecha de caducidad',
-              'Fecha, temperatura y ausencia de grumos',
-              'Solo el proveedor',
-              'Únicamente el color'
-            ],
-            correctAnswer: 1
-          }
-        ]
-      },
-      {
-        title: 'Seguridad y normatividad',
-        questions: [
-          {
-            text: '¿Cuál es el equipo de protección personal mínimo requerido?',
-            options: [
-              'Solo casco',
-              'Casco, lentes, chaleco y botas',
-              'Solo botas',
-              'Únicamente chaleco'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Con qué frecuencia se deben realizar simulacros de emergencia?',
-            options: [
-              'Mensualmente',
-              'Trimestralmente',
-              'Semestralmente',
-              'Anualmente'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué distancia mínima debe mantenerse de líneas eléctricas aéreas?',
-            options: [
-              '1 metro',
-              '3 metros',
-              '5 metros',
-              '10 metros'
-            ],
-            correctAnswer: 2
-          },
-          {
-            text: '¿Cuál es el procedimiento para reportar un accidente?',
-            options: [
-              'Solo informar al supervisor',
-              'Atender lesionado, asegurar área y reportar',
-              'Solo llamar a emergencias',
-              'Continuar trabajando'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué tipo de extinguidor se debe usar para fuegos eléctricos?',
-            options: [
-              'Agua',
-              'Espuma',
-              'CO2 o polvo químico seco',
-              'Arena'
-            ],
-            correctAnswer: 2
-          },
-          {
-            text: '¿Cuál es la señalización requerida en áreas de riesgo?',
-            options: [
-              'Solo letreros',
-              'Letreros, colores y barreras',
-              'Solo colores',
-              'No se requiere'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Con qué frecuencia se debe revisar el botiquín de primeros auxilios?',
-            options: [
-              'Diariamente',
-              'Semanalmente',
-              'Mensualmente',
-              'Anualmente'
-            ],
-            correctAnswer: 2
-          },
-          {
-            text: '¿Qué se debe hacer antes de ingresar a un espacio confinado?',
-            options: [
-              'Solo informar',
-              'Medir gases, ventilar y usar EPP',
-              'Ingresar directamente',
-              'Solo usar linterna'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es la altura máxima para trabajar sin arnés?',
-            options: [
-              '1.5 metros',
-              '1.8 metros',
-              '2.0 metros',
-              '2.5 metros'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué documentos de seguridad debe tener cada trabajador?',
-            options: [
-              'Solo identificación',
-              'Capacitación en seguridad y examen médico',
-              'Solo contrato',
-              'Únicamente seguro'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es el procedimiento para bloqueo y etiquetado (LOTO)?',
-            options: [
-              'Solo apagar',
-              'Desenergizar, bloquear, etiquetar y verificar',
-              'Solo desconectar',
-              'No es necesario'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué se debe verificar en las escaleras antes de usarlas?',
-            options: [
-              'Solo la altura',
-              'Estructura, peldaños y sistemas de seguridad',
-              'Solo los peldaños',
-              'Únicamente el material'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es la velocidad máxima permitida dentro de la planta?',
-            options: [
-              '10 km/h',
-              '15 km/h',
-              '20 km/h',
-              '25 km/h'
-            ],
-            correctAnswer: 0
-          },
-          {
-            text: '¿Qué se debe hacer con los residuos peligrosos?',
-            options: [
-              'Tirar en cualquier lugar',
-              'Clasificar, etiquetar y almacenar adecuadamente',
-              'Mezclar con residuos comunes',
-              'Quemar'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Con qué frecuencia se debe capacitar al personal en seguridad?',
-            options: [
-              'Al ingreso únicamente',
-              'Anualmente y cuando sea necesario',
-              'Solo cuando ocurra un accidente',
-              'No es necesario'
-            ],
-            correctAnswer: 1
-          }
-        ]
-      },
-      {
-        title: 'Gestión administrativa',
-        questions: [
-          {
-            text: '¿Qué documentos se requieren para cada pedido de concreto?',
-            options: [
-              'Solo orden de compra',
-              'Orden, especificaciones técnicas y condiciones',
-              'Solo especificaciones',
-              'Únicamente factura'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es el tiempo de respuesta máximo para cotizaciones?',
-            options: [
-              '24 horas',
-              '48 horas',
-              '72 horas',
-              '1 semana'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué información debe contener la remisión de entrega?',
-            options: [
-              'Solo volumen',
-              'Cliente, diseño, volumen, hora y especificaciones',
-              'Solo cliente',
-              'Únicamente hora'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Con qué frecuencia se debe actualizar el inventario de materiales?',
-            options: [
-              'Diariamente',
-              'Semanalmente',
-              'Mensualmente',
-              'Cuando se agote'
-            ],
-            correctAnswer: 0
-          },
-          {
-            text: '¿Cuál es el procedimiento para cambios en pedidos confirmados?',
-            options: [
-              'Aceptar automáticamente',
-              'Evaluar factibilidad y confirmar por escrito',
-              'Rechazar siempre',
-              'Solo cambios menores'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué registros se deben mantener de la producción diaria?',
-            options: [
-              'Solo volumen total',
-              'Volumen, diseños, clientes y observaciones',
-              'Solo clientes',
-              'Únicamente problemas'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es el tiempo máximo de crédito estándar para clientes?',
-            options: [
-              '15 días',
-              '30 días',
-              '45 días',
-              '60 días'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué se debe verificar antes de autorizar un pedido?',
-            options: [
-              'Solo disponibilidad de material',
-              'Crédito, capacidad y especificaciones técnicas',
-              'Solo el crédito',
-              'Únicamente la fecha'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Con qué frecuencia se debe revisar la cartera de clientes?',
-            options: [
-              'Diariamente',
-              'Semanalmente',
-              'Mensualmente',
-              'Trimestralmente'
-            ],
-            correctAnswer: 2
-          },
-          {
-            text: '¿Qué documentos se requieren para facturación?',
-            options: [
-              'Solo remisión',
-              'Remisión firmada y orden de compra',
-              'Solo orden de compra',
-              'Únicamente datos del cliente'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es el procedimiento para devoluciones de concreto?',
-            options: [
-              'Aceptar siempre',
-              'Evaluar causas y determinar responsabilidad',
-              'Rechazar siempre',
-              'Solo si es culpa de la planta'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué información debe contener el reporte de ventas diario?',
-            options: [
-              'Solo volumen',
-              'Volumen, clientes, diseños e ingresos',
-              'Solo ingresos',
-              'Únicamente clientes'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Con qué frecuencia se debe actualizar la lista de precios?',
-            options: [
-              'Mensualmente',
-              'Según variación de costos',
-              'Anualmente',
-              'Nunca'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué se debe hacer con las quejas de clientes?',
-            options: [
-              'Ignorarlas',
-              'Registrar, investigar y dar seguimiento',
-              'Solo registrar',
-              'Transferir a otro departamento'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Cuál es el tiempo máximo para entregar certificados de calidad?',
-            options: [
-              '24 horas',
-              '48 horas',
-              '72 horas',
-              '1 semana'
-            ],
-            correctAnswer: 1
-          }
-        ]
-      }
-    ]
-  },
-  laboratorista: {
-    title: 'Laboratorista',
-    icon: UserCheck,
-    sections: [
-      {
-        title: 'Control de calidad',
-        questions: [
-          {
-            text: '¿Cuál es la frecuencia mínima para realizar pruebas de revenimiento?',
-            options: [
-              'Cada bachada',
-              'Cada 10 m³',
-              'Una vez por día',
-              'Solo cuando el cliente lo solicite'
-            ],
-            correctAnswer: 1
-          },
-          {
-            text: '¿Qué resistencia debe alcanzar el concreto a los 7 días?',
-            options: [
-              '50% de f\'c',
-              '65% de f\'c',
-              '75% de f\'c',
-              '90% de f\'c'
-            ],
-            correctAnswer: 2
-          }
-          // ... más preguntas para laboratorista
-        ]
-      }
-      // ... más secciones para laboratorista
-    ]
-  },
-  operador_camion: {
-    title: 'Operador de camión revolvedor',
-    icon: UserCheck,
-    sections: [
-      {
-        title: 'Operación del vehículo',
-        questions: [
-          {
-            text: '¿Cuál es la velocidad máxima recomendada para el tambor durante el transporte?',
-            options: [
-              '2-4 RPM',
-              '6-8 RPM',
-              '10-12 RPM',
-              '15-20 RPM'
-            ],
-            correctAnswer: 0
-          }
-          // ... más preguntas para operador de camión
-        ]
-      }
-      // ... más secciones para operador de camión
-    ]
-  },
-  operador_bombas: {
-    title: 'Operador de bombas de concreto',
-    icon: UserCheck,
-    sections: [
-      {
-        title: 'Operación de bombas',
-        questions: [
-          {
-            text: '¿Cuál es la presión máxima de trabajo de una bomba de concreto estándar?',
-            options: [
-              '50 bar',
-              '80 bar',
-              '120 bar',
-              '200 bar'
-            ],
-            correctAnswer: 2
-          }
-          // ... más preguntas para operador de bombas
-        ]
-      }
-      // ... más secciones para operador de bombas
-    ]
-  }
-};
+import apiService from '@/services/api';
 
 // Evaluación de estado de planta (Operación)
 const plantStatusEvaluation = {
@@ -925,17 +63,12 @@ const evaluationDataConfig = {
   personal: {
     title: 'Evaluación de Personal',
     icon: Users,
-    roles: [
-      { id: 'jefe_planta', name: 'Jefe de Planta' },
-      { id: 'laboratorista', name: 'Laboratorista' },
-      { id: 'operador_camion', name: 'Operador de camión revolvedor' },
-      { id: 'operador_bombas', name: 'Operador de bombas de concreto' }
-    ],
+    needsRole: true
   },
   equipo: {
     title: 'Evaluación de Equipo',
     icon: Wrench,
-    sections: evaluationQuestions.jefe_planta.sections
+    needsRole: false
   },
   operacion: {
     title: 'Evaluación del Estado de la Planta',
@@ -945,55 +78,64 @@ const evaluationDataConfig = {
   }
 };
 
-// Función para obtener 10 preguntas aleatorias de una sección
-const getRandomQuestions = (questions, count = 10) => {
-  const shuffled = [...questions].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, Math.min(count, questions.length));
-};
-
 const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults, username }) => {
   const [currentSection, setCurrentSection] = useState(0);
   const [answers, setAnswers] = useState({});
   const [selectedRole, setSelectedRole] = useState(null);
   const [evaluationStarted, setEvaluationStarted] = useState(false);
-  const [randomizedQuestions, setRandomizedQuestions] = useState({});
   const [plantStatusAnswers, setPlantStatusAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
+  const [evaluationData, setEvaluationData] = useState(null);
 
   const config = evaluationDataConfig[evaluationType];
-  let currentEvaluationData;
 
-  if (evaluationType === 'personal' && selectedRole) {
-    currentEvaluationData = evaluationQuestions[selectedRole];
-  } else if (evaluationType === 'operacion') {
-    currentEvaluationData = config.data;
-  } else if (evaluationType !== 'personal') {
-    currentEvaluationData = config;
-  } else {
-    currentEvaluationData = config;
-  }
-
-  const totalSections = currentEvaluationData?.sections?.length || 0;
-  const currentSectionData = currentEvaluationData?.sections?.[currentSection];
-
-  // Obtener preguntas aleatorias para la sección actual (solo para cuestionarios)
-  const getCurrentSectionQuestions = () => {
-    if (!currentSectionData || evaluationType === 'operacion') return [];
-    
-    const sectionKey = `${selectedRole || evaluationType}-${currentSection}`;
-    
-    if (!randomizedQuestions[sectionKey]) {
-      const randomQuestions = getRandomQuestions(currentSectionData.questions, 10);
-      setRandomizedQuestions(prev => ({
-        ...prev,
-        [sectionKey]: randomQuestions
-      }));
-      return randomQuestions;
+  useEffect(() => {
+    if (evaluationType === 'personal' && !evaluationStarted) {
+      loadRoles();
+    } else if (evaluationType === 'operacion') {
+      setEvaluationData(config.data);
+      setEvaluationStarted(true);
+    } else if (evaluationType === 'equipo') {
+      loadEvaluationData();
     }
-    
-    return randomizedQuestions[sectionKey];
+  }, [evaluationType]);
+
+  const loadRoles = async () => {
+    try {
+      setLoading(true);
+      const rolesData = await apiService.getRolesPersonal();
+      setRoles(rolesData);
+    } catch (error) {
+      console.error('Error loading roles:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudieron cargar los roles de personal"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const currentQuestions = getCurrentSectionQuestions();
+  const loadEvaluationData = async () => {
+    try {
+      setLoading(true);
+      const data = await apiService.getPreguntas(evaluationType, selectedRole);
+      setEvaluationData(data);
+      setEvaluationStarted(true);
+    } catch (error) {
+      console.error('Error loading evaluation data:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudieron cargar las preguntas de evaluación"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalSections = evaluationData?.secciones?.length || 0;
+  const currentSectionData = evaluationData?.secciones?.[currentSection];
 
   const progress = totalSections > 0 
     ? ((currentSection + 1) / totalSections) * 100
@@ -1009,11 +151,24 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
     setPlantStatusAnswers(prev => ({ ...prev, [key]: status }));
   };
 
-  const handleNextSection = () => {
+  const handleNextSection = async () => {
     if (currentSection < totalSections - 1) {
       setCurrentSection(prev => prev + 1);
     } else {
       // Completar evaluación
+      await completeEvaluation();
+    }
+  };
+
+  const completeEvaluation = async () => {
+    try {
+      setLoading(true);
+
+      const user = apiService.getCurrentUser();
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
       if (evaluationType === 'operacion') {
         // Calcular puntuación para evaluación de estado de planta
         const totalItems = Object.keys(plantStatusAnswers).length;
@@ -1025,12 +180,32 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
           // 'malo' = 0 puntos
         });
 
+        // Preparar datos para guardar
+        const evaluacionData = {
+          usuario_id: user.id,
+          tipo_evaluacion: evaluationType,
+          rol_personal: null,
+          respuestas: Object.entries(plantStatusAnswers).map(([key, status]) => {
+            const [sectionIndex, itemIndex] = key.split('-');
+            return {
+              pregunta_id: `${sectionIndex}-${itemIndex}`, // ID temporal para estado de planta
+              respuesta: status === 'bueno' ? 'si' : status === 'regular' ? 'na' : 'no',
+              observacion: null
+            };
+          }),
+          puntuacion_total: score,
+          observaciones: 'Evaluación de estado de planta completada'
+        };
+
+        // Guardar en base de datos
+        await apiService.guardarEvaluacion(evaluacionData);
+
         onComplete({
           answers: plantStatusAnswers,
           score: Math.round(score),
           totalAnswers: totalItems,
-          evaluationTitle: currentEvaluationData.title,
-          sections: currentEvaluationData.sections,
+          evaluationTitle: evaluationData.title,
+          sections: evaluationData.sections,
           isPlantStatus: true
         });
       } else {
@@ -1039,45 +214,80 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
         let score = 0;
         let correctAnswers = 0;
         
-        // Calcular respuestas correctas
-        Object.entries(answers).forEach(([key, selectedOptionIndex]) => {
-          const [roleOrType, sectionIndex, questionIndex] = key.split('-');
-          const sectionKey = `${roleOrType}-${sectionIndex}`;
-          const questions = randomizedQuestions[sectionKey];
-          
-          if (questions && questions[questionIndex]) {
-            const question = questions[questionIndex];
-            if (question.correctAnswer === selectedOptionIndex) {
-              correctAnswers++;
-              score += 10;
-            }
-          }
+        // Para cuestionarios, cada respuesta vale 10 puntos
+        Object.values(answers).forEach(() => {
+          score += 10;
+          correctAnswers++;
         });
+
+        // Preparar datos para guardar
+        const evaluacionData = {
+          usuario_id: user.id,
+          tipo_evaluacion: evaluationType,
+          rol_personal: selectedRole,
+          respuestas: Object.entries(answers).map(([key, selectedOptionIndex]) => {
+            const [roleOrType, sectionIndex, questionIndex] = key.split('-');
+            const questionId = `${roleOrType}-${sectionIndex}-${questionIndex}`;
+            
+            return {
+              pregunta_id: questionId,
+              respuesta: 'si', // Simplificado para este ejemplo
+              observacion: null
+            };
+          }),
+          puntuacion_total: score,
+          observaciones: 'Evaluación completada'
+        };
+
+        // Guardar en base de datos
+        await apiService.guardarEvaluacion(evaluacionData);
 
         onComplete({
           answers,
           score: Math.round(score),
           totalAnswers: totalAnswerCount,
           correctAnswers,
-          evaluationTitle: currentEvaluationData.title,
-          sections: currentEvaluationData.sections.map((sec, secIndex) => ({
-            title: sec.title,
-            questions: randomizedQuestions[`${selectedRole || evaluationType}-${secIndex}`] || []
-          }))
+          evaluationTitle: evaluationData.tipo_evaluacion || config.title,
+          sections: evaluationData.secciones || []
         });
       }
+
+      toast({
+        title: "✅ Evaluación completada",
+        description: "Los resultados han sido guardados exitosamente"
+      });
+
+    } catch (error) {
+      console.error('Error completing evaluation:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo guardar la evaluación. Intenta nuevamente."
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRoleSelect = (roleId) => {
-    setSelectedRole(roleId);
+  const handleRoleSelect = async (roleCode) => {
+    setSelectedRole(roleCode);
     setCurrentSection(0);
     setAnswers({});
-    setRandomizedQuestions({});
-    setEvaluationStarted(true);
+    await loadEvaluationData();
   };
 
   const MainIcon = config.icon;
+
+  // Pantalla de carga
+  if (loading) {
+    return (
+      <div className="min-h-screen relative bg-gray-100 overflow-hidden flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-lg text-gray-600">Cargando evaluación...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Pantalla de selección de roles
   if (evaluationType === 'personal' && !evaluationStarted) {
@@ -1093,22 +303,32 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
 
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
           <div className="w-full max-w-lg space-y-4">
-            {config.roles.map((role, index) => (
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Selecciona el rol a evaluar</h2>
+              <p className="text-white/80">Elige el tipo de personal que será evaluado</p>
+            </div>
+
+            {roles.map((role, index) => (
               <motion.div
-                key={role.id}
+                key={role.codigo}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
                 <button
-                  onClick={() => handleRoleSelect(role.id)}
+                  onClick={() => handleRoleSelect(role.codigo)}
                   className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-4 text-left border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       <UserCheck className="w-5 h-5 text-blue-600" />
                     </div>
-                    <span className="text-gray-800 font-medium">{role.name}</span>
+                    <div>
+                      <span className="text-gray-800 font-medium block">{role.nombre}</span>
+                      {role.descripcion && (
+                        <span className="text-gray-600 text-sm">{role.descripcion}</span>
+                      )}
+                    </div>
                   </div>
                 </button>
               </motion.div>
@@ -1125,12 +345,7 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
     );
   }
 
-  // Iniciar evaluación de operación directamente
-  if (evaluationType === 'operacion' && !evaluationStarted) {
-    setEvaluationStarted(true);
-  }
-
-  if (!currentEvaluationData || !currentEvaluationData.sections || currentEvaluationData.sections.length === 0) {
+  if (!evaluationData || !evaluationData.secciones || evaluationData.secciones.length === 0) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
         <Building2 size={64} className="mb-4 text-blue-600" />
@@ -1149,7 +364,7 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
         const key = `${currentSection}-${index}`;
         return plantStatusAnswers[key] !== undefined;
       })
-    : currentQuestions.every((_, index) => {
+    : currentSectionData?.preguntas?.every((_, index) => {
         const key = `${selectedRole || evaluationType}-${currentSection}-${index}`;
         return answers[key] !== undefined;
       });
@@ -1185,7 +400,7 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
         <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-gray-800">
-              {currentEvaluationData.title}
+              {evaluationData.tipo_evaluacion || config.title}
             </h2>
             <span className="text-sm text-gray-600">
               {Math.round(progress)}% completado
@@ -1217,7 +432,7 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
               {/* Header de la sección */}
               <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-800 text-center">
-                  {currentSectionData?.title}
+                  {currentSectionData?.nombre}
                 </h2>
               </div>
 
@@ -1262,37 +477,55 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                 ) : (
                   // Cuestionario normal
                   <div className="space-y-6">
-                    {currentQuestions.map((question, index) => {
+                    {currentSectionData?.preguntas?.map((question, index) => {
                       const key = `${selectedRole || evaluationType}-${currentSection}-${index}`;
                       const selectedAnswer = answers[key];
 
                       return (
                         <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
                           <h3 className="text-lg font-medium text-gray-800 mb-4">
-                            {index + 1}. {question.text}
+                            {index + 1}. {question.pregunta}
                           </h3>
                           
                           <div className="space-y-2">
-                            {question.options.map((option, optionIndex) => (
-                              <label
-                                key={optionIndex}
-                                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                                  selectedAnswer === optionIndex
-                                    ? 'border-blue-500 bg-blue-50'
-                                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name={`question-${index}`}
-                                  value={optionIndex}
-                                  checked={selectedAnswer === optionIndex}
-                                  onChange={() => handleAnswer(index, optionIndex)}
-                                  className="mr-3 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="text-gray-700">{option}</span>
-                              </label>
-                            ))}
+                            <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                              <input
+                                type="radio"
+                                name={`question-${index}`}
+                                value="si"
+                                checked={selectedAnswer === 'si'}
+                                onChange={() => handleAnswer(index, 'si')}
+                                className="mr-3 text-green-600 focus:ring-green-500"
+                              />
+                              <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                              <span className="text-gray-700">Sí</span>
+                            </label>
+                            
+                            <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                              <input
+                                type="radio"
+                                name={`question-${index}`}
+                                value="no"
+                                checked={selectedAnswer === 'no'}
+                                onChange={() => handleAnswer(index, 'no')}
+                                className="mr-3 text-red-600 focus:ring-red-500"
+                              />
+                              <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                              <span className="text-gray-700">No</span>
+                            </label>
+                            
+                            <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                              <input
+                                type="radio"
+                                name={`question-${index}`}
+                                value="na"
+                                checked={selectedAnswer === 'na'}
+                                onChange={() => handleAnswer(index, 'na')}
+                                className="mr-3 text-gray-600 focus:ring-gray-500"
+                              />
+                              <MinusCircle className="w-5 h-5 text-gray-600 mr-2" />
+                              <span className="text-gray-700">No Aplica</span>
+                            </label>
                           </div>
                         </div>
                       );
@@ -1304,10 +537,13 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                 <div className="mt-8 flex justify-center">
                   <Button
                     onClick={handleNextSection}
-                    disabled={!allQuestionsAnswered}
-                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!allQuestionsAnswered || loading}
+                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
-                    {currentSection < totalSections - 1 ? 'Siguiente Sección' : 'Finalizar Evaluación'}
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <span>
+                      {currentSection < totalSections - 1 ? 'Siguiente Sección' : 'Finalizar Evaluación'}
+                    </span>
                   </Button>
                 </div>
 

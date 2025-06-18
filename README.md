@@ -31,7 +31,7 @@ Sistema web para la evaluación de plantas de concreto del Instituto Mexicano de
 - Node.js 18+
 - npm o yarn
 
-## 🚀 Instalación
+## 🚀 Instalación y Configuración
 
 ### 1. Configurar la Base de Datos
 
@@ -69,9 +69,8 @@ private $password = 'tu_contraseña_mysql';
 # Instalar dependencias
 npm install
 
-# Configurar URL de la API
-# Editar src/services/api.js
-const API_BASE_URL = 'http://tu-servidor.com/imcyc-api';
+# Desarrollo local
+npm run dev
 
 # Construir para producción
 npm run build
@@ -99,21 +98,22 @@ El sistema incluye datos iniciales para:
 - Tipos de evaluación predefinidos
 - Roles de personal estándar
 - Usuario administrador por defecto
+- Preguntas de ejemplo para Jefe de Planta
 
 ## 🔌 API Endpoints
 
 ### Autenticación
-- `POST /login` - Iniciar sesión
+- `POST /api/login` - Iniciar sesión
 
 ### Evaluaciones
-- `GET /evaluaciones/tipos` - Obtener tipos de evaluación
-- `GET /evaluaciones/roles` - Obtener roles de personal
-- `GET /evaluaciones/preguntas` - Obtener preguntas por tipo/rol
-- `POST /evaluaciones/guardar` - Guardar evaluación completa
-- `GET /evaluaciones/historial` - Obtener historial de evaluaciones
+- `GET /api/evaluaciones/tipos` - Obtener tipos de evaluación
+- `GET /api/evaluaciones/roles` - Obtener roles de personal
+- `GET /api/evaluaciones/preguntas` - Obtener preguntas por tipo/rol
+- `POST /api/evaluaciones/guardar` - Guardar evaluación completa
+- `GET /api/evaluaciones/historial` - Obtener historial de evaluaciones
 
 ### Reportes
-- `POST /reportes/generar` - Generar reporte de evaluación
+- `POST /api/reportes/generar` - Generar reporte de evaluación
 
 ## 🔧 Configuración de Producción
 
@@ -178,7 +178,9 @@ server {
 
 ### Usuario Administrador por Defecto
 - **Usuario**: `admin`
-- **Contraseña**: `password` (cambiar inmediatamente)
+- **Contraseña**: `admin123`
+
+**⚠️ IMPORTANTE: Cambiar estas credenciales inmediatamente en producción**
 
 ## 📊 Funcionalidades
 
@@ -195,15 +197,15 @@ server {
    - Seguridad industrial
 
 3. **Evaluación de Operación**
-   - Procesos operativos
-   - Procedimientos de calidad
-   - Cumplimiento normativo
+   - Estado de equipos principales
+   - Infraestructura y seguridad
+   - Documentación y certificaciones
 
 ### Sistema de Puntuación
 - **Respuesta SÍ**: 10 puntos
 - **Respuesta NO**: 0 puntos
 - **Respuesta N/A**: No cuenta para el total
-- **Aprobación**: ≥ 120 puntos (equivalente a 12 respuestas SÍ)
+- **Aprobación**: ≥ 70% de respuestas correctas
 
 ## 🚧 Desarrollo
 
@@ -229,6 +231,7 @@ npm run preview
 │   ├── evaluaciones/      # APIs de evaluaciones
 │   └── reportes/          # APIs de reportes
 ├── database/              # Scripts de BD
+│   └── schema.sql         # Esquema completo de BD
 ├── src/                   # Frontend React
 │   ├── components/        # Componentes React
 │   ├── services/          # Servicios de API
@@ -236,6 +239,34 @@ npm run preview
 └── public/               # Archivos estáticos
 ```
 
+## 🔄 Flujo de Trabajo
+
+1. **Login**: Usuario se autentica con credenciales
+2. **Selección**: Elige tipo de evaluación
+3. **Configuración**: Selecciona rol (si aplica)
+4. **Evaluación**: Responde preguntas por secciones
+5. **Resultados**: Ve puntuación y puede descargar reportes
+6. **Almacenamiento**: Datos se guardan en MySQL
+
+## 🐛 Solución de Problemas
+
+### Problemas Comunes
+
+1. **Error de conexión a BD**: Verificar credenciales en `api/config/database.php`
+2. **CORS errors**: Configurar headers en servidor web
+3. **Permisos de archivos**: Verificar permisos 755/644
+4. **API no responde**: Verificar configuración de rewrite rules
+
+### Logs
+
+- **PHP errors**: `/var/log/apache2/error.log` o `/var/log/nginx/error.log`
+- **MySQL errors**: `/var/log/mysql/error.log`
+- **Frontend errors**: Consola del navegador
+
 ## 📝 Licencia
 
 © 2024 Instituto Mexicano del Cemento y del Concreto A.C. - Todos los derechos reservados.
+
+## 🤝 Soporte
+
+Para soporte técnico o consultas sobre el sistema, contactar al equipo de desarrollo de IMCYC.

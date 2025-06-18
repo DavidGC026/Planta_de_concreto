@@ -4,18 +4,48 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, AlertCircle } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
+import apiService from '@/services/api';
 
 const LoginScreen = ({ onLogin }) => {
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (credentials.username && credentials.password) {
-      onLogin(credentials.username);
+    setError('');
+    
+    if (!credentials.username || !credentials.password) {
+      setError('Por favor ingresa usuario y contraseña');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const user = await apiService.login(credentials.username, credentials.password);
+      
+      toast({
+        title: "✅ Inicio de sesión exitoso",
+        description: `Bienvenido ${user.nombre_completo}`
+      });
+
+      onLogin(user.username);
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Usuario o contraseña incorrectos');
+      
+      toast({
+        title: "❌ Error de autenticación",
+        description: "Verifica tus credenciales e intenta nuevamente"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -49,6 +79,17 @@ const LoginScreen = ({ onLogin }) => {
 
           <CardContent className="p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg"
+                >
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">{error}</span>
+                </motion.div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-sm font-medium text-gray-700">
                   Usuario
@@ -62,6 +103,7 @@ const LoginScreen = ({ onLogin }) => {
                     value={credentials.username}
                     onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
                     className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg text-base"
+                    disabled={isLoading}
                     required
                   />
                 </div>
@@ -80,24 +122,32 @@ const LoginScreen = ({ onLogin }) => {
                     value={credentials.password}
                     onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
                     className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg text-base"
+                    disabled={isLoading}
                     required
                   />
                 </div>
               </div>
 
               <motion.div
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: isLoading ? 1 : 1.03 }}
+                whileTap={{ scale: isLoading ? 1 : 0.97 }}
                 className="pt-2"
               >
                 <Button 
                   type="submit" 
-                  className="w-full h-14 imcyc-button text-white font-bold text-lg rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                  disabled={isLoading}
+                  className="w-full h-14 imcyc-button text-white font-bold text-lg rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  INGRESAR
+                  {isLoading ? 'INGRESANDO...' : 'INGRESAR'}
                 </Button>
               </motion.div>
             </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-xs text-gray-500">
+                Usuario de prueba: <strong>admin</strong> | Contraseña: <strong>admin123</strong>
+              </p>
+            </div>
           </CardContent>
         </Card>
 

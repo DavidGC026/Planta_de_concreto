@@ -4,7 +4,7 @@
  */
 
 // Configuración base de la API
-const API_BASE_URL = 'http://localhost/imcyc-api'; // Cambiar por URL de producción
+const API_BASE_URL = '/api'; // Ruta relativa para desarrollo local
 
 class ApiService {
   constructor() {
@@ -33,10 +33,15 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      if (!data.success) {
+        throw new Error(data.error || 'Error en la respuesta del servidor');
       }
 
       return data;
@@ -50,18 +55,24 @@ class ApiService {
    * Métodos de autenticación
    */
   async login(username, password) {
-    const response = await this.request('login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
-    });
+    try {
+      const response = await this.request('login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      });
 
-    if (response.success) {
-      this.token = response.data.token;
-      localStorage.setItem('imcyc_token', this.token);
-      localStorage.setItem('imcyc_user', JSON.stringify(response.data.user));
+      if (response.success) {
+        this.token = response.data.token;
+        localStorage.setItem('imcyc_token', this.token);
+        localStorage.setItem('imcyc_user', JSON.stringify(response.data.user));
+        return response.data.user;
+      }
+
+      throw new Error('Error en el login');
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
-
-    return response;
   }
 
   logout() {
@@ -75,56 +86,96 @@ class ApiService {
     return userStr ? JSON.parse(userStr) : null;
   }
 
+  isAuthenticated() {
+    return !!this.token && !!this.getCurrentUser();
+  }
+
   /**
    * Métodos de evaluaciones
    */
   async getTiposEvaluacion() {
-    return this.request('evaluaciones/tipos');
+    try {
+      const response = await this.request('evaluaciones/tipos');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting evaluation types:', error);
+      throw error;
+    }
   }
 
   async getRolesPersonal() {
-    return this.request('evaluaciones/roles');
+    try {
+      const response = await this.request('evaluaciones/roles');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting personnel roles:', error);
+      throw error;
+    }
   }
 
   async getPreguntas(tipoEvaluacion, rolPersonal = null) {
-    const params = new URLSearchParams({ tipo: tipoEvaluacion });
-    if (rolPersonal) {
-      params.append('rol', rolPersonal);
+    try {
+      const params = new URLSearchParams({ tipo: tipoEvaluacion });
+      if (rolPersonal) {
+        params.append('rol', rolPersonal);
+      }
+      
+      const response = await this.request(`evaluaciones/preguntas?${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting questions:', error);
+      throw error;
     }
-    
-    return this.request(`evaluaciones/preguntas?${params}`);
   }
 
   async guardarEvaluacion(evaluacionData) {
-    return this.request('evaluaciones/guardar', {
-      method: 'POST',
-      body: JSON.stringify(evaluacionData),
-    });
+    try {
+      const response = await this.request('evaluaciones/guardar', {
+        method: 'POST',
+        body: JSON.stringify(evaluacionData),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error saving evaluation:', error);
+      throw error;
+    }
   }
 
   async getHistorialEvaluaciones(filtros = {}) {
-    const params = new URLSearchParams();
-    
-    Object.keys(filtros).forEach(key => {
-      if (filtros[key] !== null && filtros[key] !== undefined) {
-        params.append(key, filtros[key]);
-      }
-    });
+    try {
+      const params = new URLSearchParams();
+      
+      Object.keys(filtros).forEach(key => {
+        if (filtros[key] !== null && filtros[key] !== undefined) {
+          params.append(key, filtros[key]);
+        }
+      });
 
-    return this.request(`evaluaciones/historial?${params}`);
+      const response = await this.request(`evaluaciones/historial?${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting evaluation history:', error);
+      throw error;
+    }
   }
 
   /**
    * Métodos de reportes
    */
   async generarReporte(evaluacionId, tipoReporte = 'json') {
-    return this.request('reportes/generar', {
-      method: 'POST',
-      body: JSON.stringify({
-        evaluacion_id: evaluacionId,
-        tipo_reporte: tipoReporte,
-      }),
-    });
+    try {
+      const response = await this.request('reportes/generar', {
+        method: 'POST',
+        body: JSON.stringify({
+          evaluacion_id: evaluacionId,
+          tipo_reporte: tipoReporte,
+        }),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error generating report:', error);
+      throw error;
+    }
   }
 
   /**
@@ -135,6 +186,7 @@ class ApiService {
       await this.request('evaluaciones/tipos');
       return true;
     } catch (error) {
+      console.error('Connection check failed:', error);
       return false;
     }
   }
@@ -150,6 +202,7 @@ export const {
   login,
   logout,
   getCurrentUser,
+  isAuthenticated,
   getTiposEvaluacion,
   getRolesPersonal,
   getPreguntas,
