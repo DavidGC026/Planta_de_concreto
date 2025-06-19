@@ -56,7 +56,7 @@ class ApiService {
    */
   async login(username, password) {
     try {
-      const response = await this.request('login', {
+      const response = await this.request('auth/login.php', {
         method: 'POST',
         body: JSON.stringify({ username, password }),
       });
@@ -95,7 +95,7 @@ class ApiService {
    */
   async getTiposEvaluacion() {
     try {
-      const response = await this.request('evaluaciones/tipos');
+      const response = await this.request('evaluaciones/tipos.php');
       return response.data;
     } catch (error) {
       console.error('Error getting evaluation types:', error);
@@ -105,7 +105,7 @@ class ApiService {
 
   async getRolesPersonal() {
     try {
-      const response = await this.request('evaluaciones/roles');
+      const response = await this.request('evaluaciones/roles.php');
       return response.data;
     } catch (error) {
       console.error('Error getting personnel roles:', error);
@@ -120,7 +120,7 @@ class ApiService {
         params.append('rol', rolPersonal);
       }
       
-      const response = await this.request(`evaluaciones/preguntas?${params}`);
+      const response = await this.request(`evaluaciones/preguntas.php?${params}`);
       return response.data;
     } catch (error) {
       console.error('Error getting questions:', error);
@@ -130,7 +130,7 @@ class ApiService {
 
   async guardarEvaluacion(evaluacionData) {
     try {
-      const response = await this.request('evaluaciones/guardar', {
+      const response = await this.request('evaluaciones/guardar.php', {
         method: 'POST',
         body: JSON.stringify(evaluacionData),
       });
@@ -151,7 +151,7 @@ class ApiService {
         }
       });
 
-      const response = await this.request(`evaluaciones/historial?${params}`);
+      const response = await this.request(`evaluaciones/historial.php?${params}`);
       return response.data;
     } catch (error) {
       console.error('Error getting evaluation history:', error);
@@ -164,7 +164,7 @@ class ApiService {
    */
   async generarReporte(evaluacionId, tipoReporte = 'json') {
     try {
-      const response = await this.request('reportes/generar', {
+      const response = await this.request('reportes/generar.php', {
         method: 'POST',
         body: JSON.stringify({
           evaluacion_id: evaluacionId,
@@ -183,7 +183,7 @@ class ApiService {
    */
   async checkConnection() {
     try {
-      await this.request('evaluaciones/tipos');
+      await this.request('evaluaciones/tipos.php');
       return true;
     } catch (error) {
       console.error('Connection check failed:', error);

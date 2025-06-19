@@ -63,7 +63,7 @@ try {
     
     $resultados = $stmt->fetchAll();
     
-    // Organizar por secciones
+    // Organizar por secciones y limitar a 5 preguntas aleatorias por sección
     $secciones = [];
     foreach ($resultados as $row) {
         $seccion_id = $row['seccion_id'];
@@ -93,6 +93,21 @@ try {
         }
         
         $secciones[$seccion_id]['preguntas'][] = $pregunta;
+    }
+    
+    // Limitar a 5 preguntas aleatorias por sección
+    foreach ($secciones as &$seccion) {
+        if (count($seccion['preguntas']) > 5) {
+            // Mezclar las preguntas aleatoriamente
+            shuffle($seccion['preguntas']);
+            // Tomar solo las primeras 5
+            $seccion['preguntas'] = array_slice($seccion['preguntas'], 0, 5);
+        }
+        
+        // Reordenar las preguntas seleccionadas por su orden original
+        usort($seccion['preguntas'], function($a, $b) {
+            return $a['orden'] - $b['orden'];
+        });
     }
     
     // Convertir a array indexado

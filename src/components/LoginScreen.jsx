@@ -68,7 +68,7 @@ const LoginScreen = ({ onLogin }) => {
               <img  
                 alt="Logo IMCYC" 
                 className="h-16 w-auto"
-                src="/Logo_imcyc.png" 
+                src="public/Logo_imcyc.png" 
               />
             </motion.div>
             
@@ -171,7 +171,7 @@ const LoginScreen = ({ onLogin }) => {
         <img   
           alt="Concreton - Mascota IMCYC"
           className="w-auto h-64 md:h-80 drop-shadow-2xl"
-          src="/Concreton.png" 
+          src="public/Concreton.png" 
         />
       </motion.div>
     </div>

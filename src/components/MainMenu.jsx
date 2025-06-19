@@ -76,7 +76,7 @@ const MainMenu = ({ onSelectEvaluation }) => {
         <img   
           alt="Concreton - Mascota IMCYC"
           className="w-auto h-48 sm:h-56 md:h-64 drop-shadow-xl" 
-          src="/Concreton.png"
+          src="public/Concreton.png"
         />
       </motion.div>
     </div>
