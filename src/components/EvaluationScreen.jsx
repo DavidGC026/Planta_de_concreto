@@ -78,6 +78,20 @@ const evaluationDataConfig = {
   }
 };
 
+// Criterios de evaluación para Jefe de Planta
+const criteriosJefePlanta = [
+  { criterio: 'Conocimiento técnico y operativo', porcentaje: 15, totalPreguntas: 10 },
+  { criterio: 'Gestión de la producción', porcentaje: 20, totalPreguntas: 10 },
+  { criterio: 'Mantenimiento del equipo', porcentaje: 10, totalPreguntas: 10 },
+  { criterio: 'Seguridad y cumplimiento normativo', porcentaje: 10, totalPreguntas: 10 },
+  { criterio: 'Control de calidad', porcentaje: 10, totalPreguntas: 10 },
+  { criterio: 'Gestión del personal', porcentaje: 10, totalPreguntas: 10 },
+  { criterio: 'Documentación y control administrativo', porcentaje: 5, totalPreguntas: 10 },
+  { criterio: 'Coordinación con logística y clientes', porcentaje: 5, totalPreguntas: 10 },
+  { criterio: 'Resolución de problemas', porcentaje: 7.5, totalPreguntas: 10 },
+  { criterio: 'Mejora continua y enfoque a resultados', porcentaje: 7.5, totalPreguntas: 10 }
+];
+
 const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults, username }) => {
   const [currentSection, setCurrentSection] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -180,17 +194,16 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
           // 'malo' = 0 puntos
         });
 
-        // Preparar datos para guardar
+        // Preparar datos para guardar - evaluación de operación
         const evaluacionData = {
           usuario_id: user.id,
           tipo_evaluacion: evaluationType,
           rol_personal: null,
           respuestas: Object.entries(plantStatusAnswers).map(([key, status]) => {
-            const [sectionIndex, itemIndex] = key.split('-');
             return {
-              pregunta_id: `${sectionIndex}-${itemIndex}`, // ID temporal para estado de planta
+              pregunta_id: null, // Para evaluación de operación no hay pregunta_id real
               respuesta: status === 'bueno' ? 'si' : status === 'regular' ? 'na' : 'no',
-              observacion: null
+              observacion: `Item: ${key} - Estado: ${status}`
             };
           }),
           puntuacion_total: score,
@@ -217,7 +230,7 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
         // Calcular puntuación basada en el tipo de respuesta
         Object.entries(answers).forEach(([key, selectedAnswer]) => {
           const [roleOrType, sectionIndex, questionIndex] = key.split('-');
-          const question = currentSectionData?.preguntas?.[questionIndex];
+          const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
           
           if (question) {
             if (question.tipo_pregunta === 'seleccion_multiple') {
@@ -236,17 +249,17 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
           }
         });
 
-        // Preparar datos para guardar
+        // Preparar datos para guardar - cuestionarios
         const evaluacionData = {
           usuario_id: user.id,
           tipo_evaluacion: evaluationType,
           rol_personal: selectedRole,
           respuestas: Object.entries(answers).map(([key, selectedAnswer]) => {
             const [roleOrType, sectionIndex, questionIndex] = key.split('-');
-            const questionId = `${roleOrType}-${sectionIndex}-${questionIndex}`;
+            const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
             
             return {
-              pregunta_id: questionId,
+              pregunta_id: question?.id || null, // Usar el ID real de la pregunta
               respuesta: selectedAnswer,
               observacion: null
             };
@@ -651,92 +664,174 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                 <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                     <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-                    Ponderación
+                    Criterios de evaluación
                   </h3>
                 </div>
                 
-                <div className="p-4 space-y-4">
-                  {/* Progreso general */}
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Progreso general</span>
-                      <span>{Math.round(ponderationStats.progressPercentage)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${ponderationStats.progressPercentage}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {ponderationStats.answeredQuestions} de {ponderationStats.totalQuestions} preguntas
-                    </div>
-                  </div>
-
-                  {/* Estadísticas de respuestas */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Distribución de respuestas</h4>
-                    <div className="space-y-2">
-                      {/* Respuestas Sí/No/NA */}
-                      {(ponderationStats.responseStats.si > 0 || ponderationStats.responseStats.no > 0 || ponderationStats.responseStats.na > 0) && (
-                        <>
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center">
-                              <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
-                              <span>Sí</span>
-                            </div>
-                            <span className="font-medium">{ponderationStats.responseStats.si}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center">
-                              <XCircle className="w-4 h-4 text-red-600 mr-2" />
-                              <span>No</span>
-                            </div>
-                            <span className="font-medium">{ponderationStats.responseStats.no}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center">
-                              <MinusCircle className="w-4 h-4 text-gray-600 mr-2" />
-                              <span>No Aplica</span>
-                            </div>
-                            <span className="font-medium">{ponderationStats.responseStats.na}</span>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Respuestas de selección múltiple */}
-                      {(ponderationStats.responseStats.a > 0 || ponderationStats.responseStats.b > 0 || ponderationStats.responseStats.c > 0) && (
-                        <>
-                          <div className="border-t pt-2 mt-2">
-                            <div className="text-xs text-gray-500 mb-2">Selección múltiple</div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-medium text-blue-600">A)</span>
-                              <span className="font-medium">{ponderationStats.responseStats.a}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-medium text-blue-600">B)</span>
-                              <span className="font-medium">{ponderationStats.responseStats.b}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-medium text-blue-600">C)</span>
-                              <span className="font-medium">{ponderationStats.responseStats.c}</span>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Puntuación estimada */}
-                  <div className="border-t pt-3">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {(ponderationStats.responseStats.si + ponderationStats.responseStats.a + ponderationStats.responseStats.b + ponderationStats.responseStats.c) * 10}
+                <div className="p-4">
+                  {/* Mostrar tabla de criterios para Jefe de Planta */}
+                  {selectedRole === 'jefe_planta' ? (
+                    <div className="space-y-4">
+                      {/* Tabla de criterios */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="border border-gray-300 px-2 py-1 text-left font-medium text-gray-700">
+                                Criterios de evaluación
+                              </th>
+                              <th className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                                Porcentaje
+                              </th>
+                              <th className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
+                                Total de preguntas
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {criteriosJefePlanta.map((criterio, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="border border-gray-300 px-2 py-1 text-xs">
+                                  <span className="font-medium text-blue-600 mr-1">{index + 1}</span>
+                                  {criterio.criterio}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-1 text-center text-xs">
+                                  {criterio.porcentaje}
+                                </td>
+                                <td className="border border-gray-300 px-2 py-1 text-center text-xs">
+                                  {criterio.totalPreguntas}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="bg-blue-50 font-medium">
+                              <td className="border border-gray-300 px-2 py-1 text-xs">
+                                <strong>TOTAL</strong>
+                              </td>
+                              <td className="border border-gray-300 px-2 py-1 text-center text-xs">
+                                <strong>100</strong>
+                              </td>
+                              <td className="border border-gray-300 px-2 py-1 text-center text-xs">
+                                <strong>100</strong>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
-                      <div className="text-xs text-gray-500">puntos acumulados</div>
+
+                      {/* Progreso general */}
+                      <div className="border-t pt-3">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span>Progreso general</span>
+                          <span>{Math.round(ponderationStats.progressPercentage)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${ponderationStats.progressPercentage}%` }}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {ponderationStats.answeredQuestions} de {ponderationStats.totalQuestions} preguntas
+                        </div>
+                      </div>
+
+                      {/* Puntuación estimada */}
+                      <div className="border-t pt-3">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {(ponderationStats.responseStats.si + ponderationStats.responseStats.a + ponderationStats.responseStats.b + ponderationStats.responseStats.c) * 10}
+                          </div>
+                          <div className="text-xs text-gray-500">puntos acumulados</div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // Panel de ponderación estándar para otros roles
+                    <div className="space-y-4">
+                      {/* Progreso general */}
+                      <div>
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span>Progreso general</span>
+                          <span>{Math.round(ponderationStats.progressPercentage)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${ponderationStats.progressPercentage}%` }}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {ponderationStats.answeredQuestions} de {ponderationStats.totalQuestions} preguntas
+                        </div>
+                      </div>
+
+                      {/* Estadísticas de respuestas */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Distribución de respuestas</h4>
+                        <div className="space-y-2">
+                          {/* Respuestas Sí/No/NA */}
+                          {(ponderationStats.responseStats.si > 0 || ponderationStats.responseStats.no > 0 || ponderationStats.responseStats.na > 0) && (
+                            <>
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center">
+                                  <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                                  <span>Sí</span>
+                                </div>
+                                <span className="font-medium">{ponderationStats.responseStats.si}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center">
+                                  <XCircle className="w-4 h-4 text-red-600 mr-2" />
+                                  <span>No</span>
+                                </div>
+                                <span className="font-medium">{ponderationStats.responseStats.no}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center">
+                                  <MinusCircle className="w-4 h-4 text-gray-600 mr-2" />
+                                  <span>No Aplica</span>
+                                </div>
+                                <span className="font-medium">{ponderationStats.responseStats.na}</span>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Respuestas de selección múltiple */}
+                          {(ponderationStats.responseStats.a > 0 || ponderationStats.responseStats.b > 0 || ponderationStats.responseStats.c > 0) && (
+                            <>
+                              <div className="border-t pt-2 mt-2">
+                                <div className="text-xs text-gray-500 mb-2">Selección múltiple</div>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium text-blue-600">A)</span>
+                                  <span className="font-medium">{ponderationStats.responseStats.a}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium text-blue-600">B)</span>
+                                  <span className="font-medium">{ponderationStats.responseStats.b}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium text-blue-600">C)</span>
+                                  <span className="font-medium">{ponderationStats.responseStats.c}</span>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Puntuación estimada */}
+                      <div className="border-t pt-3">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {(ponderationStats.responseStats.si + ponderationStats.responseStats.a + ponderationStats.responseStats.b + ponderationStats.responseStats.c) * 10}
+                          </div>
+                          <div className="text-xs text-gray-500">puntos acumulados</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

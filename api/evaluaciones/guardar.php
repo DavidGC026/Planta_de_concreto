@@ -123,17 +123,28 @@ try {
     $stmt = $db->prepare($query);
     
     foreach ($respuestas as $respuesta) {
-        // Para preguntas de selección múltiple, usar el ID real de la pregunta
-        $pregunta_id = is_numeric($respuesta['pregunta_id']) ? 
-                      $respuesta['pregunta_id'] : 
-                      null; // Para evaluaciones de estado de planta
+        $pregunta_id = null;
         
-        $stmt->execute([
-            ':evaluacion_id' => $evaluacion_id,
-            ':pregunta_id' => $pregunta_id,
-            ':respuesta' => $respuesta['respuesta'],
-            ':observacion' => $respuesta['observacion'] ?? null
-        ]);
+        // Determinar el pregunta_id según el tipo de evaluación
+        if ($tipo_evaluacion === 'operacion') {
+            // Para evaluación de operación, usar NULL ya que no son preguntas reales de la BD
+            $pregunta_id = null;
+        } else {
+            // Para evaluaciones de personal y equipo, usar el ID real de la pregunta
+            if (isset($respuesta['pregunta_id']) && is_numeric($respuesta['pregunta_id'])) {
+                $pregunta_id = $respuesta['pregunta_id'];
+            }
+        }
+        
+        // Solo insertar si tenemos pregunta_id válido o es evaluación de operación
+        if ($pregunta_id !== null || $tipo_evaluacion === 'operacion') {
+            $stmt->execute([
+                ':evaluacion_id' => $evaluacion_id,
+                ':pregunta_id' => $pregunta_id,
+                ':respuesta' => $respuesta['respuesta'],
+                ':observacion' => $respuesta['observacion'] ?? null
+            ]);
+        }
     }
     
     // Confirmar transacción
