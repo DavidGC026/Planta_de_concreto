@@ -113,14 +113,19 @@ class ApiService {
     }
   }
 
-  async getPreguntas(tipoEvaluacion, rolPersonal = null) {
+  async getPreguntas(params = {}) {
     try {
-      const params = new URLSearchParams({ tipo: tipoEvaluacion });
-      if (rolPersonal) {
-        params.append('rol', rolPersonal);
-      }
+      const queryParams = new URLSearchParams();
       
-      const response = await this.request(`evaluaciones/preguntas.php?${params}`);
+      // Añadir parámetros básicos
+      if (params.tipo) queryParams.append('tipo', params.tipo);
+      if (params.rol) queryParams.append('rol', params.rol);
+      
+      // Añadir parámetros adicionales para evaluación de equipo
+      if (params.tipoPlanta) queryParams.append('tipo_planta', params.tipoPlanta);
+      if (params.categoria) queryParams.append('categoria', params.categoria);
+      
+      const response = await this.request(`evaluaciones/preguntas.php?${queryParams}`);
       return response.data;
     } catch (error) {
       console.error('Error getting questions:', error);

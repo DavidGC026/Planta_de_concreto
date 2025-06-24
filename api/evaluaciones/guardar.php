@@ -1,6 +1,6 @@
 <?php
 /**
- * API para guardar evaluación completa
+ * API para guardar evaluación completa con sistema de ponderación
  * IMCYC - Sistema de Evaluación de Plantas de Concreto
  */
 
@@ -20,7 +20,7 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     // Validar datos requeridos
-    $required_fields = ['usuario_id', 'tipo_evaluacion', 'respuestas', 'puntuacion_total'];
+    $required_fields = ['usuario_id', 'tipo_evaluacion', 'respuestas'];
     foreach ($required_fields as $field) {
         if (!isset($input[$field])) {
             handleError("Campo requerido: $field", 400);
@@ -31,7 +31,6 @@ try {
     $tipo_evaluacion = $input['tipo_evaluacion'];
     $rol_personal = $input['rol_personal'] ?? null;
     $respuestas = $input['respuestas'];
-    $puntuacion_total = $input['puntuacion_total'];
     $observaciones = $input['observaciones'] ?? null;
     
     // Iniciar transacción
@@ -58,47 +57,129 @@ try {
         $rol_personal_id = $stmt->fetchColumn();
     }
     
-    // Calcular estadísticas de respuestas
+    // Calcular puntuación ponderada
+    $puntuacion_total = 0;
+    $puntuacion_ponderada = 0;
     $respuestas_si = 0;
     $respuestas_no = 0;
     $respuestas_na = 0;
     $respuestas_a = 0;
     $respuestas_b = 0;
     $respuestas_c = 0;
-    $total_preguntas = count($respuestas);
+    $total_preguntas = 0;
+    $preguntas_trampa_respondidas = 0;
     
     foreach ($respuestas as $respuesta) {
-        switch ($respuesta['respuesta']) {
-            case 'si':
-                $respuestas_si++;
-                break;
-            case 'no':
-                $respuestas_no++;
-                break;
-            case 'na':
-                $respuestas_na++;
-                break;
-            case 'a':
-                $respuestas_a++;
-                break;
-            case 'b':
-                $respuestas_b++;
-                break;
-            case 'c':
-                $respuestas_c++;
-                break;
+        $pregunta_id = $respuesta['pregunta_id'] ?? null;
+        $respuesta_valor = $respuesta['respuesta'];
+        
+        // Obtener información de la pregunta y su ponderación
+        if ($pregunta_id) {
+            $query = "SELECT 
+                        p.es_trampa,
+                        p.ponderacion_individual,
+                        s.ponderacion as seccion_ponderacion,
+                        p.tipo_pregunta,
+                        p.respuesta_correcta,
+                        (SELECT COUNT(*) FROM preguntas p2 
+                         WHERE p2.seccion_id = s.id 
+                         AND p2.activo = 1 
+                         AND p2.es_trampa = 0) as preguntas_normales_seccion
+                      FROM preguntas p
+                      JOIN secciones_evaluacion s ON p.seccion_id = s.id
+                      WHERE p.id = :pregunta_id";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bindParam(':pregunta_id', $pregunta_id);
+            $stmt->execute();
+            $pregunta_info = $stmt->fetch();
+            
+            if ($pregunta_info) {
+                // Contar respuestas por tipo
+                switch ($respuesta_valor) {
+                    case 'si':
+                        $respuestas_si++;
+                        break;
+                    case 'no':
+                        $respuestas_no++;
+                        break;
+                    case 'na':
+                        $respuestas_na++;
+                        break;
+                    case 'a':
+                        $respuestas_a++;
+                        break;
+                    case 'b':
+                        $respuestas_b++;
+                        break;
+                    case 'c':
+                        $respuestas_c++;
+                        break;
+                }
+                
+                // Si es pregunta trampa, solo contar pero no sumar puntos
+                if ($pregunta_info['es_trampa']) {
+                    $preguntas_trampa_respondidas++;
+                    continue;
+                }
+                
+                $total_preguntas++;
+                
+                // Calcular ponderación de la pregunta
+                $ponderacion_pregunta = $pregunta_info['ponderacion_individual'];
+                if ($ponderacion_pregunta <= 0 && $pregunta_info['preguntas_normales_seccion'] > 0) {
+                    $ponderacion_pregunta = $pregunta_info['seccion_ponderacion'] / $pregunta_info['preguntas_normales_seccion'];
+                }
+                
+                // Calcular puntos según tipo de pregunta
+                $puntos_pregunta = 0;
+                
+                if ($pregunta_info['tipo_pregunta'] === 'seleccion_multiple') {
+                    // Para preguntas de selección múltiple, verificar respuesta correcta
+                    if ($respuesta_valor === $pregunta_info['respuesta_correcta']) {
+                        $puntos_pregunta = $ponderacion_pregunta;
+                    }
+                } else {
+                    // Para preguntas abiertas (Sí/No/NA)
+                    if ($respuesta_valor === 'si') {
+                        $puntos_pregunta = $ponderacion_pregunta;
+                    }
+                    // 'no' = 0 puntos, 'na' no cuenta para el total
+                    if ($respuesta_valor === 'na') {
+                        $total_preguntas--; // No contar preguntas N/A en el total
+                    }
+                }
+                
+                $puntuacion_ponderada += $puntos_pregunta;
+                $puntuacion_total += ($respuesta_valor === 'si' || 
+                                    ($pregunta_info['tipo_pregunta'] === 'seleccion_multiple' && 
+                                     $respuesta_valor === $pregunta_info['respuesta_correcta'])) ? 10 : 0;
+            }
         }
     }
     
     // Insertar evaluación
     $query = "INSERT INTO evaluaciones 
-              (usuario_id, tipo_evaluacion_id, rol_personal_id, puntuacion_total, 
+              (usuario_id, tipo_evaluacion_id, rol_personal_id, puntuacion_total, puntuacion_ponderada,
                total_preguntas, respuestas_si, respuestas_no, respuestas_na, 
-               estado, fecha_finalizacion, observaciones)
+               preguntas_trampa_respondidas, estado, fecha_finalizacion, observaciones)
               VALUES 
-              (:usuario_id, :tipo_evaluacion_id, :rol_personal_id, :puntuacion_total,
+              (:usuario_id, :tipo_evaluacion_id, :rol_personal_id, :puntuacion_total, :puntuacion_ponderada,
                :total_preguntas, :respuestas_si, :respuestas_no, :respuestas_na,
-               'completada', NOW(), :observaciones)";
+               :preguntas_trampa_respondidas, 'completada', NOW(), :observaciones)";
+    
+    // Agregar campo puntuacion_ponderada si no existe
+    try {
+        $db->exec("ALTER TABLE evaluaciones ADD COLUMN puntuacion_ponderada DECIMAL(5,2) DEFAULT 0.00");
+    } catch (Exception $e) {
+        // Campo ya existe, continuar
+    }
+    
+    try {
+        $db->exec("ALTER TABLE evaluaciones ADD COLUMN preguntas_trampa_respondidas INT DEFAULT 0");
+    } catch (Exception $e) {
+        // Campo ya existe, continuar
+    }
     
     $stmt = $db->prepare($query);
     $stmt->execute([
@@ -106,10 +187,12 @@ try {
         ':tipo_evaluacion_id' => $tipo_evaluacion_id,
         ':rol_personal_id' => $rol_personal_id,
         ':puntuacion_total' => $puntuacion_total,
+        ':puntuacion_ponderada' => $puntuacion_ponderada,
         ':total_preguntas' => $total_preguntas,
         ':respuestas_si' => $respuestas_si,
         ':respuestas_no' => $respuestas_no,
         ':respuestas_na' => $respuestas_na,
+        ':preguntas_trampa_respondidas' => $preguntas_trampa_respondidas,
         ':observaciones' => $observaciones
     ]);
     
@@ -117,50 +200,99 @@ try {
     
     // Insertar respuestas individuales
     $query = "INSERT INTO respuestas_evaluacion 
-              (evaluacion_id, pregunta_id, respuesta, observacion)
-              VALUES (:evaluacion_id, :pregunta_id, :respuesta, :observacion)";
+              (evaluacion_id, pregunta_id, respuesta, observacion, es_trampa, ponderacion_obtenida)
+              VALUES (:evaluacion_id, :pregunta_id, :respuesta, :observacion, :es_trampa, :ponderacion_obtenida)";
+    
+    // Agregar campos si no existen
+    try {
+        $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN es_trampa BOOLEAN DEFAULT FALSE");
+    } catch (Exception $e) {
+        // Campo ya existe
+    }
+    
+    try {
+        $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN ponderacion_obtenida DECIMAL(5,2) DEFAULT 0.00");
+    } catch (Exception $e) {
+        // Campo ya existe
+    }
     
     $stmt = $db->prepare($query);
     
     foreach ($respuestas as $respuesta) {
-        $pregunta_id = null;
+        $pregunta_id = $respuesta['pregunta_id'] ?? null;
+        $respuesta_valor = $respuesta['respuesta'];
+        $observacion = $respuesta['observacion'] ?? null;
         
-        // Determinar el pregunta_id según el tipo de evaluación
-        if ($tipo_evaluacion === 'operacion') {
-            // Para evaluación de operación, usar NULL ya que no son preguntas reales de la BD
-            $pregunta_id = null;
-        } else {
-            // Para evaluaciones de personal y equipo, usar el ID real de la pregunta
-            if (isset($respuesta['pregunta_id']) && is_numeric($respuesta['pregunta_id'])) {
-                $pregunta_id = $respuesta['pregunta_id'];
+        // Determinar si es trampa y calcular ponderación obtenida
+        $es_trampa = false;
+        $ponderacion_obtenida = 0;
+        
+        if ($pregunta_id) {
+            $query_info = "SELECT 
+                            p.es_trampa,
+                            p.ponderacion_individual,
+                            s.ponderacion as seccion_ponderacion,
+                            p.tipo_pregunta,
+                            p.respuesta_correcta,
+                            (SELECT COUNT(*) FROM preguntas p2 
+                             WHERE p2.seccion_id = s.id 
+                             AND p2.activo = 1 
+                             AND p2.es_trampa = 0) as preguntas_normales_seccion
+                          FROM preguntas p
+                          JOIN secciones_evaluacion s ON p.seccion_id = s.id
+                          WHERE p.id = :pregunta_id";
+            
+            $stmt_info = $db->prepare($query_info);
+            $stmt_info->bindParam(':pregunta_id', $pregunta_id);
+            $stmt_info->execute();
+            $pregunta_info = $stmt_info->fetch();
+            
+            if ($pregunta_info) {
+                $es_trampa = $pregunta_info['es_trampa'];
+                
+                if (!$es_trampa) {
+                    $ponderacion_pregunta = $pregunta_info['ponderacion_individual'];
+                    if ($ponderacion_pregunta <= 0 && $pregunta_info['preguntas_normales_seccion'] > 0) {
+                        $ponderacion_pregunta = $pregunta_info['seccion_ponderacion'] / $pregunta_info['preguntas_normales_seccion'];
+                    }
+                    
+                    if ($pregunta_info['tipo_pregunta'] === 'seleccion_multiple') {
+                        if ($respuesta_valor === $pregunta_info['respuesta_correcta']) {
+                            $ponderacion_obtenida = $ponderacion_pregunta;
+                        }
+                    } else {
+                        if ($respuesta_valor === 'si') {
+                            $ponderacion_obtenida = $ponderacion_pregunta;
+                        }
+                    }
+                }
             }
         }
         
-        // Solo insertar si tenemos pregunta_id válido o es evaluación de operación
-        if ($pregunta_id !== null || $tipo_evaluacion === 'operacion') {
-            $stmt->execute([
-                ':evaluacion_id' => $evaluacion_id,
-                ':pregunta_id' => $pregunta_id,
-                ':respuesta' => $respuesta['respuesta'],
-                ':observacion' => $respuesta['observacion'] ?? null
-            ]);
-        }
+        $stmt->execute([
+            ':evaluacion_id' => $evaluacion_id,
+            ':pregunta_id' => $pregunta_id,
+            ':respuesta' => $respuesta_valor,
+            ':observacion' => $observacion,
+            ':es_trampa' => $es_trampa ? 1 : 0,
+            ':ponderacion_obtenida' => $ponderacion_obtenida
+        ]);
     }
     
     // Confirmar transacción
     $db->commit();
     
-    // Determinar resultado basado en el tipo de evaluación
+    // Determinar resultado basado en puntuación ponderada
     $resultado = 'REPROBADO';
     if ($tipo_evaluacion === 'operacion') {
         // Para evaluación de operación, usar escala diferente
-        if ($puntuacion_total >= 80) $resultado = 'EXCELENTE';
-        elseif ($puntuacion_total >= 60) $resultado = 'BUENO';
-        elseif ($puntuacion_total >= 40) $resultado = 'REGULAR';
+        if ($puntuacion_ponderada >= 80) $resultado = 'EXCELENTE';
+        elseif ($puntuacion_ponderada >= 60) $resultado = 'BUENO';
+        elseif ($puntuacion_ponderada >= 40) $resultado = 'REGULAR';
         else $resultado = 'DEFICIENTE';
     } else {
         // Para evaluaciones de personal y equipo
-        $resultado = $puntuacion_total >= 70 ? 'APROBADO' : 'REPROBADO';
+        $resultado = $puntuacion_ponderada >= 70 ? 'APROBADO' : 'REPROBADO';
     }
     
     sendJsonResponse([
@@ -168,9 +300,11 @@ try {
         'data' => [
             'evaluacion_id' => $evaluacion_id,
             'puntuacion_total' => $puntuacion_total,
+            'puntuacion_ponderada' => round($puntuacion_ponderada, 2),
             'resultado' => $resultado,
             'estadisticas' => [
                 'total_preguntas' => $total_preguntas,
+                'preguntas_trampa_respondidas' => $preguntas_trampa_respondidas,
                 'respuestas_si' => $respuestas_si,
                 'respuestas_no' => $respuestas_no,
                 'respuestas_na' => $respuestas_na,

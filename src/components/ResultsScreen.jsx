@@ -2,11 +2,11 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { Building2, ArrowLeft, Download, RotateCcw, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Building2, ArrowLeft, Download, RotateCcw, FileText, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
-  const { score, totalAnswers, correctAnswers, isPlantStatus } = results;
+  const { score, totalAnswers, correctAnswers, isPlantStatus, ponderacionTotal, preguntasTrampa } = results;
   
   // Determinar el estado según el tipo de evaluación
   let status, statusColor, statusIcon;
@@ -31,7 +31,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       statusIcon = XCircle;
     }
   } else {
-    // Para cuestionarios (sistema original)
+    // Para cuestionarios (sistema de ponderación)
     status = score >= 70 ? 'APROBADO' : 'REPROBADO';
     statusColor = status === 'APROBADO' ? 'text-green-600' : 'text-red-600';
     statusIcon = status === 'APROBADO' ? CheckCircle : XCircle;
@@ -173,17 +173,20 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         fecha: new Date().toLocaleDateString('es-MX'),
         hora: new Date().toLocaleTimeString('es-MX'),
         puntuacion: score,
+        puntuacion_ponderada: score, // En el nuevo sistema, score ya es la ponderada
         total_preguntas: totalAnswers,
         respuestas_correctas: correctAnswers || 'N/A',
+        preguntas_trampa: preguntasTrampa || 0,
         estado: status,
-        tipo: isPlantStatus ? 'Estado de Planta' : 'Cuestionario'
+        tipo: isPlantStatus ? 'Estado de Planta' : 'Cuestionario Ponderado',
+        ponderacion_total: ponderacionTotal || 100
       },
       secciones: results.sections || [],
       respuestas: results.answers || {},
       estadisticas: {
         porcentaje_aciertos: isPlantStatus ? 'N/A' : Math.round((correctAnswers / totalAnswers) * 100),
         tiempo_evaluacion: 'N/A',
-        observaciones: 'Evaluación completada exitosamente'
+        observaciones: 'Evaluación completada exitosamente con sistema de ponderación'
       }
     };
 
@@ -196,7 +199,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       const dataStr = JSON.stringify(reportData, null, 2);
       const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
       
-      const exportFileDefaultName = `reporte_evaluacion_${new Date().toISOString().split('T')[0]}.json`;
+      const exportFileDefaultName = `reporte_evaluacion_ponderada_${new Date().toISOString().split('T')[0]}.json`;
       
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
@@ -205,7 +208,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       
       toast({
         title: "✅ Reporte descargado",
-        description: "El reporte JSON se ha descargado exitosamente"
+        description: "El reporte JSON con ponderación se ha descargado exitosamente"
       });
     } catch (error) {
       toast({
@@ -225,7 +228,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         <html>
         <head>
           <meta charset="utf-8">
-          <title>Reporte de Evaluación IMCYC</title>
+          <title>Reporte de Evaluación IMCYC - Sistema de Ponderación</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             .header { text-align: center; border-bottom: 2px solid #0055A5; padding-bottom: 20px; margin-bottom: 30px; }
@@ -242,6 +245,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             .status.deficiente { background-color: #f8d7da; color: #721c24; }
             .section { margin: 20px 0; }
             .section-title { background-color: #f8f9fa; padding: 10px; font-weight: bold; }
+            .ponderacion-box { background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0; }
+            .trampa-info { background-color: #fff3e0; padding: 10px; border-radius: 5px; margin: 10px 0; }
             table { width: 100%; border-collapse: collapse; margin: 10px 0; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
             th { background-color: #f8f9fa; }
@@ -252,7 +257,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           <div class="header">
             <div class="logo">IMCYC</div>
             <div class="title">Instituto Mexicano del Cemento y del Concreto A.C.</div>
-            <div class="title">Reporte de Evaluación</div>
+            <div class="title">Reporte de Evaluación - Sistema de Ponderación</div>
           </div>
           
           <div class="info-grid">
@@ -266,12 +271,28 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             
             <div class="info-box">
               <h3>Resultados</h3>
-              <p><strong>Puntuación:</strong> ${reportData.evaluacion.puntuacion} puntos</p>
+              <p><strong>Puntuación Ponderada:</strong> ${reportData.evaluacion.puntuacion_ponderada}%</p>
               <p><strong>Total de preguntas:</strong> ${reportData.evaluacion.total_preguntas}</p>
               ${!isPlantStatus ? `<p><strong>Respuestas correctas:</strong> ${reportData.evaluacion.respuestas_correctas}</p>` : ''}
               ${!isPlantStatus ? `<p><strong>Porcentaje:</strong> ${reportData.estadisticas.porcentaje_aciertos}%</p>` : ''}
+              ${reportData.evaluacion.preguntas_trampa > 0 ? `<p><strong>Preguntas trampa respondidas:</strong> ${reportData.evaluacion.preguntas_trampa}</p>` : ''}
             </div>
           </div>
+          
+          <div class="ponderacion-box">
+            <h3>Sistema de Ponderación</h3>
+            <p>Esta evaluación utiliza un sistema de ponderación donde cada sección tiene un peso específico que suma al 100% total.</p>
+            <p><strong>Ponderación Total Configurada:</strong> ${reportData.evaluacion.ponderacion_total}%</p>
+            <p><strong>Puntuación Obtenida:</strong> ${reportData.evaluacion.puntuacion_ponderada}% de ${reportData.evaluacion.ponderacion_total}%</p>
+          </div>
+          
+          ${reportData.evaluacion.preguntas_trampa > 0 ? `
+          <div class="trampa-info">
+            <h3>Preguntas Trampa</h3>
+            <p>Se incluyeron <strong>${reportData.evaluacion.preguntas_trampa}</strong> preguntas trampa en esta evaluación.</p>
+            <p>Las preguntas trampa no afectan la puntuación final, pero sirven para evaluar el conocimiento específico.</p>
+          </div>
+          ` : ''}
           
           <div class="status ${status.toLowerCase()}">
             RESULTADO: ${status}
@@ -285,6 +306,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           <div class="footer">
             <p>© ${new Date().getFullYear()} IMCYC - Instituto Mexicano del Cemento y del Concreto A.C.</p>
             <p>Reporte generado automáticamente el ${new Date().toLocaleString('es-MX')}</p>
+            <p>Sistema de Evaluación con Ponderación y Preguntas Trampa</p>
           </div>
         </body>
         </html>
@@ -295,13 +317,13 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `reporte_evaluacion_${new Date().toISOString().split('T')[0]}.html`;
+      link.download = `reporte_evaluacion_ponderada_${new Date().toISOString().split('T')[0]}.html`;
       link.click();
       URL.revokeObjectURL(url);
       
       toast({
         title: "✅ Reporte descargado",
-        description: "El reporte HTML se ha descargado exitosamente. Puedes abrirlo en tu navegador o convertirlo a PDF."
+        description: "El reporte HTML con ponderación se ha descargado exitosamente. Puedes abrirlo en tu navegador o convertirlo a PDF."
       });
     } catch (error) {
       toast({
@@ -336,11 +358,21 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               </div>
               
               <div className="text-xl text-gray-600">
-                Puntuación: <span className="font-bold">{score}</span>
+                Puntuación Ponderada: <span className="font-bold">{score}%</span>
+                {ponderacionTotal && ponderacionTotal !== 100 && (
+                  <span className="text-sm text-gray-500"> (de {ponderacionTotal}%)</span>
+                )}
                 {!isPlantStatus && correctAnswers && (
                   <span> | Correctas: {correctAnswers}/{totalAnswers}</span>
                 )}
               </div>
+
+              {preguntasTrampa > 0 && (
+                <div className="mt-2 text-sm text-orange-600 flex items-center justify-center">
+                  <AlertTriangle className="w-4 h-4 mr-1" />
+                  Preguntas trampa respondidas: {preguntasTrampa}
+                </div>
+              )}
             </CardHeader>
 
             <CardContent className="px-8 pb-8">
@@ -349,10 +381,10 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               </div>
 
               {/* Estadísticas adicionales */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div className="bg-blue-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-blue-600">{score}</div>
-                  <div className="text-sm text-gray-600">Puntuación Total</div>
+                  <div className="text-2xl font-bold text-blue-600">{score}%</div>
+                  <div className="text-sm text-gray-600">Puntuación Ponderada</div>
                 </div>
                 
                 <div className="bg-green-50 p-4 rounded-lg text-center">
@@ -370,7 +402,31 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                     {isPlantStatus ? 'Items Evaluados' : 'Preguntas Respondidas'}
                   </div>
                 </div>
+
+                {preguntasTrampa > 0 && (
+                  <div className="bg-orange-50 p-4 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-orange-600">{preguntasTrampa}</div>
+                    <div className="text-sm text-gray-600">Preguntas Trampa</div>
+                  </div>
+                )}
               </div>
+
+              {/* Información del sistema de ponderación */}
+              {!isPlantStatus && (
+                <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Sistema de Ponderación</h3>
+                  <p className="text-blue-700 text-sm">
+                    Esta evaluación utiliza un sistema de ponderación donde cada sección tiene un peso específico. 
+                    La puntuación final se calcula basándose en la importancia relativa de cada área evaluada.
+                  </p>
+                  {preguntasTrampa > 0 && (
+                    <p className="text-orange-700 text-sm mt-2">
+                      <AlertTriangle className="w-4 h-4 inline mr-1" />
+                      Se incluyeron preguntas trampa que no afectan la puntuación pero evalúan conocimiento específico.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex justify-center space-x-4">
                 <Button

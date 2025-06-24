@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, ArrowLeft, CheckCircle, XCircle, MinusCircle, UserCheck, Users, Wrench, Settings, Zap, ClipboardCheck, Loader2, BarChart3 } from 'lucide-react';
+import { Building2, ArrowLeft, CheckCircle, XCircle, MinusCircle, UserCheck, Users, Wrench, Settings, Zap, ClipboardCheck, Loader2, BarChart3, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 // Evaluación de estado de planta (Operación)
 const plantStatusEvaluation = {
@@ -59,6 +61,47 @@ const plantStatusEvaluation = {
   ]
 };
 
+// Definición de tipos de plantas
+const plantTypes = [
+  { id: "pequena", name: "Planta pequeña" },
+  { id: "mediana", name: "Planta mediana" },
+  { id: "grande", name: "Planta grande" }
+];
+
+// Definición de categorías de evaluación de equipo
+const equipmentCategories = [
+  { id: "produccion", name: "Producción y mezclado", 
+    subsections: [
+      "Mezcladora", "Dosificación", "Bandas transportadoras", 
+      "Tolvas", "Silos", "Sistemas de control", "Bombas"
+    ]
+  },
+  { id: "transporte", name: "Transporte y entrega", 
+    subsections: [
+      "Camiones revolvedores", "Bombas de concreto", "Sistemas de carga",
+      "Equipos de descarga", "Mantenimiento de flota"
+    ]
+  },
+  { id: "calidad", name: "Control de calidad", 
+    subsections: [
+      "Equipos de laboratorio", "Instrumentos de medición", "Calibración",
+      "Sistemas de muestreo", "Equipos de prueba"
+    ]
+  },
+  { id: "mantenimiento", name: "Mantenimiento", 
+    subsections: [
+      "Herramientas", "Equipos de diagnóstico", "Repuestos",
+      "Sistemas de lubricación", "Equipos de limpieza"
+    ]
+  },
+  { id: "seguridad", name: "Seguridad y medio ambiente", 
+    subsections: [
+      "Equipos de protección", "Sistemas contra incendios", "Control de polvo",
+      "Tratamiento de aguas", "Gestión de residuos"
+    ]
+  }
+];
+
 const evaluationDataConfig = {
   personal: {
     title: 'Evaluación de Personal',
@@ -68,7 +111,9 @@ const evaluationDataConfig = {
   equipo: {
     title: 'Evaluación de Equipo',
     icon: Wrench,
-    needsRole: false
+    needsRole: false,
+    needsPlantType: true,
+    needsCategory: true
   },
   operacion: {
     title: 'Evaluación del Estado de la Planta',
@@ -77,20 +122,6 @@ const evaluationDataConfig = {
     data: plantStatusEvaluation
   }
 };
-
-// Criterios de evaluación para Jefe de Planta
-const criteriosJefePlanta = [
-  { criterio: 'Conocimiento técnico y operativo', porcentaje: 15, totalPreguntas: 10 },
-  { criterio: 'Gestión de la producción', porcentaje: 20, totalPreguntas: 10 },
-  { criterio: 'Mantenimiento del equipo', porcentaje: 10, totalPreguntas: 10 },
-  { criterio: 'Seguridad y cumplimiento normativo', porcentaje: 10, totalPreguntas: 10 },
-  { criterio: 'Control de calidad', porcentaje: 10, totalPreguntas: 10 },
-  { criterio: 'Gestión del personal', porcentaje: 10, totalPreguntas: 10 },
-  { criterio: 'Documentación y control administrativo', porcentaje: 5, totalPreguntas: 10 },
-  { criterio: 'Coordinación con logística y clientes', porcentaje: 5, totalPreguntas: 10 },
-  { criterio: 'Resolución de problemas', porcentaje: 7.5, totalPreguntas: 10 },
-  { criterio: 'Mejora continua y enfoque a resultados', porcentaje: 7.5, totalPreguntas: 10 }
-];
 
 const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults, username }) => {
   const [currentSection, setCurrentSection] = useState(0);
@@ -101,6 +132,9 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState([]);
   const [evaluationData, setEvaluationData] = useState(null);
+  const [selectedPlantType, setSelectedPlantType] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [showCategorySelection, setShowCategorySelection] = useState(false);
 
   const config = evaluationDataConfig[evaluationType];
 
@@ -110,8 +144,9 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
     } else if (evaluationType === 'operacion') {
       setEvaluationData(config.data);
       setEvaluationStarted(true);
-    } else if (evaluationType === 'equipo') {
-      loadEvaluationData();
+    } else if (evaluationType === 'equipo' && !evaluationStarted) {
+      // Para equipo, primero mostramos selección de tipo de planta
+      // No cargamos datos hasta que se seleccione tipo y categoría
     }
   }, [evaluationType]);
 
@@ -134,7 +169,17 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
   const loadEvaluationData = async () => {
     try {
       setLoading(true);
-      const data = await apiService.getPreguntas(evaluationType, selectedRole);
+      // Para equipo, pasamos el tipo de planta y categoría como parámetros adicionales
+      const params = {
+        tipo: evaluationType,
+        rol: selectedRole,
+        ...(evaluationType === 'equipo' && { 
+          tipoPlanta: selectedPlantType,
+          categoria: selectedCategory 
+        })
+      };
+      
+      const data = await apiService.getPreguntas(params);
       setEvaluationData(data);
       setEvaluationStarted(true);
     } catch (error) {
@@ -206,78 +251,53 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
               observacion: `Item: ${key} - Estado: ${status}`
             };
           }),
-          puntuacion_total: score,
           observaciones: 'Evaluación de estado de planta completada'
         };
 
         // Guardar en base de datos
-        await apiService.guardarEvaluacion(evaluacionData);
+        const result = await apiService.guardarEvaluacion(evaluacionData);
 
         onComplete({
           answers: plantStatusAnswers,
-          score: Math.round(score),
+          score: Math.round(result.puntuacion_ponderada || score),
           totalAnswers: totalItems,
           evaluationTitle: evaluationData.title,
           sections: evaluationData.sections,
           isPlantStatus: true
         });
       } else {
-        // Calcular puntuación para cuestionarios
-        const totalAnswerCount = Object.keys(answers).length;
-        let score = 0;
-        let correctAnswers = 0;
-        
-        // Calcular puntuación basada en el tipo de respuesta
-        Object.entries(answers).forEach(([key, selectedAnswer]) => {
-          const [roleOrType, sectionIndex, questionIndex] = key.split('-');
-          const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
-          
-          if (question) {
-            if (question.tipo_pregunta === 'seleccion_multiple') {
-              // Para preguntas de selección múltiple, verificar si la respuesta es correcta
-              if (selectedAnswer === question.respuesta_correcta) {
-                score += 10;
-                correctAnswers++;
-              }
-            } else {
-              // Para preguntas abiertas (Sí/No/NA), dar puntos por responder
-              if (selectedAnswer === 'si') {
-                score += 10;
-                correctAnswers++;
-              }
-            }
-          }
-        });
-
-        // Preparar datos para guardar - cuestionarios
+        // Preparar datos para guardar - cuestionarios con ponderación
         const evaluacionData = {
           usuario_id: user.id,
           tipo_evaluacion: evaluationType,
           rol_personal: selectedRole,
+          tipo_planta: selectedPlantType,
+          categoria: selectedCategory,
           respuestas: Object.entries(answers).map(([key, selectedAnswer]) => {
             const [roleOrType, sectionIndex, questionIndex] = key.split('-');
             const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
             
             return {
-              pregunta_id: question?.id || null, // Usar el ID real de la pregunta
+              pregunta_id: question?.pregunta_id || question?.id || null,
               respuesta: selectedAnswer,
-              observacion: null
+              observacion: question?.es_trampa ? 'Pregunta trampa' : null
             };
           }),
-          puntuacion_total: score,
-          observaciones: 'Evaluación completada'
+          observaciones: `Evaluación de ${evaluationType === 'equipo' ? 'equipo' : 'personal'} completada`
         };
 
         // Guardar en base de datos
-        await apiService.guardarEvaluacion(evaluacionData);
+        const result = await apiService.guardarEvaluacion(evaluacionData);
 
         onComplete({
           answers,
-          score: Math.round(score),
-          totalAnswers: totalAnswerCount,
-          correctAnswers,
+          score: Math.round(result.puntuacion_ponderada || 0),
+          totalAnswers: result.estadisticas.total_preguntas,
+          correctAnswers: result.estadisticas.respuestas_si + result.estadisticas.respuestas_a + result.estadisticas.respuestas_b + result.estadisticas.respuestas_c,
           evaluationTitle: evaluationData.tipo_evaluacion || config.title,
-          sections: evaluationData.secciones || []
+          sections: evaluationData.secciones || [],
+          ponderacionTotal: evaluationData.total_ponderacion || 100,
+          preguntasTrampa: result.estadisticas.preguntas_trampa_respondidas || 0
         });
       }
 
@@ -304,6 +324,18 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
     await loadEvaluationData();
   };
 
+  const handlePlantTypeSelect = (plantType) => {
+    setSelectedPlantType(plantType);
+    setShowCategorySelection(true);
+  };
+
+  const handleCategorySelect = async (category) => {
+    setSelectedCategory(category);
+    setCurrentSection(0);
+    setAnswers({});
+    await loadEvaluationData();
+  };
+
   const MainIcon = config.icon;
 
   // Calcular estadísticas de ponderación para cuestionarios
@@ -319,19 +351,33 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
     const answeredQuestions = Object.keys(answers).length;
     const progressPercentage = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
 
-    // Calcular respuestas por tipo
+    // Calcular respuestas por tipo y preguntas trampa
     const responseStats = {
       si: 0,
       no: 0,
       na: 0,
       a: 0,
       b: 0,
-      c: 0
+      c: 0,
+      trampa: 0
     };
 
-    Object.values(answers).forEach(answer => {
-      if (responseStats.hasOwnProperty(answer)) {
+    let ponderacionAcumulada = 0;
+
+    Object.entries(answers).forEach(([key, answer]) => {
+      const [roleOrType, sectionIndex, questionIndex] = key.split('-');
+      const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
+      
+      if (question?.es_trampa) {
+        responseStats.trampa++;
+      } else if (responseStats.hasOwnProperty(answer)) {
         responseStats[answer]++;
+        
+        // Calcular ponderación acumulada
+        if (question && (answer === 'si' || 
+            (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta))) {
+          ponderacionAcumulada += question.ponderacion_individual || 0;
+        }
       }
     });
 
@@ -339,7 +385,9 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
       totalQuestions,
       answeredQuestions,
       progressPercentage,
-      responseStats
+      responseStats,
+      ponderacionAcumulada: Math.round(ponderacionAcumulada * 100) / 100,
+      totalPonderacion: evaluationData.total_ponderacion || 100
     };
   };
 
@@ -353,6 +401,107 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-lg text-gray-600">Cargando evaluación...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Pantalla de selección de tipo de planta para evaluación de equipo
+  if (evaluationType === 'equipo' && !evaluationStarted) {
+    return (
+      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("public/Fondo.png")`,
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
+
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
+          <div className="w-full max-w-lg space-y-4">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo</h2>
+              <p className="text-white/80">Seleccione el tipo de planta y categoría a evaluar</p>
+            </div>
+
+            {!showCategorySelection ? (
+              <>
+                <h3 className="text-xl font-semibold text-white mb-4">Tipo de planta:</h3>
+                <div className="space-y-4">
+                  {plantTypes.map((type, index) => (
+                    <motion.div
+                      key={type.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <button
+                        onClick={() => handlePlantTypeSelect(type.id)}
+                        className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-4 text-left border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <span className="text-gray-800 font-medium block">{type.name}</span>
+                          </div>
+                        </div>
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-semibold text-white mb-4">Categoría a evaluar:</h3>
+                <div className="space-y-4">
+                  {equipmentCategories.map((category, index) => (
+                    <motion.div
+                      key={category.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <button
+                        onClick={() => handleCategorySelect(category.id)}
+                        className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-4 text-left border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Wrench className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <span className="text-gray-800 font-medium block">{category.name}</span>
+                            <span className="text-gray-600 text-sm">
+                              {category.subsections.slice(0, 3).join(', ')}
+                              {category.subsections.length > 3 && '...'}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowCategorySelection(false)}
+                    className="text-white border-white hover:bg-white/20 hover:text-white"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver a selección de planta
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <img
+          src="public/Concreton.png"
+          alt="Mascota Concreton"
+          className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+        />
       </div>
     );
   }
@@ -469,6 +618,11 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-gray-800">
               {evaluationData.tipo_evaluacion || config.title}
+              {evaluationData.configuracion && (
+                <span className="text-sm text-blue-600 ml-2">
+                  (Ponderación: {evaluationData.total_ponderacion}%)
+                </span>
+              )}
             </h2>
             <span className="text-sm text-gray-600">
               {Math.round(progress)}% completado
@@ -502,8 +656,13 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                 <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
                   {/* Header de la sección */}
                   <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-800 text-center">
+                    <h2 className="text-xl font-semibold text-gray-800 text-center flex items-center justify-center">
                       {currentSectionData?.nombre}
+                      {currentSectionData?.ponderacion > 0 && (
+                        <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                          {currentSectionData.ponderacion}%
+                        </span>
+                      )}
                     </h2>
                   </div>
 
@@ -554,8 +713,19 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
 
                           return (
                             <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
-                              <h3 className="text-lg font-medium text-gray-800 mb-4">
+                              <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                                 {index + 1}. {question.pregunta}
+                                {question.es_trampa && (
+                                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full flex items-center">
+                                    <AlertTriangle className="w-3 h-3 mr-1" />
+                                    Trampa
+                                  </span>
+                                )}
+                                {question.ponderacion_individual > 0 && (
+                                  <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                    {question.ponderacion_individual}%
+                                  </span>
+                                )}
                               </h3>
                               
                               {question.tipo_pregunta === 'seleccion_multiple' ? (
@@ -664,174 +834,126 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                 <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                     <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-                    Criterios de evaluación
+                    Sistema de Ponderación
                   </h3>
                 </div>
                 
                 <div className="p-4">
-                  {/* Mostrar tabla de criterios para Jefe de Planta */}
-                  {selectedRole === 'jefe_planta' ? (
-                    <div className="space-y-4">
-                      {/* Tabla de criterios */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                          <thead>
-                            <tr className="bg-gray-50">
-                              <th className="border border-gray-300 px-2 py-1 text-left font-medium text-gray-700">
-                                Criterios de evaluación
-                              </th>
-                              <th className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
-                                Porcentaje
-                              </th>
-                              <th className="border border-gray-300 px-2 py-1 text-center font-medium text-gray-700">
-                                Total de preguntas
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {criteriosJefePlanta.map((criterio, index) => (
-                              <tr key={index} className="hover:bg-gray-50">
-                                <td className="border border-gray-300 px-2 py-1 text-xs">
-                                  <span className="font-medium text-blue-600 mr-1">{index + 1}</span>
-                                  {criterio.criterio}
-                                </td>
-                                <td className="border border-gray-300 px-2 py-1 text-center text-xs">
-                                  {criterio.porcentaje}
-                                </td>
-                                <td className="border border-gray-300 px-2 py-1 text-center text-xs">
-                                  {criterio.totalPreguntas}
-                                </td>
-                              </tr>
-                            ))}
-                            <tr className="bg-blue-50 font-medium">
-                              <td className="border border-gray-300 px-2 py-1 text-xs">
-                                <strong>TOTAL</strong>
-                              </td>
-                              <td className="border border-gray-300 px-2 py-1 text-center text-xs">
-                                <strong>100</strong>
-                              </td>
-                              <td className="border border-gray-300 px-2 py-1 text-center text-xs">
-                                <strong>100</strong>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                  <div className="space-y-4">
+                    {/* Progreso general */}
+                    <div>
+                      <div className="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Progreso general</span>
+                        <span>{Math.round(ponderationStats.progressPercentage)}%</span>
                       </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${ponderationStats.progressPercentage}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {ponderationStats.answeredQuestions} de {ponderationStats.totalQuestions} preguntas
+                      </div>
+                    </div>
 
-                      {/* Progreso general */}
-                      <div className="border-t pt-3">
-                        <div className="flex justify-between text-sm text-gray-600 mb-1">
-                          <span>Progreso general</span>
-                          <span>{Math.round(ponderationStats.progressPercentage)}%</span>
+                    {/* Ponderación acumulada */}
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Ponderación Acumulada</h4>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {ponderationStats.ponderacionAcumulada}%
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="text-xs text-gray-500">
+                          de {ponderationStats.totalPonderacion}% total
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                           <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${ponderationStats.progressPercentage}%` }}
+                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(ponderationStats.ponderacionAcumulada / ponderationStats.totalPonderacion) * 100}%` }}
                           />
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {ponderationStats.answeredQuestions} de {ponderationStats.totalQuestions} preguntas
-                        </div>
-                      </div>
-
-                      {/* Puntuación estimada */}
-                      <div className="border-t pt-3">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {(ponderationStats.responseStats.si + ponderationStats.responseStats.a + ponderationStats.responseStats.b + ponderationStats.responseStats.c) * 10}
-                          </div>
-                          <div className="text-xs text-gray-500">puntos acumulados</div>
                         </div>
                       </div>
                     </div>
-                  ) : (
-                    // Panel de ponderación estándar para otros roles
-                    <div className="space-y-4">
-                      {/* Progreso general */}
-                      <div>
-                        <div className="flex justify-between text-sm text-gray-600 mb-1">
-                          <span>Progreso general</span>
-                          <span>{Math.round(ponderationStats.progressPercentage)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${ponderationStats.progressPercentage}%` }}
-                          />
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {ponderationStats.answeredQuestions} de {ponderationStats.totalQuestions} preguntas
-                        </div>
-                      </div>
 
-                      {/* Estadísticas de respuestas */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">Distribución de respuestas</h4>
-                        <div className="space-y-2">
-                          {/* Respuestas Sí/No/NA */}
-                          {(ponderationStats.responseStats.si > 0 || ponderationStats.responseStats.no > 0 || ponderationStats.responseStats.na > 0) && (
-                            <>
-                              <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center">
-                                  <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
-                                  <span>Sí</span>
-                                </div>
-                                <span className="font-medium">{ponderationStats.responseStats.si}</span>
+                    {/* Estadísticas de respuestas */}
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Distribución de respuestas</h4>
+                      <div className="space-y-2">
+                        {/* Respuestas Sí/No/NA */}
+                        {(ponderationStats.responseStats.si > 0 || ponderationStats.responseStats.no > 0 || ponderationStats.responseStats.na > 0) && (
+                          <>
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center">
+                                <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                                <span>Sí</span>
                               </div>
-                              <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center">
-                                  <XCircle className="w-4 h-4 text-red-600 mr-2" />
-                                  <span>No</span>
-                                </div>
-                                <span className="font-medium">{ponderationStats.responseStats.no}</span>
+                              <span className="font-medium">{ponderationStats.responseStats.si}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center">
+                                <XCircle className="w-4 h-4 text-red-600 mr-2" />
+                                <span>No</span>
                               </div>
-                              <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center">
-                                  <MinusCircle className="w-4 h-4 text-gray-600 mr-2" />
-                                  <span>No Aplica</span>
-                                </div>
-                                <span className="font-medium">{ponderationStats.responseStats.na}</span>
+                              <span className="font-medium">{ponderationStats.responseStats.no}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center">
+                                <MinusCircle className="w-4 h-4 text-gray-600 mr-2" />
+                                <span>No Aplica</span>
                               </div>
-                            </>
-                          )}
+                              <span className="font-medium">{ponderationStats.responseStats.na}</span>
+                            </div>
+                          </>
+                        )}
 
-                          {/* Respuestas de selección múltiple */}
-                          {(ponderationStats.responseStats.a > 0 || ponderationStats.responseStats.b > 0 || ponderationStats.responseStats.c > 0) && (
-                            <>
-                              <div className="border-t pt-2 mt-2">
-                                <div className="text-xs text-gray-500 mb-2">Selección múltiple</div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="font-medium text-blue-600">A)</span>
-                                  <span className="font-medium">{ponderationStats.responseStats.a}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="font-medium text-blue-600">B)</span>
-                                  <span className="font-medium">{ponderationStats.responseStats.b}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="font-medium text-blue-600">C)</span>
-                                  <span className="font-medium">{ponderationStats.responseStats.c}</span>
-                                </div>
+                        {/* Respuestas de selección múltiple */}
+                        {(ponderationStats.responseStats.a > 0 || ponderationStats.responseStats.b > 0 || ponderationStats.responseStats.c > 0) && (
+                          <>
+                            <div className="border-t pt-2 mt-2">
+                              <div className="text-xs text-gray-500 mb-2">Selección múltiple</div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-blue-600">A)</span>
+                                <span className="font-medium">{ponderationStats.responseStats.a}</span>
                               </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-blue-600">B)</span>
+                                <span className="font-medium">{ponderationStats.responseStats.b}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-blue-600">C)</span>
+                                <span className="font-medium">{ponderationStats.responseStats.c}</span>
+                              </div>
+                            </div>
+                          </>
+                        )}
 
-                      {/* Puntuación estimada */}
-                      <div className="border-t pt-3">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {(ponderationStats.responseStats.si + ponderationStats.responseStats.a + ponderationStats.responseStats.b + ponderationStats.responseStats.c) * 10}
+                        {/* Preguntas trampa */}
+                        {ponderationStats.responseStats.trampa > 0 && (
+                          <div className="border-t pt-2 mt-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center">
+                                <AlertTriangle className="w-4 h-4 text-orange-600 mr-2" />
+                                <span>Preguntas Trampa</span>
+                              </div>
+                              <span className="font-medium text-orange-600">{ponderationStats.responseStats.trampa}</span>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500">puntos acumulados</div>
-                        </div>
+                        )}
                       </div>
                     </div>
-                  )}
+
+                    {/* Información de configuración */}
+                    {evaluationData.configuracion && (
+                      <div className="border-t pt-3">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Configuración</h4>
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <div>Preguntas trampa disponibles: {evaluationData.estadisticas?.total_preguntas_trampa_disponibles || 0}</div>
+                          <div>Trampa por sección: {evaluationData.configuracion.preguntas_trampa_por_seccion}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
