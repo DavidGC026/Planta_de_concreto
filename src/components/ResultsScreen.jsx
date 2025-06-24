@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { Building2, ArrowLeft, Download, RotateCcw, FileText, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Building2, ArrowLeft, Download, RotateCcw, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
@@ -246,7 +246,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             .section { margin: 20px 0; }
             .section-title { background-color: #f8f9fa; padding: 10px; font-weight: bold; }
             .ponderacion-box { background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0; }
-            .trampa-info { background-color: #fff3e0; padding: 10px; border-radius: 5px; margin: 10px 0; }
             table { width: 100%; border-collapse: collapse; margin: 10px 0; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
             th { background-color: #f8f9fa; }
@@ -275,7 +274,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               <p><strong>Total de preguntas:</strong> ${reportData.evaluacion.total_preguntas}</p>
               ${!isPlantStatus ? `<p><strong>Respuestas correctas:</strong> ${reportData.evaluacion.respuestas_correctas}</p>` : ''}
               ${!isPlantStatus ? `<p><strong>Porcentaje:</strong> ${reportData.estadisticas.porcentaje_aciertos}%</p>` : ''}
-              ${reportData.evaluacion.preguntas_trampa > 0 ? `<p><strong>Preguntas trampa respondidas:</strong> ${reportData.evaluacion.preguntas_trampa}</p>` : ''}
             </div>
           </div>
           
@@ -285,14 +283,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             <p><strong>Ponderación Total Configurada:</strong> ${reportData.evaluacion.ponderacion_total}%</p>
             <p><strong>Puntuación Obtenida:</strong> ${reportData.evaluacion.puntuacion_ponderada}% de ${reportData.evaluacion.ponderacion_total}%</p>
           </div>
-          
-          ${reportData.evaluacion.preguntas_trampa > 0 ? `
-          <div class="trampa-info">
-            <h3>Preguntas Trampa</h3>
-            <p>Se incluyeron <strong>${reportData.evaluacion.preguntas_trampa}</strong> preguntas trampa en esta evaluación.</p>
-            <p>Las preguntas trampa no afectan la puntuación final, pero sirven para evaluar el conocimiento específico.</p>
-          </div>
-          ` : ''}
           
           <div class="status ${status.toLowerCase()}">
             RESULTADO: ${status}
@@ -306,7 +296,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           <div class="footer">
             <p>© ${new Date().getFullYear()} IMCYC - Instituto Mexicano del Cemento y del Concreto A.C.</p>
             <p>Reporte generado automáticamente el ${new Date().toLocaleString('es-MX')}</p>
-            <p>Sistema de Evaluación con Ponderación y Preguntas Trampa</p>
+            <p>Sistema de Evaluación con Ponderación</p>
           </div>
         </body>
         </html>
@@ -367,12 +357,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 )}
               </div>
 
-              {preguntasTrampa > 0 && (
-                <div className="mt-2 text-sm text-orange-600 flex items-center justify-center">
-                  <AlertTriangle className="w-4 h-4 mr-1" />
-                  Preguntas trampa respondidas: {preguntasTrampa}
-                </div>
-              )}
+              {/* REMOVIDO: Indicador de preguntas trampa */}
             </CardHeader>
 
             <CardContent className="px-8 pb-8">
@@ -381,7 +366,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               </div>
 
               {/* Estadísticas adicionales */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-blue-50 p-4 rounded-lg text-center">
                   <div className="text-2xl font-bold text-blue-600">{score}%</div>
                   <div className="text-sm text-gray-600">Puntuación Ponderada</div>
@@ -402,13 +387,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                     {isPlantStatus ? 'Items Evaluados' : 'Preguntas Respondidas'}
                   </div>
                 </div>
-
-                {preguntasTrampa > 0 && (
-                  <div className="bg-orange-50 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-orange-600">{preguntasTrampa}</div>
-                    <div className="text-sm text-gray-600">Preguntas Trampa</div>
-                  </div>
-                )}
               </div>
 
               {/* Información del sistema de ponderación */}
@@ -419,12 +397,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                     Esta evaluación utiliza un sistema de ponderación donde cada sección tiene un peso específico. 
                     La puntuación final se calcula basándose en la importancia relativa de cada área evaluada.
                   </p>
-                  {preguntasTrampa > 0 && (
-                    <p className="text-orange-700 text-sm mt-2">
-                      <AlertTriangle className="w-4 h-4 inline mr-1" />
-                      Se incluyeron preguntas trampa que no afectan la puntuación pero evalúan conocimiento específico.
-                    </p>
-                  )}
                 </div>
               )}
 

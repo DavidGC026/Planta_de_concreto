@@ -57,7 +57,12 @@ log_info "✅ Conexión a MySQL exitosa"
 
 # Construir frontend
 log_info "🔨 Construyendo frontend..."
-npm run build
+if [ -f "package.json" ]; then
+    npm install
+    npm run build
+else
+    log_warning "No se encontró package.json, usando archivos dist existentes"
+fi
 
 # Configurar la base de datos
 log_info "🗄️ Configurando base de datos MySQL..."
@@ -73,13 +78,8 @@ EOF
 # Importar esquema de base de datos (SOLO LOS ARCHIVOS PRINCIPALES)
 log_info "📊 Importando esquema de base de datos..."
 
-# Ejecutar solo la primera migración (estructura básica)
-log_info "Ejecutando migración principal..."
-mysql -u "$MYSQL_ROOT_USER" -p"$MYSQL_ROOT_PASSWORD" "$DB_NAME" < supabase/migrations/20250618155541_spring_shadow.sql 2>/dev/null || {
-    log_warning "Error en migración principal, continuando con estructura básica..."
-    
-    # Crear estructura básica manualmente
-    mysql -u "$MYSQL_ROOT_USER" -p"$MYSQL_ROOT_PASSWORD" "$DB_NAME" << 'EOF'
+# Crear estructura básica manualmente
+mysql -u "$MYSQL_ROOT_USER" -p"$MYSQL_ROOT_PASSWORD" "$DB_NAME" << 'EOF'
 -- Estructura básica de tablas
 CREATE TABLE IF NOT EXISTS usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -118,6 +118,9 @@ CREATE TABLE IF NOT EXISTS secciones_evaluacion (
     nombre VARCHAR(200) NOT NULL,
     descripcion TEXT,
     orden INT NOT NULL DEFAULT 1,
+    ponderacion DECIMAL(5,2) DEFAULT 0.00,
+    es_trampa BOOLEAN DEFAULT FALSE,
+    preguntas_trampa_por_seccion INT DEFAULT 0,
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tipo_evaluacion_id) REFERENCES tipos_evaluacion(id) ON DELETE CASCADE,
@@ -134,6 +137,8 @@ CREATE TABLE IF NOT EXISTS preguntas (
     opcion_c TEXT NULL,
     respuesta_correcta ENUM('a', 'b', 'c') NULL,
     orden INT NOT NULL DEFAULT 1,
+    es_trampa BOOLEAN DEFAULT FALSE,
+    ponderacion_individual DECIMAL(5,2) DEFAULT 0.00,
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (seccion_id) REFERENCES secciones_evaluacion(id) ON DELETE CASCADE
@@ -145,10 +150,12 @@ CREATE TABLE IF NOT EXISTS evaluaciones (
     tipo_evaluacion_id INT NOT NULL,
     rol_personal_id INT NULL,
     puntuacion_total DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    puntuacion_ponderada DECIMAL(5,2) DEFAULT 0.00,
     total_preguntas INT NOT NULL DEFAULT 0,
     respuestas_si INT NOT NULL DEFAULT 0,
     respuestas_no INT NOT NULL DEFAULT 0,
     respuestas_na INT NOT NULL DEFAULT 0,
+    preguntas_trampa_respondidas INT DEFAULT 0,
     estado ENUM('en_progreso', 'completada', 'cancelada') DEFAULT 'en_progreso',
     fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_finalizacion TIMESTAMP NULL,
@@ -164,6 +171,8 @@ CREATE TABLE IF NOT EXISTS respuestas_evaluacion (
     pregunta_id INT NOT NULL,
     respuesta ENUM('si', 'no', 'na', 'a', 'b', 'c') NOT NULL,
     observacion TEXT,
+    es_trampa BOOLEAN DEFAULT FALSE,
+    ponderacion_obtenida DECIMAL(5,2) DEFAULT 0.00,
     fecha_respuesta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (evaluacion_id) REFERENCES evaluaciones(id) ON DELETE CASCADE,
     FOREIGN KEY (pregunta_id) REFERENCES preguntas(id) ON DELETE CASCADE,
@@ -173,11 +182,24 @@ CREATE TABLE IF NOT EXISTS respuestas_evaluacion (
 CREATE TABLE IF NOT EXISTS reportes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     evaluacion_id INT NOT NULL,
-    tipo_reporte ENUM('pdf', 'excel', 'json') NOT NULL,
+    tipo_reporte ENUM('pdf', 'excel', 'json', 'csv', 'html') NOT NULL,
     ruta_archivo VARCHAR(500),
     tamaño_archivo INT,
     fecha_generacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (evaluacion_id) REFERENCES evaluaciones(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS configuracion_ponderacion (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tipo_evaluacion_id INT NOT NULL,
+    rol_personal_id INT NULL,
+    total_preguntas_trampa INT DEFAULT 0,
+    preguntas_trampa_por_seccion INT DEFAULT 1,
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tipo_evaluacion_id) REFERENCES tipos_evaluacion(id) ON DELETE CASCADE,
+    FOREIGN KEY (rol_personal_id) REFERENCES roles_personal(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_config (tipo_evaluacion_id, rol_personal_id)
 );
 
 -- Datos iniciales
@@ -194,14 +216,33 @@ INSERT IGNORE INTO roles_personal (codigo, nombre, descripcion) VALUES
 
 INSERT IGNORE INTO usuarios (username, password_hash, nombre_completo, email, rol) VALUES
 ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrador IMCYC', 'admin@imcyc.org', 'admin');
-EOF
-}
 
-# Aplicar corrección si existe
-if [ -f "deploy/fix-database.sql" ]; then
-    log_info "Aplicando correcciones de base de datos..."
-    mysql -u "$MYSQL_ROOT_USER" -p"$MYSQL_ROOT_PASSWORD" "$DB_NAME" < deploy/fix-database.sql 2>/dev/null || log_warning "No se pudieron aplicar todas las correcciones"
-fi
+-- Secciones básicas para Jefe de Planta
+INSERT IGNORE INTO secciones_evaluacion (tipo_evaluacion_id, rol_personal_id, nombre, descripcion, orden, ponderacion) 
+SELECT te.id, rp.id, 'Conocimiento Técnico y Operativo', 'Evaluación de conocimientos técnicos', 1, 15.00
+FROM tipos_evaluacion te, roles_personal rp 
+WHERE te.codigo = 'personal' AND rp.codigo = 'jefe_planta';
+
+INSERT IGNORE INTO secciones_evaluacion (tipo_evaluacion_id, rol_personal_id, nombre, descripcion, orden, ponderacion) 
+SELECT te.id, rp.id, 'Gestión de la Producción', 'Evaluación de gestión productiva', 2, 20.00
+FROM tipos_evaluacion te, roles_personal rp 
+WHERE te.codigo = 'personal' AND rp.codigo = 'jefe_planta';
+
+-- Preguntas básicas
+INSERT IGNORE INTO preguntas (seccion_id, pregunta, tipo_pregunta, orden) 
+SELECT se.id, '¿Conoce los procedimientos de control de calidad del concreto?', 'abierta', 1
+FROM secciones_evaluacion se 
+JOIN tipos_evaluacion te ON se.tipo_evaluacion_id = te.id 
+JOIN roles_personal rp ON se.rol_personal_id = rp.id 
+WHERE te.codigo = 'personal' AND rp.codigo = 'jefe_planta' AND se.nombre LIKE '%Conocimiento%';
+
+INSERT IGNORE INTO preguntas (seccion_id, pregunta, tipo_pregunta, orden) 
+SELECT se.id, '¿Supervisa adecuadamente la producción diaria?', 'abierta', 1
+FROM secciones_evaluacion se 
+JOIN tipos_evaluacion te ON se.tipo_evaluacion_id = te.id 
+JOIN roles_personal rp ON se.rol_personal_id = rp.id 
+WHERE te.codigo = 'personal' AND rp.codigo = 'jefe_planta' AND se.nombre LIKE '%Gestión%';
+EOF
 
 log_info "✅ Base de datos configurada exitosamente"
 
@@ -209,7 +250,14 @@ log_info "✅ Base de datos configurada exitosamente"
 log_info "📂 Copiando archivos al servidor web..."
 sudo rm -rf "$WEB_DIR"
 sudo mkdir -p "$WEB_DIR"
-sudo cp -r dist/* "$WEB_DIR/"
+
+# Copiar archivos del frontend
+if [ -d "dist" ]; then
+    sudo cp -r dist/* "$WEB_DIR/"
+else
+    log_error "No se encontró el directorio dist. Ejecuta 'npm run build' primero."
+    exit 1
+fi
 
 # Crear directorio de API
 sudo mkdir -p "$WEB_DIR/api"
@@ -343,6 +391,8 @@ RewriteRule ^evaluaciones/roles/?$ evaluaciones/roles.php [L,QSA]
 RewriteRule ^evaluaciones/preguntas/?$ evaluaciones/preguntas.php [L,QSA]
 RewriteRule ^evaluaciones/guardar/?$ evaluaciones/guardar.php [L,QSA]
 RewriteRule ^evaluaciones/historial/?$ evaluaciones/historial.php [L,QSA]
+RewriteRule ^evaluaciones/progreso-seccion/?$ evaluaciones/progreso-seccion.php [L,QSA]
+RewriteRule ^evaluaciones/progreso-secciones/?$ evaluaciones/progreso-secciones.php [L,QSA]
 
 # Rutas de reportes
 RewriteRule ^reportes/generar/?$ reportes/generar.php [L,QSA]
@@ -384,3 +434,9 @@ echo ""
 log_info "🧪 Para verificar:"
 echo "   API: curl http://localhost/imcyc/api/evaluaciones/tipos"
 echo "   Frontend: Abre http://localhost/imcyc/ en tu navegador"
+echo ""
+log_info "📋 Estructura desplegada:"
+echo "   Frontend: $WEB_DIR/"
+echo "   API: $WEB_DIR/api/"
+echo "   Base de datos: $DB_NAME"
+echo "   Usuario DB: $DB_USER"

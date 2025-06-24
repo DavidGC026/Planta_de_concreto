@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import LoginScreen from '@/components/LoginScreen';
 import MainMenu from '@/components/MainMenu';
-import EvaluationScreen from '@/components/EvaluationScreen';
+import EvaluationScreenPersonal from '@/components/EvaluationScreenPersonal';
+import EvaluationScreenEquipo from '@/components/EvaluationScreenEquipo';
+import EvaluationScreenOperacion from '@/components/EvaluationScreenOperacion';
 import ResultsScreen from '@/components/ResultsScreen';
 import Navigation from '@/components/ui/navigation';
 import { Toaster } from '@/components/ui/toaster';
@@ -23,7 +25,7 @@ const App = () => {
     favicon.href = '/logo_imcyc_favicon.png';
     document.head.appendChild(favicon);
 
-    document.title = "IMCYC Evaluación de Plantas";
+    document.title = "IMCYC - Sistema de Evaluación de Plantas de Concreto";
   }, []);
 
   const handleLogin = (username) => {
@@ -41,13 +43,16 @@ const App = () => {
   const handleSelectEvaluation = (evaluationType) => {
     setCurrentEvaluation(evaluationType);
     setCurrentScreen('evaluation');
+    setEvaluationResults(null); // Limpiar resultados previos
   };
 
   const handleNavigate = (screenId) => {
+    // Limpiar estados al navegar
+    setEvaluationResults(null);
+    
     if (screenId === 'menu') {
       setCurrentScreen('menu');
       setCurrentEvaluation(null);
-      setEvaluationResults(null);
     } else if (['personal', 'equipo', 'operacion'].includes(screenId)) {
       setCurrentEvaluation(screenId);
       setCurrentScreen('evaluation');
@@ -92,6 +97,27 @@ const App = () => {
     setCurrentScreen('results');
   };
 
+  // Renderizar el componente de evaluación correcto según el tipo
+  const renderEvaluationScreen = () => {
+    const commonProps = {
+      onBack: handleBackToMenu,
+      onComplete: handleEvaluationComplete,
+      onSkipToResults: handleSkipToResults,
+      username: user
+    };
+
+    switch (currentEvaluation) {
+      case 'personal':
+        return <EvaluationScreenPersonal {...commonProps} />;
+      case 'equipo':
+        return <EvaluationScreenEquipo {...commonProps} />;
+      case 'operacion':
+        return <EvaluationScreenOperacion {...commonProps} />;
+      default:
+        return <div>Tipo de evaluación no válido</div>;
+    }
+  };
+
   return (
     <div className="min-h-screen">
       {currentScreen === 'login' && (
@@ -102,6 +128,7 @@ const App = () => {
         <>
           <Navigation 
             currentScreen={currentScreen}
+            currentEvaluation={currentEvaluation}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
             username={user}
@@ -115,15 +142,7 @@ const App = () => {
             />
           )}
           
-          {currentScreen === 'evaluation' && (
-            <EvaluationScreen
-              evaluationType={currentEvaluation}
-              onBack={handleBackToMenu}
-              onComplete={handleEvaluationComplete}
-              onSkipToResults={handleSkipToResults}
-              username={user}
-            />
-          )}
+          {currentScreen === 'evaluation' && renderEvaluationScreen()}
           
           {currentScreen === 'results' && (
             <ResultsScreen

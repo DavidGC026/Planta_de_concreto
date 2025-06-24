@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, ArrowLeft, CheckCircle, XCircle, MinusCircle, UserCheck, Users, Wrench, Settings, Zap, ClipboardCheck, Loader2, BarChart3, AlertTriangle } from 'lucide-react';
+import { Building2, ArrowLeft, CheckCircle, XCircle, MinusCircle, UserCheck, Users, Wrench, Settings, Zap, ClipboardCheck, Loader2, BarChart3 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -136,6 +136,9 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showCategorySelection, setShowCategorySelection] = useState(false);
 
+  // Ref para scroll al inicio
+  const evaluationContentRef = useRef(null);
+
   const config = evaluationDataConfig[evaluationType];
 
   useEffect(() => {
@@ -149,6 +152,16 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
       // No cargamos datos hasta que se seleccione tipo y categoría
     }
   }, [evaluationType]);
+
+  // Scroll al inicio cuando cambia la sección
+  useEffect(() => {
+    if (evaluationContentRef.current) {
+      evaluationContentRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+  }, [currentSection]);
 
   const loadRoles = async () => {
     try {
@@ -210,7 +223,76 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
     setPlantStatusAnswers(prev => ({ ...prev, [key]: status }));
   };
 
+  const saveCurrentSectionProgress = async () => {
+    try {
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+
+      // Calcular progreso de la sección actual
+      let sectionScore = 0;
+      let totalQuestions = 0;
+      let correctAnswers = 0;
+
+      if (evaluationType === 'operacion') {
+        // Para evaluación de operación
+        const sectionAnswers = Object.entries(plantStatusAnswers)
+          .filter(([key]) => key.startsWith(`${currentSection}-`));
+        
+        totalQuestions = sectionAnswers.length;
+        sectionAnswers.forEach(([, status]) => {
+          if (status === 'bueno') {
+            sectionScore += 10;
+            correctAnswers++;
+          } else if (status === 'regular') {
+            sectionScore += 5;
+          }
+        });
+      } else {
+        // Para cuestionarios
+        const sectionAnswers = Object.entries(answers)
+          .filter(([key]) => key.startsWith(`${selectedRole || evaluationType}-${currentSection}-`));
+        
+        totalQuestions = sectionAnswers.length;
+        sectionAnswers.forEach(([key, answer]) => {
+          const [, sectionIndex, questionIndex] = key.split('-');
+          const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
+          
+          if (question && !question.es_trampa) { // No contar preguntas trampa en el progreso
+            if (answer === 'si' || 
+                (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
+              sectionScore += question.ponderacion_individual || 10;
+              correctAnswers++;
+            }
+          }
+        });
+      }
+
+      const sectionPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+
+      // Guardar progreso de sección
+      await apiService.guardarProgresoSeccion({
+        usuario_id: user.id,
+        tipo_evaluacion: evaluationType,
+        seccion_nombre: currentSectionData?.nombre || `Sección ${currentSection + 1}`,
+        seccion_orden: currentSection + 1,
+        puntaje_seccion: sectionScore,
+        puntaje_porcentaje: sectionPercentage,
+        respuestas_correctas: correctAnswers,
+        total_preguntas: totalQuestions,
+        tipo_planta: selectedPlantType,
+        categoria: selectedCategory
+      });
+
+    } catch (error) {
+      console.error('Error saving section progress:', error);
+      // No mostrar error al usuario, es solo para tracking interno
+    }
+  };
+
   const handleNextSection = async () => {
+    // Guardar progreso de la sección actual
+    await saveCurrentSectionProgress();
+
     if (currentSection < totalSections - 1) {
       setCurrentSection(prev => prev + 1);
     } else {
@@ -597,7 +679,7 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
       />
       <div className="absolute inset-0 bg-black/20" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
         {/* Botón de desarrollo para saltar a resultados - solo en primera sección y no en operación */}
         {currentSection === 0 && evaluationType !== 'operacion' && (
           <div className="mb-4 flex justify-end">
@@ -715,12 +797,7 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                             <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
                               <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                                 {index + 1}. {question.pregunta}
-                                {question.es_trampa && (
-                                  <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full flex items-center">
-                                    <AlertTriangle className="w-3 h-3 mr-1" />
-                                    Trampa
-                                  </span>
-                                )}
+                                {/* REMOVIDO: Indicador de pregunta trampa */}
                                 {question.ponderacion_individual > 0 && (
                                   <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                                     {question.ponderacion_individual}%
@@ -928,18 +1005,7 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                           </>
                         )}
 
-                        {/* Preguntas trampa */}
-                        {ponderationStats.responseStats.trampa > 0 && (
-                          <div className="border-t pt-2 mt-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <div className="flex items-center">
-                                <AlertTriangle className="w-4 h-4 text-orange-600 mr-2" />
-                                <span>Preguntas Trampa</span>
-                              </div>
-                              <span className="font-medium text-orange-600">{ponderationStats.responseStats.trampa}</span>
-                            </div>
-                          </div>
-                        )}
+                        {/* REMOVIDO: Contador de preguntas trampa */}
                       </div>
                     </div>
 
@@ -948,8 +1014,8 @@ const EvaluationScreen = ({ evaluationType, onBack, onComplete, onSkipToResults,
                       <div className="border-t pt-3">
                         <h4 className="text-sm font-medium text-gray-700 mb-2">Configuración</h4>
                         <div className="text-xs text-gray-600 space-y-1">
-                          <div>Preguntas trampa disponibles: {evaluationData.estadisticas?.total_preguntas_trampa_disponibles || 0}</div>
-                          <div>Trampa por sección: {evaluationData.configuracion.preguntas_trampa_por_seccion}</div>
+                          <div>Preguntas por sección: {evaluationData.estadisticas?.preguntas_por_seccion_configuradas || 'Variable'}</div>
+                          <div>Sistema de ponderación: Activo</div>
                         </div>
                       </div>
                     )}

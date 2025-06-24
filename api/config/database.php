@@ -5,11 +5,11 @@
  */
 
 class Database {
-    // Configuración para producción
+    // Configuración para base de datos existente
     private $host = 'localhost';
-    private $db_name = 'imcyc_evaluaciones';
-    private $username = 'imcyc_user';
-    private $password = 'imcyc_secure_password_2024'; // CAMBIAR EN PRODUCCIÓN
+    private $db_name = 'plantas_concreto'; // Base de datos fija
+    private $username = 'root'; // Se actualizará por el script de deploy
+    private $password = ''; // Se actualizará por el script de deploy
     private $charset = 'utf8mb4';
     private $conn;
 
@@ -57,18 +57,8 @@ class Database {
  * Configuración de CORS para producción
  */
 function setCorsHeaders() {
-    // En producción, especificar dominios permitidos
-    $allowed_origins = [
-        'https://tu-dominio.com',
-        'https://www.tu-dominio.com'
-    ];
-    
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    
-    if (in_array($origin, $allowed_origins)) {
-        header("Access-Control-Allow-Origin: $origin");
-    }
-    
+    // Para desarrollo, permitir todos los orígenes
+    header("Access-Control-Allow-Origin: *");
     header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
     header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
     header("Content-Type: application/json; charset=UTF-8");

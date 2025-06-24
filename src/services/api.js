@@ -146,6 +146,43 @@ class ApiService {
     }
   }
 
+  /**
+   * Nuevo método para guardar progreso de sección
+   */
+  async guardarProgresoSeccion(progresoData) {
+    try {
+      const response = await this.request('evaluaciones/progreso-seccion.php', {
+        method: 'POST',
+        body: JSON.stringify(progresoData),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error saving section progress:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Método para obtener progreso de secciones
+   */
+  async getProgresoSecciones(filtros = {}) {
+    try {
+      const params = new URLSearchParams();
+      
+      Object.keys(filtros).forEach(key => {
+        if (filtros[key] !== null && filtros[key] !== undefined) {
+          params.append(key, filtros[key]);
+        }
+      });
+
+      const response = await this.request(`evaluaciones/progreso-secciones.php?${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting section progress:', error);
+      throw error;
+    }
+  }
+
   async getHistorialEvaluaciones(filtros = {}) {
     try {
       const params = new URLSearchParams();
@@ -212,6 +249,8 @@ export const {
   getRolesPersonal,
   getPreguntas,
   guardarEvaluacion,
+  guardarProgresoSeccion,
+  getProgresoSecciones,
   getHistorialEvaluaciones,
   generarReporte,
   checkConnection,
