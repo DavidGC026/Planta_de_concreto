@@ -1,8 +1,8 @@
 <?php
 /**
- * API para guardar evaluación completa con sistema de ponderación y subsecciones
+ * API para guardar evaluación completa con sistema simplificado
  * IMCYC - Sistema de Evaluación de Plantas de Concreto
- * Actualizado para nueva estructura de BD con subsecciones
+ * Sistema simplificado: puntuación por preguntas correctas + filtro de preguntas trampa
  */
 
 require_once '../config/database.php';
@@ -62,7 +62,7 @@ try {
     
     // Verificar si las tablas tienen las columnas necesarias y agregarlas si no existen
     try {
-        // Verificar y agregar columna puntuacion_ponderada
+        // Verificar y agregar columna puntuacion_ponderada (ahora será puntuación simple)
         $check_column = $db->query("SHOW COLUMNS FROM evaluaciones LIKE 'puntuacion_ponderada'");
         if ($check_column->rowCount() == 0) {
             $db->exec("ALTER TABLE evaluaciones ADD COLUMN puntuacion_ponderada DECIMAL(5,2) DEFAULT 0.00");
@@ -72,6 +72,12 @@ try {
         $check_column = $db->query("SHOW COLUMNS FROM evaluaciones LIKE 'preguntas_trampa_respondidas'");
         if ($check_column->rowCount() == 0) {
             $db->exec("ALTER TABLE evaluaciones ADD COLUMN preguntas_trampa_respondidas INT DEFAULT 0");
+        }
+        
+        // Verificar y agregar columna preguntas_trampa_incorrectas
+        $check_column = $db->query("SHOW COLUMNS FROM evaluaciones LIKE 'preguntas_trampa_incorrectas'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE evaluaciones ADD COLUMN preguntas_trampa_incorrectas INT DEFAULT 0");
         }
         
         // Verificar y agregar columnas en respuestas_evaluacion
@@ -95,42 +101,34 @@ try {
         error_log("Error verificando/agregando columnas: " . $e->getMessage());
     }
     
-    // Calcular puntuación ponderada
+    // Calcular puntuación simplificada
     $puntuacion_total = 0;
-    $puntuacion_ponderada = 0;
+    $puntuacion_simple = 0; // Puntuación basada solo en preguntas normales
     $respuestas_si = 0;
     $respuestas_no = 0;
     $respuestas_na = 0;
     $respuestas_a = 0;
     $respuestas_b = 0;
     $respuestas_c = 0;
-    $total_preguntas = 0;
+    $total_preguntas_normales = 0;
     $preguntas_trampa_respondidas = 0;
+    $preguntas_trampa_incorrectas = 0;
     
     foreach ($respuestas as $respuesta) {
         $pregunta_id = $respuesta['pregunta_id'] ?? null;
         $respuesta_valor = $respuesta['respuesta'];
         
-        // Obtener información de la pregunta y su ponderación
+        // Obtener información de la pregunta
         if ($pregunta_id) {
-            // Query actualizada para manejar subsecciones
             $query = "SELECT 
                         p.es_trampa,
-                        p.ponderacion_individual,
-                        COALESCE(sub.ponderacion_subseccion, s.ponderacion) as seccion_ponderacion,
                         p.tipo_pregunta,
                         p.respuesta_correcta,
                         p.subseccion_id,
                         s.id as seccion_id,
-                        s.nombre as seccion_nombre,
-                        sub.nombre as subseccion_nombre,
-                        (SELECT COUNT(*) FROM preguntas p2 
-                         WHERE (p2.subseccion_id = p.subseccion_id OR (p2.subseccion_id IS NULL AND p2.seccion_id = s.id))
-                         AND p2.activo = 1 
-                         AND p2.es_trampa = 0) as preguntas_normales_seccion
+                        s.nombre as seccion_nombre
                       FROM preguntas p
                       JOIN secciones_evaluacion s ON p.seccion_id = s.id
-                      LEFT JOIN subsecciones_evaluacion sub ON p.subseccion_id = sub.id
                       WHERE p.id = :pregunta_id";
             
             $stmt = $db->prepare($query);
@@ -161,56 +159,67 @@ try {
                         break;
                 }
                 
-                // Si es pregunta trampa, solo contar pero no sumar puntos
+                // Si es pregunta trampa, verificar si es incorrecta
                 if ($pregunta_info['es_trampa']) {
                     $preguntas_trampa_respondidas++;
-                    continue;
+                    
+                    // Verificar si la respuesta trampa es incorrecta
+                    $es_incorrecta = false;
+                    if ($pregunta_info['tipo_pregunta'] === 'seleccion_multiple') {
+                        $es_incorrecta = ($respuesta_valor !== $pregunta_info['respuesta_correcta']);
+                    } else {
+                        // Para preguntas abiertas, "no" se considera incorrecto
+                        $es_incorrecta = ($respuesta_valor === 'no');
+                    }
+                    
+                    if ($es_incorrecta) {
+                        $preguntas_trampa_incorrectas++;
+                    }
+                    
+                    continue; // No contar preguntas trampa en puntuación
                 }
                 
-                $total_preguntas++;
+                // Solo contar preguntas normales
+                $total_preguntas_normales++;
                 
-                // Calcular ponderación de la pregunta
-                $ponderacion_pregunta = $pregunta_info['ponderacion_individual'];
-                if ($ponderacion_pregunta <= 0 && $pregunta_info['preguntas_normales_seccion'] > 0) {
-                    $ponderacion_pregunta = $pregunta_info['seccion_ponderacion'] / $pregunta_info['preguntas_normales_seccion'];
-                }
-                
-                // Calcular puntos según tipo de pregunta
-                $puntos_pregunta = 0;
-                
+                // Calcular puntos para preguntas normales (10 puntos por respuesta correcta)
                 if ($pregunta_info['tipo_pregunta'] === 'seleccion_multiple') {
                     // Para preguntas de selección múltiple, verificar respuesta correcta
                     if ($respuesta_valor === $pregunta_info['respuesta_correcta']) {
-                        $puntos_pregunta = $ponderacion_pregunta;
+                        $puntuacion_simple += 10;
+                        $puntuacion_total += 10;
                     }
                 } else {
                     // Para preguntas abiertas (Sí/No/NA)
                     if ($respuesta_valor === 'si') {
-                        $puntos_pregunta = $ponderacion_pregunta;
+                        $puntuacion_simple += 10;
+                        $puntuacion_total += 10;
                     }
                     // 'no' = 0 puntos, 'na' no cuenta para el total
                     if ($respuesta_valor === 'na') {
-                        $total_preguntas--; // No contar preguntas N/A en el total
+                        $total_preguntas_normales--; // No contar preguntas N/A en el total
                     }
                 }
-                
-                $puntuacion_ponderada += $puntos_pregunta;
-                $puntuacion_total += ($respuesta_valor === 'si' || 
-                                    ($pregunta_info['tipo_pregunta'] === 'seleccion_multiple' && 
-                                     $respuesta_valor === $pregunta_info['respuesta_correcta'])) ? 10 : 0;
             }
         }
     }
+    
+    // Calcular porcentaje final (solo preguntas normales)
+    $porcentaje_final = $total_preguntas_normales > 0 ? 
+        round(($puntuacion_simple / ($total_preguntas_normales * 10)) * 100, 2) : 0;
+    
+    // Determinar si reprueba por preguntas trampa
+    $reprobado_por_trampa = $preguntas_trampa_incorrectas >= 2;
     
     // Insertar evaluación
     $query = "INSERT INTO evaluaciones 
               (usuario_id, tipo_evaluacion_id, rol_personal_id, puntuacion_total, puntuacion_ponderada,
                total_preguntas, respuestas_si, respuestas_no, respuestas_na, 
-               preguntas_trampa_respondidas, estado, fecha_finalizacion, observaciones)
+               preguntas_trampa_respondidas, preguntas_trampa_incorrectas, estado, fecha_finalizacion, observaciones)
               VALUES 
               (:usuario_id, :tipo_evaluacion_id, :rol_personal_id, :puntuacion_total, :puntuacion_ponderada,
                :total_preguntas, :respuestas_si, :respuestas_no, :respuestas_na,
-               :preguntas_trampa_respondidas, 'completada', NOW(), :observaciones)";
+               :preguntas_trampa_respondidas, :preguntas_trampa_incorrectas, 'completada', NOW(), :observaciones)";
     
     $stmt = $db->prepare($query);
     $stmt->execute([
@@ -218,12 +227,13 @@ try {
         ':tipo_evaluacion_id' => $tipo_evaluacion_id,
         ':rol_personal_id' => $rol_personal_id,
         ':puntuacion_total' => $puntuacion_total,
-        ':puntuacion_ponderada' => $puntuacion_ponderada,
-        ':total_preguntas' => $total_preguntas,
+        ':puntuacion_ponderada' => $porcentaje_final, // Ahora es porcentaje simple
+        ':total_preguntas' => $total_preguntas_normales,
         ':respuestas_si' => $respuestas_si,
         ':respuestas_no' => $respuestas_no,
         ':respuestas_na' => $respuestas_na,
         ':preguntas_trampa_respondidas' => $preguntas_trampa_respondidas,
+        ':preguntas_trampa_incorrectas' => $preguntas_trampa_incorrectas,
         ':observaciones' => $observaciones
     ]);
     
@@ -249,18 +259,10 @@ try {
         if ($pregunta_id) {
             $query_info = "SELECT 
                             p.es_trampa,
-                            p.ponderacion_individual,
                             p.subseccion_id,
-                            COALESCE(sub.ponderacion_subseccion, s.ponderacion) as seccion_ponderacion,
                             p.tipo_pregunta,
-                            p.respuesta_correcta,
-                            (SELECT COUNT(*) FROM preguntas p2 
-                             WHERE (p2.subseccion_id = p.subseccion_id OR (p2.subseccion_id IS NULL AND p2.seccion_id = s.id))
-                             AND p2.activo = 1 
-                             AND p2.es_trampa = 0) as preguntas_normales_seccion
+                            p.respuesta_correcta
                           FROM preguntas p
-                          JOIN secciones_evaluacion s ON p.seccion_id = s.id
-                          LEFT JOIN subsecciones_evaluacion sub ON p.subseccion_id = sub.id
                           WHERE p.id = :pregunta_id";
             
             $stmt_info = $db->prepare($query_info);
@@ -272,19 +274,15 @@ try {
                 $es_trampa = $pregunta_info['es_trampa'];
                 $subseccion_id = $pregunta_info['subseccion_id'];
                 
+                // Solo calcular ponderación para preguntas normales
                 if (!$es_trampa) {
-                    $ponderacion_pregunta = $pregunta_info['ponderacion_individual'];
-                    if ($ponderacion_pregunta <= 0 && $pregunta_info['preguntas_normales_seccion'] > 0) {
-                        $ponderacion_pregunta = $pregunta_info['seccion_ponderacion'] / $pregunta_info['preguntas_normales_seccion'];
-                    }
-                    
                     if ($pregunta_info['tipo_pregunta'] === 'seleccion_multiple') {
                         if ($respuesta_valor === $pregunta_info['respuesta_correcta']) {
-                            $ponderacion_obtenida = $ponderacion_pregunta;
+                            $ponderacion_obtenida = 10; // Puntuación estándar
                         }
                     } else {
                         if ($respuesta_valor === 'si') {
-                            $ponderacion_obtenida = $ponderacion_pregunta;
+                            $ponderacion_obtenida = 10; // Puntuación estándar
                         }
                     }
                 }
@@ -305,20 +303,23 @@ try {
     // Confirmar transacción
     $db->commit();
     
-    // Determinar resultado basado en puntuación ponderada
+    // Determinar resultado
     $resultado = 'REPROBADO';
-    if ($tipo_evaluacion === 'operacion') {
+    
+    if ($reprobado_por_trampa) {
+        $resulta = 'REPROBADO POR PREGUNTAS TRAMPA';
+    } elseif ($tipo_evaluacion === 'operacion') {
         // Para evaluación de operación, usar escala diferente
-        if ($puntuacion_ponderada >= 80) $resultado = 'EXCELENTE';
-        elseif ($puntuacion_ponderada >= 60) $resultado = 'BUENO';
-        elseif ($puntuacion_ponderada >= 40) $resultado = 'REGULAR';
+        if ($porcentaje_final >= 80) $resultado = 'EXCELENTE';
+        elseif ($porcentaje_final >= 60) $resultado = 'BUENO';
+        elseif ($porcentaje_final >= 40) $resultado = 'REGULAR';
         else $resultado = 'DEFICIENTE';
     } elseif ($tipo_evaluacion === 'personal') {
         // Para evaluación de personal, usar criterio de 90%
-        $resultado = $puntuacion_ponderada >= 90 ? 'APROBADO' : 'REPROBADO';
+        $resultado = $porcentaje_final >= 90 ? 'APROBADO' : 'REPROBADO';
     } else {
         // Para evaluaciones de equipo y otras
-        $resultado = $puntuacion_ponderada >= 70 ? 'APROBADO' : 'REPROBADO';
+        $resultado = $porcentaje_final >= 70 ? 'APROBADO' : 'REPROBADO';
     }
     
     sendJsonResponse([
@@ -326,12 +327,14 @@ try {
         'data' => [
             'evaluacion_id' => $evaluacion_id,
             'puntuacion_total' => $puntuacion_total,
-            'puntuacion_ponderada' => round($puntuacion_ponderada, 2),
+            'puntuacion_ponderada' => $porcentaje_final, // Ahora es porcentaje simple
             'resultado' => $resultado,
             'tipo_evaluacion' => $tipo_evaluacion,
+            'reprobado_por_trampa' => $reprobado_por_trampa,
             'estadisticas' => [
-                'total_preguntas' => $total_preguntas,
+                'total_preguntas' => $total_preguntas_normales,
                 'preguntas_trampa_respondidas' => $preguntas_trampa_respondidas,
+                'preguntas_trampa_incorrectas' => $preguntas_trampa_incorrectas,
                 'respuestas_si' => $respuestas_si,
                 'respuestas_no' => $respuestas_no,
                 'respuestas_na' => $respuestas_na,

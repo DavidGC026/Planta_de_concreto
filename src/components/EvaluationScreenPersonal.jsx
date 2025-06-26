@@ -89,7 +89,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       const user = apiService.getCurrentUser();
       if (!user) return;
 
-      // Calcular progreso de la sección actual
+      // Calcular progreso de la sección actual (solo preguntas normales)
       let sectionScore = 0;
       let totalQuestions = 0;
       let correctAnswers = 0;
@@ -97,15 +97,16 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       const sectionAnswers = Object.entries(answers)
         .filter(([key]) => key.startsWith(`${selectedRole}-${currentSection}-`));
       
-      totalQuestions = sectionAnswers.length;
       sectionAnswers.forEach(([key, answer]) => {
         const [, sectionIndex, questionIndex] = key.split('-');
         const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
         
+        // Solo contar preguntas normales (no trampa)
         if (question && !question.es_trampa) {
+          totalQuestions++;
           if (answer === 'si' || 
               (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
-            sectionScore += question.ponderacion_individual || 10;
+            sectionScore += 10; // Puntuación estándar por pregunta
             correctAnswers++;
           }
         }
@@ -152,6 +153,41 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         throw new Error('Usuario no autenticado');
       }
 
+      // Calcular puntuación final y verificar preguntas trampa
+      let totalScore = 0;
+      let totalNormalQuestions = 0;
+      let correctNormalAnswers = 0;
+      let wrongTrapAnswers = 0;
+
+      Object.entries(answers).forEach(([key, selectedAnswer]) => {
+        const [roleOrType, sectionIndex, questionIndex] = key.split('-');
+        const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
+        
+        if (question) {
+          if (question.es_trampa) {
+            // Verificar preguntas trampa (solo contar errores)
+            if (selectedAnswer === 'no' || 
+                (question.tipo_pregunta === 'seleccion_multiple' && selectedAnswer !== question.respuesta_correcta)) {
+              wrongTrapAnswers++;
+            }
+          } else {
+            // Contar preguntas normales
+            totalNormalQuestions++;
+            if (selectedAnswer === 'si' || 
+                (question.tipo_pregunta === 'seleccion_multiple' && selectedAnswer === question.respuesta_correcta)) {
+              totalScore += 10;
+              correctNormalAnswers++;
+            }
+          }
+        }
+      });
+
+      // Determinar si reprueba por preguntas trampa
+      const failedByTrapQuestions = wrongTrapAnswers >= 2;
+      
+      // Calcular porcentaje final (solo de preguntas normales)
+      const finalPercentage = totalNormalQuestions > 0 ? (correctNormalAnswers / totalNormalQuestions) * 100 : 0;
+
       // Preparar datos para guardar
       const evaluacionData = {
         usuario_id: user.id,
@@ -167,7 +203,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
             observacion: question?.es_trampa ? 'Pregunta trampa' : null
           };
         }),
-        observaciones: `Evaluación de personal completada - Rol: ${selectedRole}`
+        observaciones: `Evaluación de personal completada - Rol: ${selectedRole}${failedByTrapQuestions ? ' - REPROBADO POR PREGUNTAS TRAMPA' : ''}`
       };
 
       // Guardar en base de datos
@@ -175,18 +211,21 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       onComplete({
         answers,
-        score: Math.round(result.puntuacion_ponderada || 0),
-        totalAnswers: result.estadisticas.total_preguntas,
-        correctAnswers: result.estadisticas.respuestas_si + result.estadisticas.respuestas_a + result.estadisticas.respuestas_b + result.estadisticas.respuestas_c,
+        score: Math.round(finalPercentage),
+        totalAnswers: totalNormalQuestions,
+        correctAnswers: correctNormalAnswers,
         evaluationTitle: `Evaluación de Personal - ${selectedRole}`,
         sections: evaluationData.secciones || [],
-        ponderacionTotal: evaluationData.total_ponderacion || 100,
-        preguntasTrampa: result.estadisticas.preguntas_trampa_respondidas || 0
+        wrongTrapAnswers: wrongTrapAnswers,
+        failedByTrapQuestions: failedByTrapQuestions,
+        isPersonalEvaluation: true
       });
 
       toast({
-        title: "✅ Evaluación completada",
-        description: "Los resultados han sido guardados exitosamente"
+        title: failedByTrapQuestions ? "❌ Evaluación reprobada" : "✅ Evaluación completada",
+        description: failedByTrapQuestions 
+          ? `Reprobado por ${wrongTrapAnswers} errores en preguntas trampa`
+          : "Los resultados han sido guardados exitosamente"
       });
 
     } catch (error) {
@@ -207,20 +246,25 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
     await loadEvaluationData();
   };
 
-  // Calcular estadísticas de ponderación
-  const calculatePonderationStats = () => {
+  // Calcular estadísticas simplificadas (sin ponderación)
+  const calculateSimpleStats = () => {
     if (!evaluationData?.secciones) {
       return null;
     }
 
     const totalQuestions = evaluationData.secciones.reduce((total, seccion) => {
-      return total + (seccion.preguntas?.length || 0);
+      return total + (seccion.preguntas?.filter(p => !p.es_trampa).length || 0);
     }, 0);
 
-    const answeredQuestions = Object.keys(answers).length;
+    const answeredQuestions = Object.entries(answers).filter(([key, answer]) => {
+      const [roleOrType, sectionIndex, questionIndex] = key.split('-');
+      const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
+      return question && !question.es_trampa;
+    }).length;
+
     const progressPercentage = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
 
-    // Calcular respuestas por tipo
+    // Calcular respuestas por tipo (solo preguntas normales)
     const responseStats = {
       si: 0,
       no: 0,
@@ -230,20 +274,29 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       c: 0
     };
 
-    let ponderacionAcumulada = 0;
+    let correctAnswers = 0;
+    let wrongTrapAnswers = 0;
 
     Object.entries(answers).forEach(([key, answer]) => {
       const [roleOrType, sectionIndex, questionIndex] = key.split('-');
       const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
       
-      if (question && !question.es_trampa) {
-        if (responseStats.hasOwnProperty(answer)) {
-          responseStats[answer]++;
-          
-          // Calcular ponderación acumulada
-          if (answer === 'si' || 
-              (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
-            ponderacionAcumulada += question.ponderacion_individual || 0;
+      if (question) {
+        if (question.es_trampa) {
+          // Contar errores en preguntas trampa
+          if (answer === 'no' || 
+              (question.tipo_pregunta === 'seleccion_multiple' && answer !== question.respuesta_correcta)) {
+            wrongTrapAnswers++;
+          }
+        } else {
+          // Contar respuestas normales
+          if (responseStats.hasOwnProperty(answer)) {
+            responseStats[answer]++;
+            
+            if (answer === 'si' || 
+                (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
+              correctAnswers++;
+            }
           }
         }
       }
@@ -254,12 +307,13 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       answeredQuestions,
       progressPercentage,
       responseStats,
-      ponderacionAcumulada: Math.round(ponderacionAcumulada * 100) / 100,
-      totalPonderacion: evaluationData.total_ponderacion || 100
+      correctAnswers,
+      wrongTrapAnswers,
+      currentScore: answeredQuestions > 0 ? Math.round((correctAnswers / answeredQuestions) * 100) : 0
     };
   };
 
-  const ponderationStats = calculatePonderationStats();
+  const simpleStats = calculateSimpleStats();
 
   // Pantalla de carga
   if (loading) {
@@ -380,11 +434,6 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-gray-800">
               Evaluación de Personal - {selectedRole}
-              {evaluationData.configuracion && (
-                <span className="text-sm text-blue-600 ml-2">
-                  (Ponderación: {evaluationData.total_ponderacion}%)
-                </span>
-              )}
             </h2>
             <span className="text-sm text-gray-600">
               {Math.round(progress)}% completado
@@ -406,7 +455,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
         <div className="flex gap-6">
           {/* Panel principal de evaluación */}
-          <div className={`${ponderationStats ? 'w-3/5' : 'w-full'}`}>
+          <div className={`${simpleStats ? 'w-3/5' : 'w-full'}`}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSection}
@@ -418,13 +467,8 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                 <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
                   {/* Header de la sección */}
                   <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-800 text-center flex items-center justify-center">
+                    <h2 className="text-xl font-semibold text-gray-800 text-center">
                       {currentSectionData?.nombre}
-                      {currentSectionData?.ponderacion > 0 && (
-                        <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                          {currentSectionData.ponderacion}%
-                        </span>
-                      )}
                     </h2>
                   </div>
 
@@ -439,9 +483,10 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                           <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
                             <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                               {index + 1}. {question.pregunta}
-                              {question.ponderacion_individual > 0 && (
-                                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                  {question.ponderacion_individual}%
+                              {/* Indicador visual para preguntas trampa (opcional) */}
+                              {question.es_trampa && (
+                                <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                                  Verificación
                                 </span>
                               )}
                             </h3>
@@ -544,14 +589,14 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
             </AnimatePresence>
           </div>
 
-          {/* Panel de ponderación */}
-          {ponderationStats && (
+          {/* Panel de estadísticas simplificado */}
+          {simpleStats && (
             <div className="w-2/5">
               <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 sticky top-8">
                 <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                     <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-                    Sistema de Ponderación
+                    Progreso de Evaluación
                   </h3>
                 </div>
                 
@@ -561,60 +606,29 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                     <div>
                       <div className="flex justify-between text-sm text-gray-600 mb-1">
                         <span>Progreso general</span>
-                        <span>{Math.round(ponderationStats.progressPercentage)}%</span>
+                        <span>{Math.round(simpleStats.progressPercentage)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${ponderationStats.progressPercentage}%` }}
+                          style={{ width: `${simpleStats.progressPercentage}%` }}
                         />
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {ponderationStats.answeredQuestions} de {ponderationStats.totalQuestions} preguntas
+                        {simpleStats.answeredQuestions} de {simpleStats.totalQuestions} preguntas
                       </div>
                     </div>
 
-                    {/* Ponderación acumulada */}
+                    {/* Puntuación actual */}
                     <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Ponderación Acumulada</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación Actual</h4>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-blue-600">
-                          {ponderationStats.ponderacionAcumulada}%
+                          {simpleStats.currentScore}%
                         </div>
                         <div className="text-xs text-gray-500">
-                          de {ponderationStats.totalPonderacion}% total
+                          {simpleStats.correctAnswers} correctas de {simpleStats.answeredQuestions} respondidas
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                          <div 
-                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${(ponderationStats.ponderacionAcumulada / ponderationStats.totalPonderacion) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Ponderación por sección */}
-                    <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">Ponderación por Sección</h4>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {evaluationData.secciones?.map((seccion, index) => (
-                          <div key={index} className={`flex items-center justify-between text-sm p-2 rounded ${
-                            index === currentSection ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
-                          }`}>
-                            <div className="flex items-center">
-                              <div className={`w-2 h-2 rounded-full mr-2 ${
-                                index < currentSection ? 'bg-green-500' : 
-                                index === currentSection ? 'bg-blue-500' : 'bg-gray-300'
-                              }`} />
-                              <span className="text-xs font-medium truncate max-w-[120px]" title={seccion.nombre}>
-                                {seccion.nombre}
-                              </span>
-                            </div>
-                            <span className="font-bold text-blue-600">
-                              {seccion.ponderacion}%
-                            </span>
-                          </div>
-                        ))}
                       </div>
                     </div>
 
@@ -623,48 +637,48 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                       <h4 className="text-sm font-medium text-gray-700 mb-3">Distribución de respuestas</h4>
                       <div className="space-y-2">
                         {/* Respuestas Sí/No/NA */}
-                        {(ponderationStats.responseStats.si > 0 || ponderationStats.responseStats.no > 0 || ponderationStats.responseStats.na > 0) && (
+                        {(simpleStats.responseStats.si > 0 || simpleStats.responseStats.no > 0 || simpleStats.responseStats.na > 0) && (
                           <>
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center">
                                 <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
                                 <span>Sí</span>
                               </div>
-                              <span className="font-medium">{ponderationStats.responseStats.si}</span>
+                              <span className="font-medium">{simpleStats.responseStats.si}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center">
                                 <XCircle className="w-4 h-4 text-red-600 mr-2" />
                                 <span>No</span>
                               </div>
-                              <span className="font-medium">{ponderationStats.responseStats.no}</span>
+                              <span className="font-medium">{simpleStats.responseStats.no}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center">
                                 <MinusCircle className="w-4 h-4 text-gray-600 mr-2" />
                                 <span>No Aplica</span>
                               </div>
-                              <span className="font-medium">{ponderationStats.responseStats.na}</span>
+                              <span className="font-medium">{simpleStats.responseStats.na}</span>
                             </div>
                           </>
                         )}
 
                         {/* Respuestas de selección múltiple */}
-                        {(ponderationStats.responseStats.a > 0 || ponderationStats.responseStats.b > 0 || ponderationStats.responseStats.c > 0) && (
+                        {(simpleStats.responseStats.a > 0 || simpleStats.responseStats.b > 0 || simpleStats.responseStats.c > 0) && (
                           <>
                             <div className="border-t pt-2 mt-2">
                               <div className="text-xs text-gray-500 mb-2">Selección múltiple</div>
                               <div className="flex items-center justify-between text-sm">
                                 <span className="font-medium text-blue-600">A)</span>
-                                <span className="font-medium">{ponderationStats.responseStats.a}</span>
+                                <span className="font-medium">{simpleStats.responseStats.a}</span>
                               </div>
                               <div className="flex items-center justify-between text-sm">
                                 <span className="font-medium text-blue-600">B)</span>
-                                <span className="font-medium">{ponderationStats.responseStats.b}</span>
+                                <span className="font-medium">{simpleStats.responseStats.b}</span>
                               </div>
                               <div className="flex items-center justify-between text-sm">
                                 <span className="font-medium text-blue-600">C)</span>
-                                <span className="font-medium">{ponderationStats.responseStats.c}</span>
+                                <span className="font-medium">{simpleStats.responseStats.c}</span>
                               </div>
                             </div>
                           </>
@@ -672,16 +686,32 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                       </div>
                     </div>
 
-                    {/* Información de configuración */}
-                    {evaluationData.configuracion && (
+                    {/* Alerta de preguntas trampa */}
+                    {simpleStats.wrongTrapAnswers > 0 && (
                       <div className="border-t pt-3">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Configuración</h4>
-                        <div className="text-xs text-gray-600 space-y-1">
-                          <div>Preguntas por sección: Variable</div>
-                          <div>Sistema de ponderación: Activo</div>
+                        <div className={`p-3 rounded-lg ${simpleStats.wrongTrapAnswers >= 2 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                          <h4 className={`text-sm font-medium mb-1 ${simpleStats.wrongTrapAnswers >= 2 ? 'text-red-800' : 'text-yellow-800'}`}>
+                            Preguntas de Verificación
+                          </h4>
+                          <div className={`text-xs ${simpleStats.wrongTrapAnswers >= 2 ? 'text-red-600' : 'text-yellow-600'}`}>
+                            {simpleStats.wrongTrapAnswers} error{simpleStats.wrongTrapAnswers > 1 ? 'es' : ''} detectado{simpleStats.wrongTrapAnswers > 1 ? 's' : ''}
+                            {simpleStats.wrongTrapAnswers >= 2 && (
+                              <div className="font-medium mt-1">⚠️ Evaluación será reprobada</div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
+
+                    {/* Información de configuración */}
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Configuración</h4>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <div>Rol: {selectedRole}</div>
+                        <div>Sistema: Puntuación por preguntas correctas</div>
+                        <div>Criterio: ≥70% para aprobar</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

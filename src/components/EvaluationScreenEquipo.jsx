@@ -179,7 +179,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         pregunta_id: index,
         pregunta,
         tipo_pregunta: 'abierta',
-        ponderacion_individual: Math.round((subsection.ponderacion / predefinedQuestions[subsectionId].length) * 100) / 100,
         es_trampa: false
       }));
     }
@@ -211,7 +210,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         pregunta_id: i,
         pregunta,
         tipo_pregunta: 'abierta',
-        ponderacion_individual: Math.round((subsection.ponderacion / numQuestions) * 100) / 100,
         es_trampa: false
       });
     }
@@ -258,7 +256,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const currentSubsection = selectedSection.subsections[currentSubsectionIndex];
 
-      // Calcular progreso de la subsección actual
+      // Calcular progreso de la subsección actual (solo preguntas normales)
       let subsectionScore = 0;
       let totalQuestions = 0;
       let correctAnswers = 0;
@@ -363,6 +361,21 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         throw new Error('Usuario no autenticado');
       }
 
+      // Calcular puntuación total (solo preguntas normales)
+      let totalScore = 0;
+      let totalQuestions = 0;
+      let correctAnswers = 0;
+
+      Object.entries(answers).forEach(([key, answer]) => {
+        totalQuestions++;
+        if (answer === 'si') {
+          totalScore += 10;
+          correctAnswers++;
+        }
+      });
+
+      const finalScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+
       // Preparar datos para guardar
       const evaluacionData = {
         usuario_id: user.id,
@@ -381,32 +394,16 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         observaciones: `Evaluación de equipo completada - Tipo: ${selectedPlantType}`
       };
 
-      // Calcular puntuación total
-      let totalScore = 0;
-      let totalQuestions = 0;
-      let correctAnswers = 0;
-
-      Object.entries(answers).forEach(([key, answer]) => {
-        totalQuestions++;
-        if (answer === 'si') {
-          totalScore += 10;
-          correctAnswers++;
-        }
-      });
-
-      const finalScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-
       // Guardar en base de datos
       const result = await apiService.guardarEvaluacion(evaluacionData);
 
       onComplete({
         answers,
-        score: Math.round(result.puntuacion_ponderada || finalScore),
+        score: finalScore,
         totalAnswers: totalQuestions,
         correctAnswers: correctAnswers,
         evaluationTitle: `Evaluación de Equipo - ${selectedPlantType}`,
         sections: equipmentSections,
-        ponderacionTotal: 100,
         isEquipmentEvaluation: true
       });
 
@@ -438,8 +435,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     });
   };
 
-  // Calcular estadísticas de ponderación
-  const calculatePonderationStats = () => {
+  // Calcular estadísticas simplificadas
+  const calculateSimpleStats = () => {
     if (!evaluationStarted || !selectedSection) return null;
 
     const currentSubsection = selectedSection.subsections[currentSubsectionIndex];
@@ -447,7 +444,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     // Calcular progreso general
     let totalAnsweredQuestions = 0;
     let totalPossibleQuestions = 0;
-    let totalPonderacionAcumulada = 0;
     
     // Calcular solo para la sección actual
     selectedSection.subsections.forEach((subsection) => {
@@ -457,18 +453,11 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       
       // Contar respuestas para esta subsección
       let subsectionAnswers = 0;
-      let subsectionCorrectAnswers = 0;
       
       for (let i = 0; i < numQuestions; i++) {
         const key = `${selectedSection.id}-${subsection.id}-${i}`;
         if (answers[key]) {
           subsectionAnswers++;
-          if (answers[key] === 'si') {
-            subsectionCorrectAnswers++;
-            // Calcular ponderación por pregunta
-            const ponderacionPorPregunta = subsection.ponderacion / numQuestions;
-            totalPonderacionAcumulada += ponderacionPorPregunta;
-          }
         }
       }
       
@@ -484,9 +473,14 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       na: 0
     };
     
+    let correctAnswers = 0;
+    
     Object.entries(answers).forEach(([key, answer]) => {
       if (key.startsWith(`${selectedSection.id}-`) && responseStats.hasOwnProperty(answer)) {
         responseStats[answer]++;
+        if (answer === 'si') {
+          correctAnswers++;
+        }
       }
     });
     
@@ -507,13 +501,13 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       totalPossibleQuestions,
       progressPercentage,
       responseStats,
-      ponderacionAcumulada: Math.round(totalPonderacionAcumulada * 100) / 100,
-      totalPonderacion: selectedSection.ponderacion,
-      currentSectionProgress
+      correctAnswers,
+      currentSectionProgress,
+      currentScore: totalAnsweredQuestions > 0 ? Math.round((correctAnswers / totalAnsweredQuestions) * 100) : 0
     };
   };
 
-  const ponderationStats = calculatePonderationStats();
+  const simpleStats = calculateSimpleStats();
 
   // Verificar si todas las secciones están completas
   const allSectionsCompleted = () => {
@@ -655,7 +649,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                           </div>
                           <div>
                             <span className="text-gray-800 font-medium block">{section.name}</span>
-                            <span className="text-sm text-gray-600">{section.ponderacion}% de ponderación</span>
+                            <span className="text-sm text-gray-600">{section.subsections.length} subsecciones</span>
                           </div>
                         </div>
                         {allSubsectionsCompleted && (
@@ -734,27 +728,24 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-gray-800">
               Evaluación de Equipo - {selectedPlantType} - {selectedSection?.name}
-              <span className="text-sm text-blue-600 ml-2">
-                ({selectedSection?.ponderacion}%)
-              </span>
             </h2>
-            {ponderationStats && (
+            {simpleStats && (
               <span className="text-sm text-gray-600">
-                {Math.round(ponderationStats.progressPercentage)}% completado
+                {Math.round(simpleStats.progressPercentage)}% completado
               </span>
             )}
           </div>
           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
             <div 
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${ponderationStats?.progressPercentage || 0}%` }}
+              style={{ width: `${simpleStats?.progressPercentage || 0}%` }}
             />
           </div>
         </div>
 
         <div className="flex gap-6">
           {/* Panel principal de evaluación */}
-          <div className={`${ponderationStats ? 'w-3/5' : 'w-full'}`}>
+          <div className={`${simpleStats ? 'w-3/5' : 'w-full'}`}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${selectedSection?.id}-${currentSubsectionIndex}`}
@@ -765,11 +756,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               >
                 <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
                   <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-800 text-center flex items-center justify-center">
+                    <h2 className="text-xl font-semibold text-gray-800 text-center">
                       {selectedSection?.subsections[currentSubsectionIndex]?.name}
-                      <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                        {selectedSection?.subsections[currentSubsectionIndex]?.ponderacion}%
-                      </span>
                     </h2>
                   </div>
 
@@ -781,11 +769,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
                         return (
                           <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
-                            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                            <h3 className="text-lg font-medium text-gray-800 mb-4">
                               {index + 1}. {question.pregunta}
-                              <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                {question.ponderacion_individual}%
-                              </span>
                             </h3>
                             
                             {/* Pregunta abierta (Sí/No/NA) */}
@@ -860,8 +845,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             </AnimatePresence>
           </div>
 
-          {/* Panel de ponderación */}
-          {ponderationStats && (
+          {/* Panel de estadísticas simplificado */}
+          {simpleStats && (
             <div className="w-2/5">
               <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 sticky top-8">
                 <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
@@ -877,34 +862,28 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                     <div>
                       <div className="flex justify-between text-sm text-gray-600 mb-1">
                         <span>Progreso de la sección</span>
-                        <span>{Math.round(ponderationStats.progressPercentage)}%</span>
+                        <span>{Math.round(simpleStats.progressPercentage)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${ponderationStats.progressPercentage}%` }}
+                          style={{ width: `${simpleStats.progressPercentage}%` }}
                         />
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {ponderationStats.totalAnsweredQuestions} de {ponderationStats.totalPossibleQuestions} preguntas
+                        {simpleStats.totalAnsweredQuestions} de {simpleStats.totalPossibleQuestions} preguntas
                       </div>
                     </div>
 
-                    {/* Ponderación acumulada */}
+                    {/* Puntuación actual */}
                     <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación Acumulada</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación Actual</h4>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-blue-600">
-                          {ponderationStats.ponderacionAcumulada}%
+                          {simpleStats.currentScore}%
                         </div>
                         <div className="text-xs text-gray-500">
-                          de {ponderationStats.totalPonderacion}% de esta sección
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                          <div 
-                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${(ponderationStats.ponderacionAcumulada / ponderationStats.totalPonderacion) * 100}%` }}
-                          />
+                          {simpleStats.correctAnswers} correctas de {simpleStats.totalAnsweredQuestions} respondidas
                         </div>
                       </div>
                     </div>
@@ -915,7 +894,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                         Subsecciones
                       </h4>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {ponderationStats.currentSectionProgress.map((subsection, idx) => (
+                        {simpleStats.currentSectionProgress.map((subsection, idx) => (
                           <div key={subsection.id} className={`flex items-center justify-between text-sm p-2 rounded ${
                             subsection.isCurrentSubsection ? 'bg-blue-50 border border-blue-200' : 
                             subsection.isCompleted ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
@@ -929,9 +908,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                                 {idx + 1}. {subsection.name}
                               </span>
                             </div>
-                            <span className="font-bold text-blue-600">
-                              {subsection.ponderacion}%
-                            </span>
                           </div>
                         ))}
                       </div>
@@ -946,21 +922,21 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                             <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
                             <span>Sí</span>
                           </div>
-                          <span className="font-medium">{ponderationStats.responseStats.si}</span>
+                          <span className="font-medium">{simpleStats.responseStats.si}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center">
                             <XCircle className="w-4 h-4 text-red-600 mr-2" />
                             <span>No</span>
                           </div>
-                          <span className="font-medium">{ponderationStats.responseStats.no}</span>
+                          <span className="font-medium">{simpleStats.responseStats.no}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center">
                             <MinusCircle className="w-4 h-4 text-gray-600 mr-2" />
                             <span>No Aplica</span>
                           </div>
-                          <span className="font-medium">{ponderationStats.responseStats.na}</span>
+                          <span className="font-medium">{simpleStats.responseStats.na}</span>
                         </div>
                       </div>
                     </div>
