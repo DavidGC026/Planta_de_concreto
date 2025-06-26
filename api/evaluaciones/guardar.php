@@ -1,7 +1,8 @@
 <?php
 /**
- * API para guardar evaluación completa con sistema de ponderación
+ * API para guardar evaluación completa con sistema de ponderación y subsecciones
  * IMCYC - Sistema de Evaluación de Plantas de Concreto
+ * Actualizado para nueva estructura de BD con subsecciones
  */
 
 require_once '../config/database.php';
@@ -30,6 +31,8 @@ try {
     $usuario_id = $input['usuario_id'];
     $tipo_evaluacion = $input['tipo_evaluacion'];
     $rol_personal = $input['rol_personal'] ?? null;
+    $tipo_planta = $input['tipo_planta'] ?? null;
+    $categoria = $input['categoria'] ?? null;
     $respuestas = $input['respuestas'];
     $observaciones = $input['observaciones'] ?? null;
     
@@ -57,6 +60,41 @@ try {
         $rol_personal_id = $stmt->fetchColumn();
     }
     
+    // Verificar si las tablas tienen las columnas necesarias y agregarlas si no existen
+    try {
+        // Verificar y agregar columna puntuacion_ponderada
+        $check_column = $db->query("SHOW COLUMNS FROM evaluaciones LIKE 'puntuacion_ponderada'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE evaluaciones ADD COLUMN puntuacion_ponderada DECIMAL(5,2) DEFAULT 0.00");
+        }
+        
+        // Verificar y agregar columna preguntas_trampa_respondidas
+        $check_column = $db->query("SHOW COLUMNS FROM evaluaciones LIKE 'preguntas_trampa_respondidas'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE evaluaciones ADD COLUMN preguntas_trampa_respondidas INT DEFAULT 0");
+        }
+        
+        // Verificar y agregar columnas en respuestas_evaluacion
+        $check_column = $db->query("SHOW COLUMNS FROM respuestas_evaluacion LIKE 'es_trampa'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN es_trampa BOOLEAN DEFAULT FALSE");
+        }
+        
+        $check_column = $db->query("SHOW COLUMNS FROM respuestas_evaluacion LIKE 'ponderacion_obtenida'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN ponderacion_obtenida DECIMAL(5,2) DEFAULT 0.00");
+        }
+        
+        $check_column = $db->query("SHOW COLUMNS FROM respuestas_evaluacion LIKE 'subseccion_id'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN subseccion_id INT NULL");
+        }
+        
+    } catch (Exception $e) {
+        // Las columnas ya existen o hay un error, continuar
+        error_log("Error verificando/agregando columnas: " . $e->getMessage());
+    }
+    
     // Calcular puntuación ponderada
     $puntuacion_total = 0;
     $puntuacion_ponderada = 0;
@@ -75,18 +113,24 @@ try {
         
         // Obtener información de la pregunta y su ponderación
         if ($pregunta_id) {
+            // Query actualizada para manejar subsecciones
             $query = "SELECT 
                         p.es_trampa,
                         p.ponderacion_individual,
-                        s.ponderacion as seccion_ponderacion,
+                        COALESCE(sub.ponderacion_subseccion, s.ponderacion) as seccion_ponderacion,
                         p.tipo_pregunta,
                         p.respuesta_correcta,
+                        p.subseccion_id,
+                        s.id as seccion_id,
+                        s.nombre as seccion_nombre,
+                        sub.nombre as subseccion_nombre,
                         (SELECT COUNT(*) FROM preguntas p2 
-                         WHERE p2.seccion_id = s.id 
+                         WHERE (p2.subseccion_id = p.subseccion_id OR (p2.subseccion_id IS NULL AND p2.seccion_id = s.id))
                          AND p2.activo = 1 
                          AND p2.es_trampa = 0) as preguntas_normales_seccion
                       FROM preguntas p
                       JOIN secciones_evaluacion s ON p.seccion_id = s.id
+                      LEFT JOIN subsecciones_evaluacion sub ON p.subseccion_id = sub.id
                       WHERE p.id = :pregunta_id";
             
             $stmt = $db->prepare($query);
@@ -168,19 +212,6 @@ try {
                :total_preguntas, :respuestas_si, :respuestas_no, :respuestas_na,
                :preguntas_trampa_respondidas, 'completada', NOW(), :observaciones)";
     
-    // Agregar campo puntuacion_ponderada si no existe
-    try {
-        $db->exec("ALTER TABLE evaluaciones ADD COLUMN puntuacion_ponderada DECIMAL(5,2) DEFAULT 0.00");
-    } catch (Exception $e) {
-        // Campo ya existe, continuar
-    }
-    
-    try {
-        $db->exec("ALTER TABLE evaluaciones ADD COLUMN preguntas_trampa_respondidas INT DEFAULT 0");
-    } catch (Exception $e) {
-        // Campo ya existe, continuar
-    }
-    
     $stmt = $db->prepare($query);
     $stmt->execute([
         ':usuario_id' => $usuario_id,
@@ -200,21 +231,8 @@ try {
     
     // Insertar respuestas individuales
     $query = "INSERT INTO respuestas_evaluacion 
-              (evaluacion_id, pregunta_id, respuesta, observacion, es_trampa, ponderacion_obtenida)
-              VALUES (:evaluacion_id, :pregunta_id, :respuesta, :observacion, :es_trampa, :ponderacion_obtenida)";
-    
-    // Agregar campos si no existen
-    try {
-        $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN es_trampa BOOLEAN DEFAULT FALSE");
-    } catch (Exception $e) {
-        // Campo ya existe
-    }
-    
-    try {
-        $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN ponderacion_obtenida DECIMAL(5,2) DEFAULT 0.00");
-    } catch (Exception $e) {
-        // Campo ya existe
-    }
+              (evaluacion_id, pregunta_id, respuesta, observacion, es_trampa, ponderacion_obtenida, subseccion_id)
+              VALUES (:evaluacion_id, :pregunta_id, :respuesta, :observacion, :es_trampa, :ponderacion_obtenida, :subseccion_id)";
     
     $stmt = $db->prepare($query);
     
@@ -226,20 +244,23 @@ try {
         // Determinar si es trampa y calcular ponderación obtenida
         $es_trampa = false;
         $ponderacion_obtenida = 0;
+        $subseccion_id = null;
         
         if ($pregunta_id) {
             $query_info = "SELECT 
                             p.es_trampa,
                             p.ponderacion_individual,
-                            s.ponderacion as seccion_ponderacion,
+                            p.subseccion_id,
+                            COALESCE(sub.ponderacion_subseccion, s.ponderacion) as seccion_ponderacion,
                             p.tipo_pregunta,
                             p.respuesta_correcta,
                             (SELECT COUNT(*) FROM preguntas p2 
-                             WHERE p2.seccion_id = s.id 
+                             WHERE (p2.subseccion_id = p.subseccion_id OR (p2.subseccion_id IS NULL AND p2.seccion_id = s.id))
                              AND p2.activo = 1 
                              AND p2.es_trampa = 0) as preguntas_normales_seccion
                           FROM preguntas p
                           JOIN secciones_evaluacion s ON p.seccion_id = s.id
+                          LEFT JOIN subsecciones_evaluacion sub ON p.subseccion_id = sub.id
                           WHERE p.id = :pregunta_id";
             
             $stmt_info = $db->prepare($query_info);
@@ -249,6 +270,7 @@ try {
             
             if ($pregunta_info) {
                 $es_trampa = $pregunta_info['es_trampa'];
+                $subseccion_id = $pregunta_info['subseccion_id'];
                 
                 if (!$es_trampa) {
                     $ponderacion_pregunta = $pregunta_info['ponderacion_individual'];
@@ -275,7 +297,8 @@ try {
             ':respuesta' => $respuesta_valor,
             ':observacion' => $observacion,
             ':es_trampa' => $es_trampa ? 1 : 0,
-            ':ponderacion_obtenida' => $ponderacion_obtenida
+            ':ponderacion_obtenida' => $ponderacion_obtenida,
+            ':subseccion_id' => $subseccion_id
         ]);
     }
     
@@ -290,8 +313,11 @@ try {
         elseif ($puntuacion_ponderada >= 60) $resultado = 'BUENO';
         elseif ($puntuacion_ponderada >= 40) $resultado = 'REGULAR';
         else $resultado = 'DEFICIENTE';
+    } elseif ($tipo_evaluacion === 'personal') {
+        // Para evaluación de personal, usar criterio de 90%
+        $resultado = $puntuacion_ponderada >= 90 ? 'APROBADO' : 'REPROBADO';
     } else {
-        // Para evaluaciones de personal y equipo
+        // Para evaluaciones de equipo y otras
         $resultado = $puntuacion_ponderada >= 70 ? 'APROBADO' : 'REPROBADO';
     }
     
@@ -302,6 +328,7 @@ try {
             'puntuacion_total' => $puntuacion_total,
             'puntuacion_ponderada' => round($puntuacion_ponderada, 2),
             'resultado' => $resultado,
+            'tipo_evaluacion' => $tipo_evaluacion,
             'estadisticas' => [
                 'total_preguntas' => $total_preguntas,
                 'preguntas_trampa_respondidas' => $preguntas_trampa_respondidas,
@@ -311,6 +338,11 @@ try {
                 'respuestas_a' => $respuestas_a,
                 'respuestas_b' => $respuestas_b,
                 'respuestas_c' => $respuestas_c
+            ],
+            'configuracion' => [
+                'tipo_planta' => $tipo_planta,
+                'categoria' => $categoria,
+                'rol_personal' => $rol_personal
             ]
         ]
     ]);
@@ -320,6 +352,11 @@ try {
     if ($db->inTransaction()) {
         $db->rollback();
     }
+    
+    // Log del error para debugging
+    error_log("Error en guardar.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
     handleError('Error al guardar evaluación: ' . $e->getMessage());
 }
 ?>
