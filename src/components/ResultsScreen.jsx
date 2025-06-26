@@ -18,205 +18,131 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
   } = results;
   
   // Determinar el estado según el tipo de evaluación y puntaje
-  let status, statusColor, statusIcon, chartColor;
+  let status, statusColor, statusIcon;
   
   // Verificar si reprobó por preguntas trampa
   if (failedByTrapQuestions) {
     status = 'REPROBADO POR PREGUNTAS TRAMPA';
     statusColor = 'text-red-600';
     statusIcon = AlertTriangle;
-    chartColor = '#ef4444'; // Rojo
   } else if (isPlantStatus) {
     // Para evaluación de estado de planta (operación)
     if (score >= 80) {
       status = 'EXCELENTE';
       statusColor = 'text-green-600';
       statusIcon = CheckCircle;
-      chartColor = '#22c55e'; // Verde
     } else if (score >= 60) {
       status = 'BUENO';
       statusColor = 'text-blue-600';
       statusIcon = CheckCircle;
-      chartColor = '#3b82f6'; // Azul
     } else if (score >= 40) {
       status = 'REGULAR';
       statusColor = 'text-yellow-600';
       statusIcon = XCircle;
-      chartColor = '#eab308'; // Amarillo
     } else {
       status = 'DEFICIENTE';
       statusColor = 'text-red-600';
       statusIcon = XCircle;
-      chartColor = '#ef4444'; // Rojo
     }
   } else {
     // Para cuestionarios de personal y equipo
     if (isPersonalEvaluation) {
-      // Sistema específico para evaluación de personal
-      if (score >= 90) {
+      // Sistema específico para evaluación de personal (91-100% aprobado)
+      if (score >= 91) {
         status = 'APROBADO';
         statusColor = 'text-green-600';
         statusIcon = CheckCircle;
-        chartColor = '#22c55e'; // Verde
       } else {
         status = 'REPROBADO';
         statusColor = 'text-red-600';
         statusIcon = XCircle;
-        // Determinar color según rango para reprobados
-        if (score >= 85) {
-          chartColor = '#22c55e'; // Verde (85-89)
-        } else if (score >= 60) {
-          chartColor = '#eab308'; // Amarillo (60-84)
-        } else {
-          chartColor = '#ef4444'; // Rojo (0-59)
-        }
       }
     } else {
       // Sistema original para evaluación de equipo
       status = score >= 70 ? 'APROBADO' : 'REPROBADO';
       statusColor = status === 'APROBADO' ? 'text-green-600' : 'text-red-600';
       statusIcon = status === 'APROBADO' ? CheckCircle : XCircle;
-      
-      // Colores para gráfica según puntaje
-      if (score >= 85) {
-        chartColor = '#22c55e'; // Verde
-      } else if (score >= 60) {
-        chartColor = '#eab308'; // Amarillo
-      } else {
-        chartColor = '#ef4444'; // Rojo
-      }
     }
   }
 
   const StatusIcon = statusIcon;
 
-  // Radar chart data (mock data for visualization)
-  const categories = [
-    'Conocimiento técnico y operativo',
-    'Gestión de la producción',
-    'Mantenimiento del equipo',
-    'Seguridad y cumplimiento normativo',
-    'Control de calidad',
-    'Gestión del personal',
-    'Documentación y control administrativo',
-    'Coordinación con logística y clientes',
-    'Resolución de problemas',
-    'Mejora continua y enfoque a resultados'
-  ];
-
-  const generateRadarChart = () => {
+  // Función para generar gráfica circular con rangos de colores
+  const generateCircularChart = () => {
     const centerX = 200;
     const centerY = 200;
-    const radius = 150;
-    const levels = 5;
+    const radius = 120;
+    const strokeWidth = 40;
     
-    // Generate grid circles
-    const gridCircles = [];
-    for (let i = 1; i <= levels; i++) {
-      const r = (radius * i) / levels;
-      gridCircles.push(
-        <circle
-          key={`grid-${i}`}
-          cx={centerX}
-          cy={centerY}
-          r={r}
-          fill="none"
-          stroke="#e5e7eb"
-          strokeWidth="1"
-        />
-      );
+    // Calcular el porcentaje para la gráfica
+    const percentage = Math.min(Math.max(score, 0), 100);
+    const circumference = 2 * Math.PI * radius;
+    const strokeDasharray = circumference;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+    
+    // Determinar color según los rangos especificados
+    let chartColor;
+    if (failedByTrapQuestions) {
+      chartColor = '#ef4444'; // Rojo para preguntas trampa
+    } else if (isPersonalEvaluation) {
+      // Para evaluación de personal: 0-90% rojo, 91-100% verde
+      chartColor = score >= 91 ? '#22c55e' : '#ef4444';
+    } else {
+      // Para otras evaluaciones: 0-60% rojo, 61-85% amarillo, 86-100% verde
+      if (score >= 86) {
+        chartColor = '#22c55e'; // Verde
+      } else if (score >= 61) {
+        chartColor = '#eab308'; // Amarillo
+      } else {
+        chartColor = '#ef4444'; // Rojo
+      }
     }
 
-    // Generate grid lines
-    const gridLines = [];
-    categories.forEach((_, index) => {
-      const angle = (index * 2 * Math.PI) / categories.length - Math.PI / 2;
-      const x = centerX + radius * Math.cos(angle);
-      const y = centerY + radius * Math.sin(angle);
-      
-      gridLines.push(
-        <line
-          key={`line-${index}`}
-          x1={centerX}
-          y1={centerY}
-          x2={x}
-          y2={y}
-          stroke="#e5e7eb"
-          strokeWidth="1"
-        />
-      );
-    });
-
-    // Generate data points based on actual score
-    const dataPoints = [];
-    const scoreRatio = failedByTrapQuestions ? 0.2 : score / 100; // Si reprobó por trampa, mostrar bajo rendimiento
-    const values = categories.map(() => Math.random() * 0.3 + scoreRatio * 0.7);
-    
-    values.forEach((value, index) => {
-      const angle = (index * 2 * Math.PI) / categories.length - Math.PI / 2;
-      const x = centerX + radius * value * Math.cos(angle);
-      const y = centerY + radius * value * Math.sin(angle);
-      dataPoints.push({ x, y });
-    });
-
-    // Create polygon path
-    const pathData = dataPoints.map((point, index) => 
-      `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
-    ).join(' ') + ' Z';
-
-    // Determinar color de relleno con transparencia
-    const fillColor = chartColor + '4D'; // Agregar transparencia (30%)
-
     return (
-      <svg width="400" height="400" className="radar-chart">
-        {gridCircles}
-        {gridLines}
-        
-        {/* Data area con color dinámico */}
-        <path
-          d={pathData}
-          fill={fillColor}
-          stroke={chartColor}
-          strokeWidth="2"
-        />
-        
-        {/* Data points con color dinámico */}
-        {dataPoints.map((point, index) => (
+      <div className="relative flex items-center justify-center">
+        <svg width="400" height="400" className="transform -rotate-90">
+          {/* Círculo de fondo */}
           <circle
-            key={`point-${index}`}
-            cx={point.x}
-            cy={point.y}
-            r="4"
-            fill={chartColor}
+            cx={centerX}
+            cy={centerY}
+            r={radius}
+            fill="none"
+            stroke="#e5e7eb"
+            strokeWidth={strokeWidth}
           />
-        ))}
-        
-        {/* Category labels */}
-        {categories.map((category, index) => {
-          const angle = (index * 2 * Math.PI) / categories.length - Math.PI / 2;
-          const labelRadius = radius + 30;
-          const x = centerX + labelRadius * Math.cos(angle);
-          const y = centerY + labelRadius * Math.sin(angle);
           
-          return (
-            <text
-              key={`label-${index}`}
-              x={x}
-              y={y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="10"
-              fill="#374151"
-              className="font-medium"
-            >
-              <tspan x={x} dy="0">{category.split(' ').slice(0, 2).join(' ')}</tspan>
-              {category.split(' ').length > 2 && (
-                <tspan x={x} dy="12">{category.split(' ').slice(2).join(' ')}</tspan>
-              )}
-            </text>
-          );
-        })}
-      </svg>
+          {/* Círculo de progreso */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={radius}
+            fill="none"
+            stroke={chartColor}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={strokeDasharray}
+            strokeDashoffset={strokeDashoffset}
+            style={{
+              transition: 'stroke-dashoffset 1s ease-in-out',
+            }}
+          />
+        </svg>
+        
+        {/* Contenido central */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className={`text-6xl font-bold ${getScoreColor(score)}`}>
+            {score}%
+          </div>
+          <div className="text-lg text-gray-600 mt-2">
+            Puntuación
+          </div>
+          {!isPlantStatus && correctAnswers && (
+            <div className="text-sm text-gray-500 mt-1">
+              {correctAnswers}/{totalAnswers} correctas
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 
@@ -234,7 +160,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         estado: status,
         tipo: isPlantStatus ? 'Estado de Planta' : 'Cuestionario Estándar',
         sistema_calificacion: isPersonalEvaluation 
-          ? 'Personal (Aprobado ≥90%)' 
+          ? 'Personal (Aprobado ≥91%)' 
           : 'Estándar (Aprobado ≥70%)'
       },
       secciones: results.sections || [],
@@ -245,7 +171,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         observaciones: failedByTrapQuestions 
           ? `Evaluación reprobada por ${wrongTrapAnswers} errores en preguntas de verificación`
           : 'Evaluación completada exitosamente',
-        rango_color: score >= 85 ? 'Verde (85-100%)' : score >= 60 ? 'Amarillo (60-84%)' : 'Rojo (0-59%)'
+        rango_color: getRangeDescription(score, isPersonalEvaluation)
       }
     };
 
@@ -305,7 +231,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             .section { margin: 20px 0; }
             .section-title { background-color: #f8f9fa; padding: 10px; font-weight: bold; }
             .trap-warning { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }
-            .color-system-box { background-color: #f0f9ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid ${chartColor}; }
+            .color-system-box { background-color: #f0f9ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid ${getChartColor(score, isPersonalEvaluation, failedByTrapQuestions)}; }
             table { width: 100%; border-collapse: collapse; margin: 10px 0; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
             th { background-color: #f8f9fa; }
@@ -349,10 +275,15 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           
           <div class="color-system-box">
             <h3>Sistema de Evaluación</h3>
-            <p><strong>🔴 Rojo (0-59%):</strong> Nivel deficiente - Requiere mejora significativa</p>
-            <p><strong>🟡 Amarillo (60-84%):</strong> Nivel regular - Requiere algunas mejoras</p>
-            <p><strong>🟢 Verde (85-100%):</strong> Nivel excelente - Cumple con los estándares</p>
-            ${isPersonalEvaluation ? '<p><em>Nota: Para evaluación de personal se requiere ≥90% para aprobar</em></p>' : ''}
+            ${isPersonalEvaluation ? `
+              <p><strong>🔴 Rojo (0-90%):</strong> Reprobado - Requiere mejora significativa</p>
+              <p><strong>🟢 Verde (91-100%):</strong> Aprobado - Cumple con los estándares</p>
+              <p><em>Nota: Para evaluación de personal se requiere ≥91% para aprobar</em></p>
+            ` : `
+              <p><strong>🔴 Rojo (0-60%):</strong> Nivel deficiente - Requiere mejora significativa</p>
+              <p><strong>🟡 Amarillo (61-85%):</strong> Nivel regular - Requiere algunas mejoras</p>
+              <p><strong>🟢 Verde (86-100%):</strong> Nivel excelente - Cumple con los estándares</p>
+            `}
             <p><em>Preguntas de verificación: 2 o más errores = Reprobación automática</em></p>
           </div>
           
@@ -398,17 +329,51 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
   // Función para obtener el color de la estadística según el puntaje
   const getScoreColor = (score) => {
     if (failedByTrapQuestions) return 'text-red-600';
-    if (score >= 85) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+    
+    if (isPersonalEvaluation) {
+      return score >= 91 ? 'text-green-600' : 'text-red-600';
+    } else {
+      if (score >= 86) return 'text-green-600';
+      if (score >= 61) return 'text-yellow-600';
+      return 'text-red-600';
+    }
   };
 
   // Función para obtener el color de fondo de la estadística
   const getScoreBgColor = (score) => {
     if (failedByTrapQuestions) return 'bg-red-50';
-    if (score >= 85) return 'bg-green-50';
-    if (score >= 60) return 'bg-yellow-50';
-    return 'bg-red-50';
+    
+    if (isPersonalEvaluation) {
+      return score >= 91 ? 'bg-green-50' : 'bg-red-50';
+    } else {
+      if (score >= 86) return 'bg-green-50';
+      if (score >= 61) return 'bg-yellow-50';
+      return 'bg-red-50';
+    }
+  };
+
+  // Función para obtener descripción del rango
+  const getRangeDescription = (score, isPersonal) => {
+    if (isPersonal) {
+      return score >= 91 ? 'Verde (91-100%)' : 'Rojo (0-90%)';
+    } else {
+      if (score >= 86) return 'Verde (86-100%)';
+      if (score >= 61) return 'Amarillo (61-85%)';
+      return 'Rojo (0-60%)';
+    }
+  };
+
+  // Función para obtener color del gráfico
+  const getChartColor = (score, isPersonal, failedTrap) => {
+    if (failedTrap) return '#ef4444';
+    
+    if (isPersonal) {
+      return score >= 91 ? '#22c55e' : '#ef4444';
+    } else {
+      if (score >= 86) return '#22c55e';
+      if (score >= 61) return '#eab308';
+      return '#ef4444';
+    }
   };
 
   return (
@@ -434,13 +399,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                   {status}
                 </div>
               </div>
-              
-              <div className="text-xl text-gray-600">
-                Puntuación: <span className={`font-bold ${getScoreColor(score)}`}>{score}%</span>
-                {!isPlantStatus && correctAnswers && (
-                  <span> | Correctas: {correctAnswers}/{totalAnswers}</span>
-                )}
-              </div>
 
               {/* Alerta de preguntas trampa */}
               {failedByTrapQuestions && (
@@ -460,43 +418,63 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               {/* Indicador del sistema de calificación para personal */}
               {isPersonalEvaluation && !failedByTrapQuestions && (
                 <div className="mt-2 text-sm text-gray-600">
-                  <span className="font-medium">Sistema de Personal:</span> Se requiere ≥90% para aprobar
+                  <span className="font-medium">Sistema de Personal:</span> Se requiere ≥91% para aprobar
                 </div>
               )}
             </CardHeader>
 
             <CardContent className="px-8 pb-8">
+              {/* Gráfica circular */}
               <div className="flex justify-center mb-8">
-                {generateRadarChart()}
+                {generateCircularChart()}
               </div>
 
-              {/* Sistema de evaluación explicativo */}
+              {/* Escala de colores encima de la gráfica */}
               <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">Sistema de Evaluación</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg border border-red-200">
-                    <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                    <div>
-                      <div className="font-medium text-red-800">Rojo (0-59%)</div>
-                      <div className="text-sm text-red-600">Nivel deficiente</div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">Escala de Evaluación</h3>
+                {isPersonalEvaluation ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                      <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                      <div>
+                        <div className="font-medium text-red-800">Rojo (0-90%)</div>
+                        <div className="text-sm text-red-600">Reprobado</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                      <div>
+                        <div className="font-medium text-green-800">Verde (91-100%)</div>
+                        <div className="text-sm text-green-600">Aprobado</div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
-                    <div>
-                      <div className="font-medium text-yellow-800">Amarillo (60-84%)</div>
-                      <div className="text-sm text-yellow-600">Nivel regular</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                      <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                      <div>
+                        <div className="font-medium text-red-800">Rojo (0-60%)</div>
+                        <div className="text-sm text-red-600">Nivel deficiente</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
+                      <div>
+                        <div className="font-medium text-yellow-800">Amarillo (61-85%)</div>
+                        <div className="text-sm text-yellow-600">Nivel regular</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                      <div>
+                        <div className="font-medium text-green-800">Verde (86-100%)</div>
+                        <div className="text-sm text-green-600">Nivel excelente</div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                    <div>
-                      <div className="font-medium text-green-800">Verde (85-100%)</div>
-                      <div className="text-sm text-green-600">Nivel excelente</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-center text-sm text-gray-600 bg-orange-50 p-3 rounded border border-orange-200">
+                )}
+                <div className="text-center text-sm text-gray-600 bg-orange-50 p-3 rounded border border-orange-200 mt-4">
                   <strong>Preguntas de Verificación:</strong> 2 o más errores = Reprobación automática
                 </div>
               </div>
@@ -508,7 +486,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                   <div className="text-sm text-gray-600">Puntuación Final</div>
                   <div className="text-xs text-gray-500 mt-1">
                     {failedByTrapQuestions ? '🔴 Reprobado por verificación' :
-                     score >= 85 ? '🟢 Excelente' : score >= 60 ? '🟡 Regular' : '🔴 Deficiente'}
+                     getRangeDescription(score, isPersonalEvaluation)}
                   </div>
                 </div>
                 
@@ -538,7 +516,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                     Las preguntas de verificación actúan como filtro de seguridad: 2 o más errores resultan en reprobación automática.
                     {isPersonalEvaluation && (
                       <span className="block mt-2 font-medium">
-                        Para evaluación de personal se requiere una puntuación ≥90% para aprobar.
+                        Para evaluación de personal se requiere una puntuación ≥91% para aprobar.
                       </span>
                     )}
                   </p>
