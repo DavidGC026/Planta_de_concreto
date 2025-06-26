@@ -2,16 +2,31 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { Building2, ArrowLeft, Download, RotateCcw, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Building2, ArrowLeft, Download, RotateCcw, FileText, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
-  const { score, totalAnswers, correctAnswers, isPlantStatus, ponderacionTotal, preguntasTrampa, evaluationTitle } = results;
+  const { 
+    score, 
+    totalAnswers, 
+    correctAnswers, 
+    isPlantStatus, 
+    evaluationTitle,
+    wrongTrapAnswers = 0,
+    failedByTrapQuestions = false,
+    isPersonalEvaluation = false
+  } = results;
   
   // Determinar el estado según el tipo de evaluación y puntaje
   let status, statusColor, statusIcon, chartColor;
   
-  if (isPlantStatus) {
+  // Verificar si reprobó por preguntas trampa
+  if (failedByTrapQuestions) {
+    status = 'REPROBADO POR PREGUNTAS TRAMPA';
+    statusColor = 'text-red-600';
+    statusIcon = AlertTriangle;
+    chartColor = '#ef4444'; // Rojo
+  } else if (isPlantStatus) {
     // Para evaluación de estado de planta (operación)
     if (score >= 80) {
       status = 'EXCELENTE';
@@ -35,8 +50,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       chartColor = '#ef4444'; // Rojo
     }
   } else {
-    // Para cuestionarios de personal y equipo (sistema de ponderación)
-    if (evaluationTitle && evaluationTitle.toLowerCase().includes('personal')) {
+    // Para cuestionarios de personal y equipo
+    if (isPersonalEvaluation) {
       // Sistema específico para evaluación de personal
       if (score >= 90) {
         status = 'APROBADO';
@@ -134,8 +149,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
     // Generate data points based on actual score
     const dataPoints = [];
-    const scoreRatio = score / 100; // Normalizar el score a un valor entre 0 y 1
-    const values = categories.map(() => Math.random() * 0.3 + scoreRatio * 0.7); // Variar alrededor del score real
+    const scoreRatio = failedByTrapQuestions ? 0.2 : score / 100; // Si reprobó por trampa, mostrar bajo rendimiento
+    const values = categories.map(() => Math.random() * 0.3 + scoreRatio * 0.7);
     
     values.forEach((value, index) => {
       const angle = (index * 2 * Math.PI) / categories.length - Math.PI / 2;
@@ -212,14 +227,13 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         fecha: new Date().toLocaleDateString('es-MX'),
         hora: new Date().toLocaleTimeString('es-MX'),
         puntuacion: score,
-        puntuacion_ponderada: score, // En el nuevo sistema, score ya es la ponderada
         total_preguntas: totalAnswers,
         respuestas_correctas: correctAnswers || 'N/A',
-        preguntas_trampa: preguntasTrampa || 0,
+        preguntas_trampa_incorrectas: wrongTrapAnswers || 0,
+        reprobado_por_trampa: failedByTrapQuestions,
         estado: status,
-        tipo: isPlantStatus ? 'Estado de Planta' : 'Cuestionario Ponderado',
-        ponderacion_total: ponderacionTotal || 100,
-        sistema_calificacion: evaluationTitle && evaluationTitle.toLowerCase().includes('personal') 
+        tipo: isPlantStatus ? 'Estado de Planta' : 'Cuestionario Estándar',
+        sistema_calificacion: isPersonalEvaluation 
           ? 'Personal (Aprobado ≥90%)' 
           : 'Estándar (Aprobado ≥70%)'
       },
@@ -228,7 +242,9 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       estadisticas: {
         porcentaje_aciertos: isPlantStatus ? 'N/A' : Math.round((correctAnswers / totalAnswers) * 100),
         tiempo_evaluacion: 'N/A',
-        observaciones: 'Evaluación completada exitosamente con sistema de ponderación',
+        observaciones: failedByTrapQuestions 
+          ? `Evaluación reprobada por ${wrongTrapAnswers} errores en preguntas de verificación`
+          : 'Evaluación completada exitosamente',
         rango_color: score >= 85 ? 'Verde (85-100%)' : score >= 60 ? 'Amarillo (60-84%)' : 'Rojo (0-59%)'
       }
     };
@@ -242,7 +258,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       const dataStr = JSON.stringify(reportData, null, 2);
       const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
       
-      const exportFileDefaultName = `reporte_evaluacion_ponderada_${new Date().toISOString().split('T')[0]}.json`;
+      const exportFileDefaultName = `reporte_evaluacion_${new Date().toISOString().split('T')[0]}.json`;
       
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
@@ -251,7 +267,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       
       toast({
         title: "✅ Reporte descargado",
-        description: "El reporte JSON con ponderación se ha descargado exitosamente"
+        description: "El reporte JSON se ha descargado exitosamente"
       });
     } catch (error) {
       toast({
@@ -271,7 +287,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         <html>
         <head>
           <meta charset="utf-8">
-          <title>Reporte de Evaluación IMCYC - Sistema de Ponderación</title>
+          <title>Reporte de Evaluación IMCYC</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             .header { text-align: center; border-bottom: 2px solid #0055A5; padding-bottom: 20px; margin-bottom: 30px; }
@@ -288,7 +304,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             .status.deficiente { background-color: #f8d7da; color: #721c24; }
             .section { margin: 20px 0; }
             .section-title { background-color: #f8f9fa; padding: 10px; font-weight: bold; }
-            .ponderacion-box { background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0; }
+            .trap-warning { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }
             .color-system-box { background-color: #f0f9ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid ${chartColor}; }
             table { width: 100%; border-collapse: collapse; margin: 10px 0; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -300,7 +316,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           <div class="header">
             <div class="logo">IMCYC</div>
             <div class="title">Instituto Mexicano del Cemento y del Concreto A.C.</div>
-            <div class="title">Reporte de Evaluación - Sistema de Ponderación</div>
+            <div class="title">Reporte de Evaluación</div>
           </div>
           
           <div class="info-grid">
@@ -315,7 +331,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             
             <div class="info-box">
               <h3>Resultados</h3>
-              <p><strong>Puntuación Ponderada:</strong> ${reportData.evaluacion.puntuacion_ponderada}%</p>
+              <p><strong>Puntuación:</strong> ${reportData.evaluacion.puntuacion}%</p>
               <p><strong>Total de preguntas:</strong> ${reportData.evaluacion.total_preguntas}</p>
               ${!isPlantStatus ? `<p><strong>Respuestas correctas:</strong> ${reportData.evaluacion.respuestas_correctas}</p>` : ''}
               ${!isPlantStatus ? `<p><strong>Porcentaje:</strong> ${reportData.estadisticas.porcentaje_aciertos}%</p>` : ''}
@@ -323,22 +339,24 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             </div>
           </div>
           
+          ${failedByTrapQuestions ? `
+          <div class="trap-warning">
+            <h3>⚠️ Evaluación Reprobada por Preguntas de Verificación</h3>
+            <p>La evaluación fue reprobada debido a <strong>${wrongTrapAnswers} errores</strong> en preguntas de verificación.</p>
+            <p>Las preguntas de verificación evalúan conocimientos fundamentales y son críticas para la aprobación.</p>
+          </div>
+          ` : ''}
+          
           <div class="color-system-box">
-            <h3>Sistema de Colores de Evaluación</h3>
+            <h3>Sistema de Evaluación</h3>
             <p><strong>🔴 Rojo (0-59%):</strong> Nivel deficiente - Requiere mejora significativa</p>
             <p><strong>🟡 Amarillo (60-84%):</strong> Nivel regular - Requiere algunas mejoras</p>
             <p><strong>🟢 Verde (85-100%):</strong> Nivel excelente - Cumple con los estándares</p>
-            <p><em>Nota: Para evaluación de personal se requiere ≥90% para aprobar</em></p>
+            ${isPersonalEvaluation ? '<p><em>Nota: Para evaluación de personal se requiere ≥90% para aprobar</em></p>' : ''}
+            <p><em>Preguntas de verificación: 2 o más errores = Reprobación automática</em></p>
           </div>
           
-          <div class="ponderacion-box">
-            <h3>Sistema de Ponderación</h3>
-            <p>Esta evaluación utiliza un sistema de ponderación donde cada sección tiene un peso específico que suma al 100% total.</p>
-            <p><strong>Ponderación Total Configurada:</strong> ${reportData.evaluacion.ponderacion_total}%</p>
-            <p><strong>Puntuación Obtenida:</strong> ${reportData.evaluacion.puntuacion_ponderada}% de ${reportData.evaluacion.ponderacion_total}%</p>
-          </div>
-          
-          <div class="status ${status.toLowerCase()}">
+          <div class="status ${status.toLowerCase().replace(/\s+/g, '_')}">
             RESULTADO: ${status}
           </div>
           
@@ -350,7 +368,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           <div class="footer">
             <p>© ${new Date().getFullYear()} IMCYC - Instituto Mexicano del Cemento y del Concreto A.C.</p>
             <p>Reporte generado automáticamente el ${new Date().toLocaleString('es-MX')}</p>
-            <p>Sistema de Evaluación con Ponderación y Colores</p>
+            <p>Sistema de Evaluación con Preguntas de Verificación</p>
           </div>
         </body>
         </html>
@@ -361,13 +379,13 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `reporte_evaluacion_ponderada_${new Date().toISOString().split('T')[0]}.html`;
+      link.download = `reporte_evaluacion_${new Date().toISOString().split('T')[0]}.html`;
       link.click();
       URL.revokeObjectURL(url);
       
       toast({
         title: "✅ Reporte descargado",
-        description: "El reporte HTML con sistema de colores se ha descargado exitosamente. Puedes abrirlo en tu navegador o convertirlo a PDF."
+        description: "El reporte HTML se ha descargado exitosamente. Puedes abrirlo en tu navegador o convertirlo a PDF."
       });
     } catch (error) {
       toast({
@@ -379,6 +397,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
   // Función para obtener el color de la estadística según el puntaje
   const getScoreColor = (score) => {
+    if (failedByTrapQuestions) return 'text-red-600';
     if (score >= 85) return 'text-green-600';
     if (score >= 60) return 'text-yellow-600';
     return 'text-red-600';
@@ -386,6 +405,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
   // Función para obtener el color de fondo de la estadística
   const getScoreBgColor = (score) => {
+    if (failedByTrapQuestions) return 'bg-red-50';
     if (score >= 85) return 'bg-green-50';
     if (score >= 60) return 'bg-yellow-50';
     return 'bg-red-50';
@@ -416,17 +436,29 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               </div>
               
               <div className="text-xl text-gray-600">
-                Puntuación Ponderada: <span className={`font-bold ${getScoreColor(score)}`}>{score}%</span>
-                {ponderacionTotal && ponderacionTotal !== 100 && (
-                  <span className="text-sm text-gray-500"> (de {ponderacionTotal}%)</span>
-                )}
+                Puntuación: <span className={`font-bold ${getScoreColor(score)}`}>{score}%</span>
                 {!isPlantStatus && correctAnswers && (
                   <span> | Correctas: {correctAnswers}/{totalAnswers}</span>
                 )}
               </div>
 
+              {/* Alerta de preguntas trampa */}
+              {failedByTrapQuestions && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center justify-center space-x-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <span className="font-medium text-red-800">
+                      Reprobado por {wrongTrapAnswers} errores en preguntas de verificación
+                    </span>
+                  </div>
+                  <p className="text-sm text-red-600 mt-2">
+                    Las preguntas de verificación evalúan conocimientos fundamentales críticos
+                  </p>
+                </div>
+              )}
+
               {/* Indicador del sistema de calificación para personal */}
-              {evaluationTitle && evaluationTitle.toLowerCase().includes('personal') && (
+              {isPersonalEvaluation && !failedByTrapQuestions && (
                 <div className="mt-2 text-sm text-gray-600">
                   <span className="font-medium">Sistema de Personal:</span> Se requiere ≥90% para aprobar
                 </div>
@@ -438,10 +470,10 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 {generateRadarChart()}
               </div>
 
-              {/* Sistema de colores explicativo */}
+              {/* Sistema de evaluación explicativo */}
               <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">Sistema de Colores de Evaluación</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">Sistema de Evaluación</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg border border-red-200">
                     <div className="w-4 h-4 bg-red-500 rounded-full"></div>
                     <div>
@@ -464,15 +496,19 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                     </div>
                   </div>
                 </div>
+                <div className="text-center text-sm text-gray-600 bg-orange-50 p-3 rounded border border-orange-200">
+                  <strong>Preguntas de Verificación:</strong> 2 o más errores = Reprobación automática
+                </div>
               </div>
 
-              {/* Estadísticas adicionales con colores dinámicos */}
+              {/* Estadísticas con colores dinámicos */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className={`${getScoreBgColor(score)} p-4 rounded-lg text-center border border-opacity-30`}>
                   <div className={`text-2xl font-bold ${getScoreColor(score)}`}>{score}%</div>
-                  <div className="text-sm text-gray-600">Puntuación Ponderada</div>
+                  <div className="text-sm text-gray-600">Puntuación Final</div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {score >= 85 ? '🟢 Excelente' : score >= 60 ? '🟡 Regular' : '🔴 Deficiente'}
+                    {failedByTrapQuestions ? '🔴 Reprobado por verificación' :
+                     score >= 85 ? '🟢 Excelente' : score >= 60 ? '🟡 Regular' : '🔴 Deficiente'}
                   </div>
                 </div>
                 
@@ -493,14 +529,14 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 </div>
               </div>
 
-              {/* Información del sistema de ponderación */}
+              {/* Información del sistema simplificado */}
               {!isPlantStatus && (
                 <div className="bg-blue-50 p-4 rounded-lg mb-6">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Sistema de Ponderación</h3>
+                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Sistema de Evaluación Simplificado</h3>
                   <p className="text-blue-700 text-sm">
-                    Esta evaluación utiliza un sistema de ponderación donde cada sección tiene un peso específico. 
-                    La puntuación final se calcula basándose en la importancia relativa de cada área evaluada.
-                    {evaluationTitle && evaluationTitle.toLowerCase().includes('personal') && (
+                    Esta evaluación se basa en el porcentaje de respuestas correctas de las preguntas normales. 
+                    Las preguntas de verificación actúan como filtro de seguridad: 2 o más errores resultan en reprobación automática.
+                    {isPersonalEvaluation && (
                       <span className="block mt-2 font-medium">
                         Para evaluación de personal se requiere una puntuación ≥90% para aprobar.
                       </span>
