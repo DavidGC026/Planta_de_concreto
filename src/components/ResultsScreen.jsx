@@ -67,70 +67,95 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
   const StatusIcon = statusIcon;
 
-  // Función para generar gráfica circular con rangos de colores
+  // Función para generar gráfica circular con anillos de colores
   const generateCircularChart = () => {
     const centerX = 200;
     const centerY = 200;
-    const radius = 120;
-    const strokeWidth = 40;
+    const outerRadius = 120;
+    const middleRadius = 90;
+    const innerRadius = 60;
+    const strokeWidth = 30;
     
     // Calcular el porcentaje para la gráfica
     const percentage = Math.min(Math.max(score, 0), 100);
-    const circumference = 2 * Math.PI * radius;
+    const circumference = 2 * Math.PI * outerRadius;
     const strokeDasharray = circumference;
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
     
-    // Determinar color según los rangos especificados
-    let chartColor;
+    // Determinar color del progreso según los rangos especificados
+    let progressColor;
     if (failedByTrapQuestions) {
-      chartColor = '#ef4444'; // Rojo para preguntas trampa
+      progressColor = '#ef4444'; // Rojo para preguntas trampa
     } else if (isPersonalEvaluation) {
       // Para evaluación de personal: 0-90% rojo, 91-100% verde
-      chartColor = score >= 91 ? '#22c55e' : '#ef4444';
+      progressColor = score >= 91 ? '#22c55e' : '#ef4444';
     } else {
       // Para otras evaluaciones: 0-60% rojo, 61-85% amarillo, 86-100% verde
       if (score >= 86) {
-        chartColor = '#22c55e'; // Verde
+        progressColor = '#22c55e'; // Verde
       } else if (score >= 61) {
-        chartColor = '#eab308'; // Amarillo
+        progressColor = '#eab308'; // Amarillo
       } else {
-        chartColor = '#ef4444'; // Rojo
+        progressColor = '#ef4444'; // Rojo
       }
     }
 
     return (
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex items-center justify-center mb-6">
         <svg width="400" height="400" className="transform -rotate-90">
-          {/* Círculo de fondo */}
+          {/* Anillo exterior - Verde (86-100%) */}
           <circle
             cx={centerX}
             cy={centerY}
-            r={radius}
+            r={outerRadius}
             fill="none"
-            stroke="#e5e7eb"
+            stroke="#22c55e"
             strokeWidth={strokeWidth}
+            opacity="0.3"
+          />
+          
+          {/* Anillo medio - Amarillo (61-85%) */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={middleRadius}
+            fill="none"
+            stroke="#eab308"
+            strokeWidth={strokeWidth}
+            opacity="0.3"
+          />
+          
+          {/* Anillo interior - Rojo (0-60%) */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={innerRadius}
+            fill="none"
+            stroke="#ef4444"
+            strokeWidth={strokeWidth}
+            opacity="0.3"
           />
           
           {/* Círculo de progreso */}
           <circle
             cx={centerX}
             cy={centerY}
-            r={radius}
+            r={outerRadius}
             fill="none"
-            stroke={chartColor}
+            stroke={progressColor}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={strokeDasharray}
             strokeDashoffset={strokeDashoffset}
             style={{
-              transition: 'stroke-dashoffset 1s ease-in-out',
+              transition: 'stroke-dashoffset 1.5s ease-in-out',
             }}
           />
         </svg>
         
         {/* Contenido central */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className={`text-6xl font-bold ${getScoreColor(score)}`}>
+          <div className={`text-6xl font-bold ${getScoreColor(score, isPersonalEvaluation, failedByTrapQuestions)}`}>
             {score}%
           </div>
           <div className="text-lg text-gray-600 mt-2">
@@ -158,7 +183,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         preguntas_trampa_incorrectas: wrongTrapAnswers || 0,
         reprobado_por_trampa: failedByTrapQuestions,
         estado: status,
-        tipo: isPlantStatus ? 'Estado de Planta' : 'Cuestionario Estándar',
+        tipo: isPlantStatus ? 'Estado de Planta' : 'Cuestionario con Ponderación por Secciones',
         sistema_calificacion: isPersonalEvaluation 
           ? 'Personal (Aprobado ≥91%)' 
           : 'Estándar (Aprobado ≥70%)'
@@ -170,8 +195,9 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         tiempo_evaluacion: 'N/A',
         observaciones: failedByTrapQuestions 
           ? `Evaluación reprobada por ${wrongTrapAnswers} errores en preguntas de verificación`
-          : 'Evaluación completada exitosamente',
-        rango_color: getRangeDescription(score, isPersonalEvaluation)
+          : 'Evaluación completada exitosamente con ponderación por secciones',
+        rango_color: getRangeDescription(score, isPersonalEvaluation),
+        sistema_ponderacion: 'Basado en tabla secciones_evaluacion'
       }
     };
 
@@ -232,6 +258,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             .section-title { background-color: #f8f9fa; padding: 10px; font-weight: bold; }
             .trap-warning { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }
             .color-system-box { background-color: #f0f9ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid ${getChartColor(score, isPersonalEvaluation, failedByTrapQuestions)}; }
+            .ponderation-box { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #6366f1; }
             table { width: 100%; border-collapse: collapse; margin: 10px 0; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
             th { background-color: #f8f9fa; }
@@ -265,6 +292,13 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             </div>
           </div>
           
+          <div class="ponderation-box">
+            <h3>🔢 Sistema de Ponderación por Secciones</h3>
+            <p>Esta evaluación utiliza el sistema de <strong>ponderación por secciones</strong> de la tabla <code>secciones_evaluacion</code>.</p>
+            <p><strong>Cálculo:</strong> Cada sección tiene un peso específico que se multiplica por el porcentaje de aciertos de esa sección.</p>
+            <p><em>Ejemplo: Sección A (20% peso) con 80% aciertos = 16% de contribución al total</em></p>
+          </div>
+          
           ${failedByTrapQuestions ? `
           <div class="trap-warning">
             <h3>⚠️ Evaluación Reprobada por Preguntas de Verificación</h3>
@@ -274,7 +308,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           ` : ''}
           
           <div class="color-system-box">
-            <h3>Sistema de Evaluación</h3>
+            <h3>Sistema de Evaluación por Anillos de Color</h3>
             ${isPersonalEvaluation ? `
               <p><strong>🔴 Rojo (0-90%):</strong> Reprobado - Requiere mejora significativa</p>
               <p><strong>🟢 Verde (91-100%):</strong> Aprobado - Cumple con los estándares</p>
@@ -299,7 +333,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           <div class="footer">
             <p>© ${new Date().getFullYear()} IMCYC - Instituto Mexicano del Cemento y del Concreto A.C.</p>
             <p>Reporte generado automáticamente el ${new Date().toLocaleString('es-MX')}</p>
-            <p>Sistema de Evaluación con Preguntas de Verificación</p>
+            <p>Sistema de Evaluación con Ponderación por Secciones y Preguntas de Verificación</p>
           </div>
         </body>
         </html>
@@ -327,10 +361,10 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
   };
 
   // Función para obtener el color de la estadística según el puntaje
-  const getScoreColor = (score) => {
-    if (failedByTrapQuestions) return 'text-red-600';
+  const getScoreColor = (score, isPersonal, failedTrap) => {
+    if (failedTrap) return 'text-red-600';
     
-    if (isPersonalEvaluation) {
+    if (isPersonal) {
       return score >= 91 ? 'text-green-600' : 'text-red-600';
     } else {
       if (score >= 86) return 'text-green-600';
@@ -340,10 +374,10 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
   };
 
   // Función para obtener el color de fondo de la estadística
-  const getScoreBgColor = (score) => {
-    if (failedByTrapQuestions) return 'bg-red-50';
+  const getScoreBgColor = (score, isPersonal, failedTrap) => {
+    if (failedTrap) return 'bg-red-50';
     
-    if (isPersonalEvaluation) {
+    if (isPersonal) {
       return score >= 91 ? 'bg-green-50' : 'bg-red-50';
     } else {
       if (score >= 86) return 'bg-green-50';
@@ -377,7 +411,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
   };
 
   return (
-    <div className="min-h-screen construction-bg">
+    <div className="min-h-screen custom-bg">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-700/20"></div>
       
       {/* Results Content */}
@@ -424,14 +458,9 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             </CardHeader>
 
             <CardContent className="px-8 pb-8">
-              {/* Gráfica circular */}
-              <div className="flex justify-center mb-8">
-                {generateCircularChart()}
-              </div>
-
               {/* Escala de colores encima de la gráfica */}
               <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">Escala de Evaluación</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">Escala de Evaluación por Anillos</h3>
                 {isPersonalEvaluation ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg border border-red-200">
@@ -479,10 +508,15 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 </div>
               </div>
 
+              {/* Gráfica circular con anillos */}
+              <div className="flex justify-center mb-8">
+                {generateCircularChart()}
+              </div>
+
               {/* Estadísticas con colores dinámicos */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className={`${getScoreBgColor(score)} p-4 rounded-lg text-center border border-opacity-30`}>
-                  <div className={`text-2xl font-bold ${getScoreColor(score)}`}>{score}%</div>
+                <div className={`${getScoreBgColor(score, isPersonalEvaluation, failedByTrapQuestions)} p-4 rounded-lg text-center border border-opacity-30`}>
+                  <div className={`text-2xl font-bold ${getScoreColor(score, isPersonalEvaluation, failedByTrapQuestions)}`}>{score}%</div>
                   <div className="text-sm text-gray-600">Puntuación Final</div>
                   <div className="text-xs text-gray-500 mt-1">
                     {failedByTrapQuestions ? '🔴 Reprobado por verificación' :
@@ -507,12 +541,13 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 </div>
               </div>
 
-              {/* Información del sistema simplificado */}
+              {/* Información del sistema de ponderación */}
               {!isPlantStatus && (
-                <div className="bg-blue-50 p-4 rounded-lg mb-6">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Sistema de Evaluación Simplificado</h3>
-                  <p className="text-blue-700 text-sm">
-                    Esta evaluación se basa en el porcentaje de respuestas correctas de las preguntas normales. 
+                <div className="bg-indigo-50 p-4 rounded-lg mb-6 border border-indigo-200">
+                  <h3 className="text-lg font-semibold text-indigo-800 mb-2">🔢 Sistema de Ponderación por Secciones</h3>
+                  <p className="text-indigo-700 text-sm">
+                    Esta evaluación utiliza el sistema de <strong>ponderación por secciones</strong> de la tabla <code>secciones_evaluacion</code>. 
+                    Cada sección tiene un peso específico que se multiplica por el porcentaje de aciertos de esa sección.
                     Las preguntas de verificación actúan como filtro de seguridad: 2 o más errores resultan en reprobación automática.
                     {isPersonalEvaluation && (
                       <span className="block mt-2 font-medium">

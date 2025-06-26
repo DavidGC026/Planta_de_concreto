@@ -203,7 +203,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
             observacion: question?.es_trampa ? 'Pregunta trampa' : null
           };
         }),
-        observaciones: `Evaluación de personal completada - Rol: ${selectedRole}${failedByTrapQuestions ? ' - REPROBADO POR PREGUNTAS TRAMPA' : ''}`
+        observaciones: `Evaluación de personal completada - Rol: ${selectedRole}${failedByTrapQuestions ? ' - REPROBADO POR PREGUNTAS TRAMPA' : ''} - Sistema: Ponderación por secciones`
       };
 
       // Guardar en base de datos
@@ -211,7 +211,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       onComplete({
         answers,
-        score: Math.round(finalPercentage),
+        score: Math.round(result.puntuacion_ponderada || finalPercentage), // Usar puntuación ponderada del backend
         totalAnswers: totalNormalQuestions,
         correctAnswers: correctNormalAnswers,
         evaluationTitle: `Evaluación de Personal - ${selectedRole}`,
@@ -225,7 +225,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         title: failedByTrapQuestions ? "❌ Evaluación reprobada" : "✅ Evaluación completada",
         description: failedByTrapQuestions 
           ? `Reprobado por ${wrongTrapAnswers} errores en preguntas trampa`
-          : "Los resultados han sido guardados exitosamente"
+          : "Los resultados han sido guardados exitosamente con ponderación por secciones"
       });
 
     } catch (error) {
@@ -246,7 +246,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
     await loadEvaluationData();
   };
 
-  // Calcular estadísticas simplificadas (sin ponderación)
+  // Calcular estadísticas simplificadas (sin ponderación en frontend)
   const calculateSimpleStats = () => {
     if (!evaluationData?.secciones) {
       return null;
@@ -470,6 +470,12 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                     <h2 className="text-xl font-semibold text-gray-800 text-center">
                       {currentSectionData?.nombre}
                     </h2>
+                    {/* Mostrar ponderación de la sección */}
+                    {currentSectionData?.ponderacion && (
+                      <div className="text-center text-sm text-gray-600 mt-1">
+                        Ponderación: {currentSectionData.ponderacion}%
+                      </div>
+                    )}
                   </div>
 
                   {/* Contenido */}
@@ -619,15 +625,18 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                       </div>
                     </div>
 
-                    {/* Puntuación actual */}
+                    {/* Puntuación estimada */}
                     <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación Actual</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación Estimada</h4>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-blue-600">
                           {simpleStats.currentScore}%
                         </div>
                         <div className="text-xs text-gray-500">
                           {simpleStats.correctAnswers} correctas de {simpleStats.answeredQuestions} respondidas
+                        </div>
+                        <div className="text-xs text-orange-600 mt-1 font-medium">
+                          ⚠️ Puntuación final se calcula por ponderación
                         </div>
                       </div>
                     </div>
@@ -708,8 +717,9 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Configuración</h4>
                       <div className="text-xs text-gray-600 space-y-1">
                         <div>Rol: {selectedRole}</div>
-                        <div>Sistema: Puntuación por preguntas correctas</div>
-                        <div>Criterio: ≥70% para aprobar</div>
+                        <div>Sistema: Ponderación por secciones</div>
+                        <div>Criterio: ≥91% para aprobar</div>
+                        <div>Fuente: tabla secciones_evaluacion</div>
                       </div>
                     </div>
                   </div>
