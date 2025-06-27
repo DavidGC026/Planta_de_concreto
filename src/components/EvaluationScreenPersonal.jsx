@@ -351,12 +351,13 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
     await loadEvaluationData();
   };
 
-  // Calcular estadísticas simplificadas (sin ponderación en frontend)
-  const calculateSimpleStats = () => {
+  // Calcular estadísticas mejoradas con información de la base de datos
+  const calculateEnhancedStats = () => {
     if (!evaluationData?.secciones) {
       return null;
     }
 
+    // Calcular totales generales
     const totalQuestions = evaluationData.secciones.reduce((total, seccion) => {
       return total + (seccion.preguntas?.filter(p => !p.es_trampa).length || 0);
     }, 0);
@@ -398,17 +399,63 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       }
     });
 
+    // Calcular información detallada por sección
+    const sectionsInfo = evaluationData.secciones.map((seccion, sectionIndex) => {
+      const normalQuestions = seccion.preguntas?.filter(p => !p.es_trampa) || [];
+      const totalSectionQuestions = normalQuestions.length;
+      
+      // Contar respuestas de esta sección
+      let sectionAnswered = 0;
+      let sectionCorrect = 0;
+      
+      normalQuestions.forEach((question, qIndex) => {
+        const key = `${selectedRole}-${sectionIndex}-${qIndex}`;
+        const answer = answers[key];
+        
+        if (answer) {
+          sectionAnswered++;
+          if (answer === 'si' || 
+              (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
+            sectionCorrect++;
+          }
+        }
+      });
+
+      const sectionProgress = totalSectionQuestions > 0 ? (sectionAnswered / totalSectionQuestions) * 100 : 0;
+      const sectionScore = sectionAnswered > 0 ? (sectionCorrect / sectionAnswered) * 100 : 0;
+      
+      return {
+        nombre: seccion.nombre,
+        ponderacion: seccion.ponderacion || 0,
+        totalPreguntas: totalSectionQuestions,
+        preguntasRespondidas: sectionAnswered,
+        respuestasCorrectas: sectionCorrect,
+        progreso: sectionProgress,
+        puntuacion: sectionScore,
+        isCurrentSection: sectionIndex === currentSection,
+        isCompleted: sectionProgress === 100
+      };
+    });
+
+    // Calcular ponderación total
+    const totalPonderacion = evaluationData.secciones.reduce((total, seccion) => {
+      return total + (seccion.ponderacion || 0);
+    }, 0);
+
     return {
       totalQuestions,
       answeredQuestions,
       progressPercentage,
       responseStats,
       correctAnswers,
-      currentScore: answeredQuestions > 0 ? Math.round((correctAnswers / answeredQuestions) * 100) : 0
+      currentScore: answeredQuestions > 0 ? Math.round((correctAnswers / answeredQuestions) * 100) : 0,
+      sectionsInfo,
+      totalPonderacion,
+      configuracion: evaluationData.configuracion
     };
   };
 
-  const simpleStats = calculateSimpleStats();
+  const enhancedStats = calculateEnhancedStats();
 
   // Pantalla de carga
   if (loading) {
@@ -563,7 +610,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
         <div className="flex gap-6">
           {/* Panel principal de evaluación */}
-          <div className={`${simpleStats ? 'w-3/5' : 'w-full'}`}>
+          <div className={`${enhancedStats ? 'w-3/5' : 'w-full'}`}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSection}
@@ -698,45 +745,101 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
             </AnimatePresence>
           </div>
 
-          {/* Panel de estadísticas simplificado */}
-          {simpleStats && (
+          {/* Panel de estadísticas mejorado */}
+          {enhancedStats && (
             <div className="w-2/5">
               <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 sticky top-8">
                 <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                     <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-                    Progreso de Evaluación
+                    Criterios de evaluación
                   </h3>
                 </div>
                 
                 <div className="p-4">
                   <div className="space-y-4">
+                    {/* Tabla de criterios de evaluación */}
+                    <div className="overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="text-left p-2 font-medium text-gray-700">Criterios de evaluación</th>
+                            <th className="text-center p-2 font-medium text-gray-700">Porcentaje</th>
+                            <th className="text-center p-2 font-medium text-gray-700">Total de preguntas</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {enhancedStats.sectionsInfo.map((section, index) => (
+                            <tr 
+                              key={index} 
+                              className={`border-b border-gray-100 ${
+                                section.isCurrentSection ? 'bg-blue-50' : 
+                                section.isCompleted ? 'bg-green-50' : ''
+                              }`}
+                            >
+                              <td className="p-2">
+                                <div className="flex items-center">
+                                  <span className="text-xs font-medium text-blue-600 mr-1">
+                                    {index + 1}
+                                  </span>
+                                  <span className="text-xs text-gray-800 truncate" title={section.nombre}>
+                                    {section.nombre.length > 25 ? section.nombre.substring(0, 25) + '...' : section.nombre}
+                                  </span>
+                                  {section.isCurrentSection && (
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full ml-1 flex-shrink-0" />
+                                  )}
+                                  {section.isCompleted && (
+                                    <CheckCircle className="w-3 h-3 text-green-500 ml-1 flex-shrink-0" />
+                                  )}
+                                </div>
+                              </td>
+                              <td className="text-center p-2 text-xs font-medium">
+                                {section.ponderacion}
+                              </td>
+                              <td className="text-center p-2 text-xs">
+                                {section.totalPreguntas}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="bg-gray-100 font-bold">
+                            <td className="p-2 text-xs">TOTAL</td>
+                            <td className="text-center p-2 text-xs">{enhancedStats.totalPonderacion}</td>
+                            <td className="text-center p-2 text-xs">{enhancedStats.totalQuestions}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
                     {/* Progreso general */}
-                    <div>
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Progreso general</h4>
                       <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Progreso general</span>
-                        <span>{Math.round(simpleStats.progressPercentage)}%</span>
+                        <span>Progreso</span>
+                        <span>{Math.round(enhancedStats.progressPercentage)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${simpleStats.progressPercentage}%` }}
+                          style={{ width: `${enhancedStats.progressPercentage}%` }}
                         />
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {simpleStats.answeredQuestions} de {simpleStats.totalQuestions} preguntas
+                        {enhancedStats.answeredQuestions} de {enhancedStats.totalQuestions} preguntas
                       </div>
                     </div>
 
                     {/* Puntuación estimada */}
                     <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación Estimada</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-blue-600">
-                          {simpleStats.currentScore}%
+                          {enhancedStats.currentScore}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {simpleStats.correctAnswers} correctas de {simpleStats.answeredQuestions} respondidas
+                          puntos acumulados
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {enhancedStats.correctAnswers} correctas de {enhancedStats.answeredQuestions} respondidas
                         </div>
                         <div className="text-xs text-orange-600 mt-1 font-medium">
                           ⚠️ Puntuación final se calcula por ponderación
@@ -749,48 +852,48 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                       <h4 className="text-sm font-medium text-gray-700 mb-3">Distribución de respuestas</h4>
                       <div className="space-y-2">
                         {/* Respuestas Sí/No/NA */}
-                        {(simpleStats.responseStats.si > 0 || simpleStats.responseStats.no > 0 || simpleStats.responseStats.na > 0) && (
+                        {(enhancedStats.responseStats.si > 0 || enhancedStats.responseStats.no > 0 || enhancedStats.responseStats.na > 0) && (
                           <>
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center">
                                 <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
                                 <span>Sí</span>
                               </div>
-                              <span className="font-medium">{simpleStats.responseStats.si}</span>
+                              <span className="font-medium">{enhancedStats.responseStats.si}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center">
                                 <XCircle className="w-4 h-4 text-red-600 mr-2" />
                                 <span>No</span>
                               </div>
-                              <span className="font-medium">{simpleStats.responseStats.no}</span>
+                              <span className="font-medium">{enhancedStats.responseStats.no}</span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center">
                                 <MinusCircle className="w-4 h-4 text-gray-600 mr-2" />
                                 <span>No Aplica</span>
                               </div>
-                              <span className="font-medium">{simpleStats.responseStats.na}</span>
+                              <span className="font-medium">{enhancedStats.responseStats.na}</span>
                             </div>
                           </>
                         )}
 
                         {/* Respuestas de selección múltiple */}
-                        {(simpleStats.responseStats.a > 0 || simpleStats.responseStats.b > 0 || simpleStats.responseStats.c > 0) && (
+                        {(enhancedStats.responseStats.a > 0 || enhancedStats.responseStats.b > 0 || enhancedStats.responseStats.c > 0) && (
                           <>
                             <div className="border-t pt-2 mt-2">
                               <div className="text-xs text-gray-500 mb-2">Selección múltiple</div>
                               <div className="flex items-center justify-between text-sm">
                                 <span className="font-medium text-blue-600">A)</span>
-                                <span className="font-medium">{simpleStats.responseStats.a}</span>
+                                <span className="font-medium">{enhancedStats.responseStats.a}</span>
                               </div>
                               <div className="flex items-center justify-between text-sm">
                                 <span className="font-medium text-blue-600">B)</span>
-                                <span className="font-medium">{simpleStats.responseStats.b}</span>
+                                <span className="font-medium">{enhancedStats.responseStats.b}</span>
                               </div>
                               <div className="flex items-center justify-between text-sm">
                                 <span className="font-medium text-blue-600">C)</span>
-                                <span className="font-medium">{simpleStats.responseStats.c}</span>
+                                <span className="font-medium">{enhancedStats.responseStats.c}</span>
                               </div>
                             </div>
                           </>
@@ -806,6 +909,12 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                         <div>Sistema: Ponderación por secciones</div>
                         <div>Criterio: ≥91% para aprobar</div>
                         <div>Fuente: tabla secciones_evaluacion</div>
+                        {enhancedStats.configuracion && (
+                          <>
+                            <div>Preguntas trampa: {enhancedStats.configuracion.total_preguntas_trampa || 0}</div>
+                            <div>Por sección: {enhancedStats.configuracion.preguntas_trampa_por_seccion || 0}</div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
