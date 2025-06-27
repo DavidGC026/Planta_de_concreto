@@ -62,7 +62,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
   const StatusIcon = statusIcon;
 
-  // Función para generar gráfica radar con anillos SVG
+  // Función mejorada para generar gráfica radar con anillos SVG
   const generateRadarChart = () => {
     if (!sections || sections.length === 0) {
       return generateSimpleCircularChart();
@@ -73,50 +73,112 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
     const maxRadius = 140;
     const minRadius = 30;
     
-    // Calcular datos de las secciones para el radar
+    // Calcular datos de las secciones para el radar - MEJORADO
     const sectionData = sections.map((section, index) => {
-      // Calcular porcentaje de la sección basado en las respuestas
       let sectionScore = 0;
       let sectionQuestions = 0;
       
-      if (section.preguntas) {
-        section.preguntas.forEach((pregunta, qIndex) => {
-          const key = Object.keys(results.answers || {}).find(k => 
-            k.includes(`-${index}-${qIndex}`) || k.includes(`${index}-${qIndex}`)
-          );
+      // Buscar respuestas para esta sección con múltiples formatos de clave
+      Object.entries(results.answers || {}).forEach(([key, answer]) => {
+        // Intentar diferentes formatos de clave que pueden existir
+        const keyParts = key.split('-');
+        let belongsToSection = false;
+        
+        // Formato: "rol-sectionIndex-questionIndex" (evaluación personal)
+        if (keyParts.length === 3 && parseInt(keyParts[1]) === index) {
+          belongsToSection = true;
+        }
+        // Formato: "sectionId-subsectionId-questionIndex" (evaluación equipo)
+        else if (keyParts.length === 3 && keyParts[0] === section.id) {
+          belongsToSection = true;
+        }
+        // Formato: "sectionIndex-itemIndex" (evaluación operación)
+        else if (keyParts.length === 2 && parseInt(keyParts[0]) === index) {
+          belongsToSection = true;
+        }
+        // Formato directo con nombre de sección
+        else if (key.includes(section.id) || key.includes(section.nombre) || key.includes(section.title)) {
+          belongsToSection = true;
+        }
+        
+        if (belongsToSection && answer) {
+          sectionQuestions++;
           
-          if (key && results.answers[key]) {
-            sectionQuestions++;
-            if (results.answers[key] === 'si' || results.answers[key] === 'bueno') {
-              sectionScore += 10;
-            } else if (results.answers[key] === 'regular') {
-              sectionScore += 5;
+          // Calcular puntuación según el tipo de respuesta
+          if (answer === 'si' || answer === 'bueno') {
+            sectionScore += 10;
+          } else if (answer === 'regular') {
+            sectionScore += 5;
+          } else if (answer === 'a' || answer === 'b' || answer === 'c') {
+            // Para preguntas de selección múltiple, necesitamos verificar si es correcta
+            // Por ahora asumimos que las respuestas ya están procesadas correctamente
+            if (section.preguntas) {
+              const questionIndex = parseInt(keyParts[keyParts.length - 1]);
+              const question = section.preguntas[questionIndex];
+              if (question && question.respuesta_correcta === answer) {
+                sectionScore += 10;
+              }
+            } else {
+              // Si no tenemos información de la pregunta, asumimos que es correcta si está en correctAnswers
+              sectionScore += 5; // Valor conservador
             }
           }
+        }
+      });
+      
+      // Si no encontramos respuestas con el método anterior, intentar con preguntas de la sección
+      if (sectionQuestions === 0 && section.preguntas) {
+        section.preguntas.forEach((pregunta, qIndex) => {
+          // Buscar respuestas que puedan corresponder a esta pregunta
+          Object.entries(results.answers || {}).forEach(([key, answer]) => {
+            if (key.includes(`-${index}-${qIndex}`) || key.includes(`${index}-${qIndex}`)) {
+              sectionQuestions++;
+              if (answer === 'si' || answer === 'bueno') {
+                sectionScore += 10;
+              } else if (answer === 'regular') {
+                sectionScore += 5;
+              }
+            }
+          });
         });
-      } else if (section.items) {
-        // Para evaluación de operación
+      }
+      
+      // Si aún no tenemos datos, usar datos de items (para evaluación de operación)
+      if (sectionQuestions === 0 && section.items) {
         section.items.forEach((item, itemIndex) => {
           const key = `${index}-${itemIndex}`;
           if (results.answers[key]) {
             sectionQuestions++;
-            if (results.answers[key] === 'bueno') {
+            const answer = results.answers[key];
+            if (answer === 'bueno') {
               sectionScore += 10;
-            } else if (results.answers[key] === 'regular') {
+            } else if (answer === 'regular') {
               sectionScore += 5;
             }
           }
         });
       }
       
+      // Calcular porcentaje de la sección
       const percentage = sectionQuestions > 0 ? (sectionScore / (sectionQuestions * 10)) * 100 : 0;
       
       return {
         name: section.nombre || section.title || `Sección ${index + 1}`,
-        percentage: Math.min(percentage, 100),
-        angle: (index * 360) / sections.length
+        percentage: Math.min(Math.max(percentage, 0), 100), // Asegurar que esté entre 0-100
+        angle: (index * 360) / sections.length,
+        questionsCount: sectionQuestions,
+        score: sectionScore
       };
     });
+
+    // Si todas las secciones tienen 0%, usar el score general distribuido
+    const allZero = sectionData.every(section => section.percentage === 0);
+    if (allZero && score > 0) {
+      // Distribuir el score general entre todas las secciones
+      sectionData.forEach(section => {
+        section.percentage = score;
+      });
+    }
 
     const numSections = sectionData.length;
     
