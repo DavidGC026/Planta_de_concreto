@@ -62,7 +62,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
   const StatusIcon = statusIcon;
 
-  // Función para generar gráfica radar con imagen de fondo
+  // Función para generar gráfica radar con anillos SVG
   const generateRadarChart = () => {
     if (!sections || sections.length === 0) {
       return generateSimpleCircularChart();
@@ -70,8 +70,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
     const centerX = 300;
     const centerY = 300;
-    const maxRadius = 120;
-    const minRadius = 20;
+    const maxRadius = 140;
+    const minRadius = 30;
     
     // Calcular datos de las secciones para el radar
     const sectionData = sections.map((section, index) => {
@@ -136,17 +136,55 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
     return (
       <div className="relative flex items-center justify-center mb-6">
-        {/* Imagen de fondo con anillos de colores */}
-        <div 
-          className="absolute inset-0 w-[600px] h-[600px] bg-contain bg-center bg-no-repeat"
-          style={{
-            backgroundImage: `url("/fondo grafica.png")`,
-            backgroundSize: '600px 600px'
-          }}
-        />
-        
-        <svg width="600" height="600" className="relative z-10 drop-shadow-lg">
-          {/* Líneas de la cuadrícula radial (sutiles) */}
+        <svg width="600" height="600" className="drop-shadow-lg">
+          {/* Definir gradientes para los anillos */}
+          <defs>
+            <radialGradient id="redGradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#dc2626" stopOpacity="0.9" />
+            </radialGradient>
+            <radialGradient id="yellowGradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#eab308" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#ca8a04" stopOpacity="0.9" />
+            </radialGradient>
+            <radialGradient id="greenGradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#16a34a" stopOpacity="0.9" />
+            </radialGradient>
+          </defs>
+
+          {/* Anillos de fondo con colores */}
+          {/* Anillo exterior - Verde (86-100%) */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={maxRadius + 20}
+            fill="url(#greenGradient)"
+            stroke="#16a34a"
+            strokeWidth="2"
+          />
+          
+          {/* Anillo medio - Amarillo (61-85%) */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={maxRadius - 20}
+            fill="url(#yellowGradient)"
+            stroke="#ca8a04"
+            strokeWidth="2"
+          />
+          
+          {/* Anillo interior - Rojo (0-60%) */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={maxRadius - 60}
+            fill="url(#redGradient)"
+            stroke="#dc2626"
+            strokeWidth="2"
+          />
+
+          {/* Líneas de la cuadrícula radial */}
           {[20, 40, 60, 80, 100].map(percent => {
             const radius = minRadius + (percent / 100) * (maxRadius - minRadius);
             return (
@@ -156,18 +194,18 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 cy={centerY}
                 r={radius}
                 fill="none"
-                stroke="rgba(255, 255, 255, 0.3)"
+                stroke="rgba(255, 255, 255, 0.6)"
                 strokeWidth="1"
-                opacity="0.6"
+                strokeDasharray="5,5"
               />
             );
           })}
 
-          {/* Líneas radiales desde el centro (sutiles) */}
+          {/* Líneas radiales desde el centro */}
           {sectionData.map((section, index) => {
             const angle = (section.angle - 90) * (Math.PI / 180);
-            const endX = centerX + maxRadius * Math.cos(angle);
-            const endY = centerY + maxRadius * Math.sin(angle);
+            const endX = centerX + (maxRadius + 15) * Math.cos(angle);
+            const endY = centerY + (maxRadius + 15) * Math.sin(angle);
             
             return (
               <line
@@ -176,9 +214,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 y1={centerY}
                 x2={endX}
                 y2={endY}
-                stroke="rgba(255, 255, 255, 0.4)"
+                stroke="rgba(255, 255, 255, 0.7)"
                 strokeWidth="1"
-                opacity="0.7"
               />
             );
           })}
@@ -188,10 +225,10 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             d={pathData}
             fill="rgba(59, 130, 246, 0.4)"
             stroke="#3b82f6"
-            strokeWidth="3"
+            strokeWidth="4"
             strokeLinejoin="round"
             style={{
-              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
             }}
           />
 
@@ -201,12 +238,12 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               key={index}
               cx={point.x}
               cy={point.y}
-              r="5"
+              r="6"
               fill="#3b82f6"
               stroke="white"
-              strokeWidth="2"
+              strokeWidth="3"
               style={{
-                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))'
               }}
             />
           ))}
@@ -214,7 +251,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           {/* Etiquetas de las secciones */}
           {radarPoints.map((point, index) => {
             const angle = (point.angle - 90) * (Math.PI / 180);
-            const labelRadius = maxRadius + 50;
+            const labelRadius = maxRadius + 60;
             const labelX = centerX + labelRadius * Math.cos(angle);
             const labelY = centerY + labelRadius * Math.sin(angle);
             
@@ -228,28 +265,32 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             if (labelY > centerY + 10) dominantBaseline = 'hanging';
             else if (labelY < centerY - 10) dominantBaseline = 'baseline';
 
+            const truncatedName = point.name.length > 20 ? point.name.substring(0, 20) + '...' : point.name;
+
             return (
               <g key={index}>
                 {/* Fondo blanco para mejor legibilidad */}
                 <rect
-                  x={labelX - (textAnchor === 'start' ? 0 : textAnchor === 'end' ? 100 : 50)}
-                  y={labelY - 15}
-                  width="100"
-                  height="30"
-                  fill="rgba(255, 255, 255, 0.9)"
-                  rx="4"
-                  stroke="rgba(0, 0, 0, 0.1)"
+                  x={labelX - (textAnchor === 'start' ? 5 : textAnchor === 'end' ? 115 : 60)}
+                  y={labelY - 20}
+                  width="120"
+                  height="40"
+                  fill="rgba(255, 255, 255, 0.95)"
+                  rx="6"
+                  stroke="rgba(0, 0, 0, 0.2)"
                   strokeWidth="1"
+                  style={{
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                  }}
                 />
                 <text
                   x={labelX}
-                  y={labelY - 3}
+                  y={labelY - 5}
                   textAnchor={textAnchor}
                   dominantBaseline={dominantBaseline}
                   className="text-xs font-medium fill-gray-800"
-                  style={{ maxWidth: '80px' }}
                 >
-                  {point.name.length > 15 ? point.name.substring(0, 15) + '...' : point.name}
+                  {truncatedName}
                 </text>
                 <text
                   x={labelX}
@@ -265,26 +306,49 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           })}
 
           {/* Etiquetas de porcentajes en los anillos */}
-          <g className="opacity-70">
-            <text x={centerX + minRadius + 0.2 * (maxRadius - minRadius)} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">20%</text>
-            <text x={centerX + minRadius + 0.4 * (maxRadius - minRadius)} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">40%</text>
-            <text x={centerX + minRadius + 0.6 * (maxRadius - minRadius)} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">60%</text>
-            <text x={centerX + minRadius + 0.8 * (maxRadius - minRadius)} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">80%</text>
-            <text x={centerX + maxRadius} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">100%</text>
+          <g className="opacity-80">
+            <text x={centerX} y={centerY - minRadius - 0.2 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">20%</text>
+            <text x={centerX} y={centerY - minRadius - 0.4 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">40%</text>
+            <text x={centerX} y={centerY - minRadius - 0.6 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">60%</text>
+            <text x={centerX} y={centerY - minRadius - 0.8 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">80%</text>
+            <text x={centerX} y={centerY - maxRadius - 5} className="text-xs fill-white font-bold" textAnchor="middle">100%</text>
+          </g>
+
+          {/* Etiquetas de los rangos de colores */}
+          <g className="opacity-90">
+            {/* Etiqueta Verde */}
+            <rect x={centerX + maxRadius + 30} y={centerY - maxRadius - 10} width="100" height="25" fill="rgba(34, 197, 94, 0.9)" rx="4" />
+            <text x={centerX + maxRadius + 80} y={centerY - maxRadius + 7} className="text-xs fill-white font-bold" textAnchor="middle">
+              {isPersonalEvaluation ? '91-100%' : '86-100%'}
+            </text>
+            
+            {/* Etiqueta Amarilla */}
+            {!isPersonalEvaluation && (
+              <>
+                <rect x={centerX + maxRadius + 30} y={centerY - 10} width="100" height="25" fill="rgba(234, 179, 8, 0.9)" rx="4" />
+                <text x={centerX + maxRadius + 80} y={centerY + 7} className="text-xs fill-white font-bold" textAnchor="middle">61-85%</text>
+              </>
+            )}
+            
+            {/* Etiqueta Roja */}
+            <rect x={centerX + maxRadius + 30} y={centerY + maxRadius - 15} width="100" height="25" fill="rgba(239, 68, 68, 0.9)" rx="4" />
+            <text x={centerX + maxRadius + 80} y={centerY + maxRadius + 2} className="text-xs fill-white font-bold" textAnchor="middle">
+              {isPersonalEvaluation ? '0-90%' : '0-60%'}
+            </text>
           </g>
         </svg>
         
         {/* Información central */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
-          <div className="bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-lg border border-gray-200">
-            <div className={`text-4xl font-bold ${getScoreColor(score, isPersonalEvaluation)} text-center mb-2`}>
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-gray-200">
+            <div className={`text-5xl font-bold ${getScoreColor(score, isPersonalEvaluation)} text-center mb-2`}>
               {score}%
             </div>
-            <div className="text-sm text-gray-600 text-center">
+            <div className="text-sm text-gray-600 text-center font-medium">
               Puntuación: {score}
             </div>
             {!isPlantStatus && correctAnswers && (
-              <div className="text-xs text-gray-500 mt-1 text-center">
+              <div className="text-xs text-gray-500 mt-2 text-center">
                 Correctas: {correctAnswers}/{totalAnswers}
               </div>
             )}
@@ -695,7 +759,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 )}
               </div>
 
-              {/* Gráfica radar con imagen de fondo */}
+              {/* Gráfica radar con anillos SVG */}
               <div className="flex justify-center mb-8">
                 {generateRadarChart()}
               </div>
