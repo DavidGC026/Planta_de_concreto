@@ -19,7 +19,7 @@ const LoginScreen = ({ onLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!credentials.username || !credentials.password) {
       setError('Por favor ingresa usuario y contraseña');
       return;
@@ -29,7 +29,7 @@ const LoginScreen = ({ onLogin }) => {
 
     try {
       const user = await apiService.login(credentials.username, credentials.password);
-      
+
       toast({
         title: "✅ Inicio de sesión exitoso",
         description: `Bienvenido ${user.nombre_completo}`
@@ -39,7 +39,7 @@ const LoginScreen = ({ onLogin }) => {
     } catch (error) {
       console.error('Login error:', error);
       setError('Usuario o contraseña incorrectos');
-      
+
       toast({
         title: "❌ Error de autenticación",
         description: "Verifica tus credenciales e intenta nuevamente"
@@ -65,13 +65,13 @@ const LoginScreen = ({ onLogin }) => {
               transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 10 }}
               className="mx-auto mb-6"
             >
-              <img  
-                alt="Logo IMCYC" 
+              <img
+                alt="Logo IMCYC"
                 className="h-16 w-auto"
-                src="public/Logo_imcyc.png" 
+                src="public/Logo_imcyc.png"
               />
             </motion.div>
-            
+
             <h1 className="text-4xl font-extrabold login-title">PLANTAS</h1>
             <p className="text-3xl font-extrabold login-title -mt-2">DE CONCRETO</p>
             <p className="text-md login-subtitle mt-1">Sistema de Evaluación IMCYC</p>
@@ -133,11 +133,10 @@ const LoginScreen = ({ onLogin }) => {
                 whileTap={{ scale: isLoading ? 1 : 0.97 }}
                 className="pt-2"
               >
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isLoading}
-                  className="w-full h-14 imcyc-button text-white font-bold text-lg rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                  className="w-full h-14 imcyc-button text-white font-bold text-lg rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                   {isLoading ? 'INGRESANDO...' : 'INGRESAR'}
                 </Button>
               </motion.div>
@@ -168,10 +167,10 @@ const LoginScreen = ({ onLogin }) => {
         transition={{ duration: 1.2, delay: 0.6, type: "spring", stiffness: 50 }}
         className="fixed bottom-0 right-0 z-0"
       >
-        <img   
+        <img
           alt="Concreton - Mascota IMCYC"
           className="w-auto h-64 md:h-80 drop-shadow-2xl"
-          src="public/Concreton.png" 
+          src="public/Concreton.png"
         />
       </motion.div>
     </div>
