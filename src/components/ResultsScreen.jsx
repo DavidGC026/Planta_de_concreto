@@ -337,23 +337,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             </text>
           </g>
         </svg>
-        
-        {/* Información central */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
-          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-gray-200">
-            <div className={`text-5xl font-bold ${getScoreColor(score, isPersonalEvaluation)} text-center mb-2`}>
-              {score}%
-            </div>
-            <div className="text-sm text-gray-600 text-center font-medium">
-              Puntuación: {score}
-            </div>
-            {!isPlantStatus && correctAnswers && (
-              <div className="text-xs text-gray-500 mt-2 text-center">
-                Correctas: {correctAnswers}/{totalAnswers}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     );
   };
