@@ -79,109 +79,44 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       let sectionScore = 0;
       let sectionQuestions = 0;
       
-      // Obtener todas las claves de respuestas para buscar patrones
-      const answerKeys = Object.keys(results.answers || {});
-      
       if (section.preguntas) {
-        // Para evaluaciones de personal y equipo con preguntas
         section.preguntas.forEach((pregunta, qIndex) => {
-          // Buscar claves que correspondan a esta sección y pregunta
-          // Patrones posibles:
-          // - "rol-seccion-pregunta" (evaluación personal)
-          // - "seccion-subseccion-pregunta" (evaluación equipo)
-          // - "seccion-pregunta" (evaluación simulada)
+          const key = Object.keys(results.answers || {}).find(k => 
+            k.includes(`-${index}-${qIndex}`) || k.includes(`${index}-${qIndex}`)
+          );
           
-          const possibleKeys = [
-            `${index}-${qIndex}`, // Patrón simple
-            `simulado-${index}-${qIndex}`, // Patrón simulado
-            // Buscar cualquier clave que termine con el patrón de sección-pregunta
-          ];
-          
-          // También buscar claves que contengan el índice de sección
-          const matchingKey = answerKeys.find(key => {
-            const parts = key.split('-');
-            if (parts.length >= 3) {
-              // Para evaluación personal: rol-seccion-pregunta
-              return parts[1] == index && parts[2] == qIndex;
-            } else if (parts.length === 2) {
-              // Para evaluación simple: seccion-pregunta
-              return parts[0] == index && parts[1] == qIndex;
-            }
-            return false;
-          });
-          
-          if (matchingKey && results.answers[matchingKey]) {
+          if (key && results.answers[key]) {
             sectionQuestions++;
-            const answer = results.answers[matchingKey];
-            
-            // Evaluar respuesta según el tipo
-            if (pregunta.tipo_pregunta === 'seleccion_multiple') {
-              if (answer === pregunta.respuesta_correcta) {
-                sectionScore += 10;
-              }
-            } else {
-              // Pregunta abierta
-              if (answer === 'si') {
-                sectionScore += 10;
-              } else if (answer === 'regular') {
-                sectionScore += 5;
-              }
-              // 'no' y 'na' = 0 puntos
+            if (results.answers[key] === 'si' || results.answers[key] === 'bueno') {
+              sectionScore += 10;
+            } else if (results.answers[key] === 'regular') {
+              sectionScore += 5;
             }
           }
         });
       } else if (section.items) {
-        // Para evaluación de operación con items
+        // Para evaluación de operación
         section.items.forEach((item, itemIndex) => {
           const key = `${index}-${itemIndex}`;
           if (results.answers[key]) {
             sectionQuestions++;
-            const status = results.answers[key];
-            if (status === 'bueno') {
+            if (results.answers[key] === 'bueno') {
               sectionScore += 10;
-            } else if (status === 'regular') {
+            } else if (results.answers[key] === 'regular') {
               sectionScore += 5;
             }
-            // 'malo' = 0 puntos
           }
-        });
-      } else if (section.subsections) {
-        // Para evaluación de equipo con subsecciones
-        section.subsections.forEach((subsection, subIndex) => {
-          // Buscar respuestas para esta subsección
-          const subsectionKeys = answerKeys.filter(key => 
-            key.includes(`${section.id}-${subsection.id}`) || 
-            key.includes(`${index}-${subIndex}`)
-          );
-          
-          subsectionKeys.forEach(key => {
-            if (results.answers[key]) {
-              sectionQuestions++;
-              const answer = results.answers[key];
-              if (answer === 'si' || answer === 'bueno') {
-                sectionScore += 10;
-              } else if (answer === 'regular') {
-                sectionScore += 5;
-              }
-            }
-          });
         });
       }
       
       const percentage = sectionQuestions > 0 ? (sectionScore / (sectionQuestions * 10)) * 100 : 0;
       
       return {
-        name: section.nombre || section.title || section.name || `Sección ${index + 1}`,
-        percentage: Math.min(Math.max(percentage, 0), 100), // Asegurar que esté entre 0 y 100
-        angle: (index * 360) / sections.length,
-        questionsCount: sectionQuestions,
-        score: sectionScore
+        name: section.nombre || section.title || `Sección ${index + 1}`,
+        percentage: Math.min(percentage, 100),
+        angle: (index * 360) / sections.length
       };
     });
-
-    // Log para debugging
-    console.log('Section data for radar chart:', sectionData);
-    console.log('Available answer keys:', Object.keys(results.answers || {}));
 
     const numSections = sectionData.length;
     
@@ -230,22 +165,20 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           />
           
           {/* Anillo medio - Amarillo (61-85%) */}
-          {!isPersonalEvaluation && (
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={maxRadius - 20}
-              fill="url(#yellowGradient)"
-              stroke="#ca8a04"
-              strokeWidth="2"
-            />
-          )}
-          
-          {/* Anillo interior - Rojo (0-60% o 0-90% para personal) */}
           <circle
             cx={centerX}
             cy={centerY}
-            r={isPersonalEvaluation ? maxRadius - 20 : maxRadius - 60}
+            r={maxRadius - 20}
+            fill="url(#yellowGradient)"
+            stroke="#ca8a04"
+            strokeWidth="2"
+          />
+          
+          {/* Anillo interior - Rojo (0-60%) */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={maxRadius - 60}
             fill="url(#redGradient)"
             stroke="#dc2626"
             strokeWidth="2"
@@ -404,19 +337,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             </text>
           </g>
         </svg>
-        
-        {/* Información de debugging (solo en desarrollo) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="absolute top-0 left-0 bg-black bg-opacity-75 text-white text-xs p-2 rounded max-w-xs">
-            <div>Secciones: {sectionData.length}</div>
-            <div>Respuestas: {Object.keys(results.answers || {}).length}</div>
-            {sectionData.map((section, idx) => (
-              <div key={idx}>
-                {section.name}: {section.percentage.toFixed(1)}% ({section.questionsCount} preguntas)
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     );
   };
@@ -467,17 +387,15 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           />
           
           {/* Anillo medio - Amarillo (61-85%) */}
-          {!isPersonalEvaluation && (
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={middleRadius}
-              fill="none"
-              stroke="#eab308"
-              strokeWidth={strokeWidth}
-              opacity="0.3"
-            />
-          )}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={middleRadius}
+            fill="none"
+            stroke="#eab308"
+            strokeWidth={strokeWidth}
+            opacity="0.3"
+          />
           
           {/* Anillo interior - Rojo (0-60%) */}
           <circle
