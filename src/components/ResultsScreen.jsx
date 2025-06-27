@@ -12,6 +12,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
     correctAnswers, 
     isPlantStatus, 
     evaluationTitle,
+    sections,
     // NO mostrar información de preguntas trampa
     isPersonalEvaluation = false
   } = results;
@@ -61,8 +62,246 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
   const StatusIcon = statusIcon;
 
-  // Función para generar gráfica circular con anillos de colores
-  const generateCircularChart = () => {
+  // Función para generar gráfica radar con anillos de colores de fondo
+  const generateRadarChart = () => {
+    if (!sections || sections.length === 0) {
+      return generateSimpleCircularChart();
+    }
+
+    const centerX = 300;
+    const centerY = 300;
+    const maxRadius = 120;
+    const minRadius = 20;
+    
+    // Calcular datos de las secciones para el radar
+    const sectionData = sections.map((section, index) => {
+      // Calcular porcentaje de la sección basado en las respuestas
+      let sectionScore = 0;
+      let sectionQuestions = 0;
+      
+      if (section.preguntas) {
+        section.preguntas.forEach((pregunta, qIndex) => {
+          const key = Object.keys(results.answers || {}).find(k => 
+            k.includes(`-${index}-${qIndex}`) || k.includes(`${index}-${qIndex}`)
+          );
+          
+          if (key && results.answers[key]) {
+            sectionQuestions++;
+            if (results.answers[key] === 'si' || results.answers[key] === 'bueno') {
+              sectionScore += 10;
+            } else if (results.answers[key] === 'regular') {
+              sectionScore += 5;
+            }
+          }
+        });
+      } else if (section.items) {
+        // Para evaluación de operación
+        section.items.forEach((item, itemIndex) => {
+          const key = `${index}-${itemIndex}`;
+          if (results.answers[key]) {
+            sectionQuestions++;
+            if (results.answers[key] === 'bueno') {
+              sectionScore += 10;
+            } else if (results.answers[key] === 'regular') {
+              sectionScore += 5;
+            }
+          }
+        });
+      }
+      
+      const percentage = sectionQuestions > 0 ? (sectionScore / (sectionQuestions * 10)) * 100 : 0;
+      
+      return {
+        name: section.nombre || section.title || `Sección ${index + 1}`,
+        percentage: Math.min(percentage, 100),
+        angle: (index * 360) / sections.length
+      };
+    });
+
+    const numSections = sectionData.length;
+    
+    // Generar puntos del polígono
+    const radarPoints = sectionData.map(section => {
+      const angle = (section.angle - 90) * (Math.PI / 180); // -90 para empezar arriba
+      const radius = minRadius + (section.percentage / 100) * (maxRadius - minRadius);
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      return { x, y, ...section };
+    });
+
+    // Crear path del polígono
+    const pathData = radarPoints.map((point, index) => 
+      `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
+    ).join(' ') + ' Z';
+
+    return (
+      <div className="relative flex items-center justify-center mb-6">
+        <svg width="600" height="600" className="drop-shadow-lg">
+          {/* Anillos de fondo con colores */}
+          {/* Anillo rojo (0-60% o 0-90% para personal) */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={minRadius + (isPersonalEvaluation ? 0.9 : 0.6) * (maxRadius - minRadius)}
+            fill="#fef2f2"
+            stroke="#fecaca"
+            strokeWidth="1"
+            opacity="0.8"
+          />
+          
+          {/* Anillo amarillo (61-85% - solo para no personal) */}
+          {!isPersonalEvaluation && (
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={minRadius + 0.85 * (maxRadius - minRadius)}
+              fill="#fffbeb"
+              stroke="#fed7aa"
+              strokeWidth="1"
+              opacity="0.8"
+            />
+          )}
+          
+          {/* Anillo verde (86-100% o 91-100% para personal) */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={maxRadius}
+            fill="#f0fdf4"
+            stroke="#bbf7d0"
+            strokeWidth="1"
+            opacity="0.8"
+          />
+
+          {/* Líneas de la cuadrícula radial */}
+          {[20, 40, 60, 80, 100].map(percent => {
+            const radius = minRadius + (percent / 100) * (maxRadius - minRadius);
+            return (
+              <circle
+                key={percent}
+                cx={centerX}
+                cy={centerY}
+                r={radius}
+                fill="none"
+                stroke="#e5e7eb"
+                strokeWidth="1"
+                opacity="0.5"
+              />
+            );
+          })}
+
+          {/* Líneas radiales desde el centro */}
+          {sectionData.map((section, index) => {
+            const angle = (section.angle - 90) * (Math.PI / 180);
+            const endX = centerX + maxRadius * Math.cos(angle);
+            const endY = centerY + maxRadius * Math.sin(angle);
+            
+            return (
+              <line
+                key={index}
+                x1={centerX}
+                y1={centerY}
+                x2={endX}
+                y2={endY}
+                stroke="#e5e7eb"
+                strokeWidth="1"
+                opacity="0.5"
+              />
+            );
+          })}
+
+          {/* Polígono de datos */}
+          <path
+            d={pathData}
+            fill="rgba(59, 130, 246, 0.3)"
+            stroke="#3b82f6"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+
+          {/* Puntos de datos */}
+          {radarPoints.map((point, index) => (
+            <circle
+              key={index}
+              cx={point.x}
+              cy={point.y}
+              r="4"
+              fill="#3b82f6"
+              stroke="white"
+              strokeWidth="2"
+            />
+          ))}
+
+          {/* Etiquetas de las secciones */}
+          {radarPoints.map((point, index) => {
+            const angle = (point.angle - 90) * (Math.PI / 180);
+            const labelRadius = maxRadius + 40;
+            const labelX = centerX + labelRadius * Math.cos(angle);
+            const labelY = centerY + labelRadius * Math.sin(angle);
+            
+            // Ajustar posición del texto según el ángulo
+            let textAnchor = 'middle';
+            let dominantBaseline = 'middle';
+            
+            if (labelX > centerX + 10) textAnchor = 'start';
+            else if (labelX < centerX - 10) textAnchor = 'end';
+            
+            if (labelY > centerY + 10) dominantBaseline = 'hanging';
+            else if (labelY < centerY - 10) dominantBaseline = 'baseline';
+
+            return (
+              <g key={index}>
+                <text
+                  x={labelX}
+                  y={labelY}
+                  textAnchor={textAnchor}
+                  dominantBaseline={dominantBaseline}
+                  className="text-xs font-medium fill-gray-700"
+                  style={{ maxWidth: '80px' }}
+                >
+                  {point.name.length > 20 ? point.name.substring(0, 20) + '...' : point.name}
+                </text>
+                <text
+                  x={labelX}
+                  y={labelY + 12}
+                  textAnchor={textAnchor}
+                  dominantBaseline={dominantBaseline}
+                  className="text-xs font-bold fill-blue-600"
+                >
+                  {Math.round(point.percentage)}%
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Etiquetas de porcentajes en los anillos */}
+          <text x={centerX + minRadius + 0.2 * (maxRadius - minRadius)} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">20%</text>
+          <text x={centerX + minRadius + 0.4 * (maxRadius - minRadius)} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">40%</text>
+          <text x={centerX + minRadius + 0.6 * (maxRadius - minRadius)} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">60%</text>
+          <text x={centerX + minRadius + 0.8 * (maxRadius - minRadius)} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">80%</text>
+          <text x={centerX + maxRadius} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">100%</text>
+        </svg>
+        
+        {/* Información central */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <div className={`text-4xl font-bold ${getScoreColor(score, isPersonalEvaluation)} mb-2`}>
+            {score}%
+          </div>
+          <div className="text-sm text-gray-600 text-center">
+            Puntuación: {score}
+          </div>
+          {!isPlantStatus && correctAnswers && (
+            <div className="text-xs text-gray-500 mt-1">
+              Correctas: {correctAnswers}/{totalAnswers}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Función para generar gráfica circular simple (fallback)
+  const generateSimpleCircularChart = () => {
     const centerX = 200;
     const centerY = 200;
     const outerRadius = 120;
@@ -462,9 +701,9 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 )}
               </div>
 
-              {/* Gráfica circular con anillos */}
+              {/* Gráfica radar con anillos de colores de fondo */}
               <div className="flex justify-center mb-8">
-                {generateCircularChart()}
+                {generateRadarChart()}
               </div>
 
               {/* Estadísticas con colores dinámicos */}
