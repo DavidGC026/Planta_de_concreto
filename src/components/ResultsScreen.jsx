@@ -62,7 +62,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
   const StatusIcon = statusIcon;
 
-  // Función para generar gráfica radar con anillos de colores de fondo
+  // Función para generar gráfica radar con imagen de fondo
   const generateRadarChart = () => {
     if (!sections || sections.length === 0) {
       return generateSimpleCircularChart();
@@ -136,44 +136,17 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
     return (
       <div className="relative flex items-center justify-center mb-6">
-        <svg width="600" height="600" className="drop-shadow-lg">
-          {/* Anillos de fondo con colores */}
-          {/* Anillo rojo (0-60% o 0-90% para personal) */}
-          <circle
-            cx={centerX}
-            cy={centerY}
-            r={minRadius + (isPersonalEvaluation ? 0.9 : 0.6) * (maxRadius - minRadius)}
-            fill="#fef2f2"
-            stroke="#fecaca"
-            strokeWidth="1"
-            opacity="0.8"
-          />
-          
-          {/* Anillo amarillo (61-85% - solo para no personal) */}
-          {!isPersonalEvaluation && (
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={minRadius + 0.85 * (maxRadius - minRadius)}
-              fill="#fffbeb"
-              stroke="#fed7aa"
-              strokeWidth="1"
-              opacity="0.8"
-            />
-          )}
-          
-          {/* Anillo verde (86-100% o 91-100% para personal) */}
-          <circle
-            cx={centerX}
-            cy={centerY}
-            r={maxRadius}
-            fill="#f0fdf4"
-            stroke="#bbf7d0"
-            strokeWidth="1"
-            opacity="0.8"
-          />
-
-          {/* Líneas de la cuadrícula radial */}
+        {/* Imagen de fondo con anillos de colores */}
+        <div 
+          className="absolute inset-0 w-[600px] h-[600px] bg-contain bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("/fondo grafica.png")`,
+            backgroundSize: '600px 600px'
+          }}
+        />
+        
+        <svg width="600" height="600" className="relative z-10 drop-shadow-lg">
+          {/* Líneas de la cuadrícula radial (sutiles) */}
           {[20, 40, 60, 80, 100].map(percent => {
             const radius = minRadius + (percent / 100) * (maxRadius - minRadius);
             return (
@@ -183,14 +156,14 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 cy={centerY}
                 r={radius}
                 fill="none"
-                stroke="#e5e7eb"
+                stroke="rgba(255, 255, 255, 0.3)"
                 strokeWidth="1"
-                opacity="0.5"
+                opacity="0.6"
               />
             );
           })}
 
-          {/* Líneas radiales desde el centro */}
+          {/* Líneas radiales desde el centro (sutiles) */}
           {sectionData.map((section, index) => {
             const angle = (section.angle - 90) * (Math.PI / 180);
             const endX = centerX + maxRadius * Math.cos(angle);
@@ -203,9 +176,9 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 y1={centerY}
                 x2={endX}
                 y2={endY}
-                stroke="#e5e7eb"
+                stroke="rgba(255, 255, 255, 0.4)"
                 strokeWidth="1"
-                opacity="0.5"
+                opacity="0.7"
               />
             );
           })}
@@ -213,10 +186,13 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           {/* Polígono de datos */}
           <path
             d={pathData}
-            fill="rgba(59, 130, 246, 0.3)"
+            fill="rgba(59, 130, 246, 0.4)"
             stroke="#3b82f6"
-            strokeWidth="2"
+            strokeWidth="3"
             strokeLinejoin="round"
+            style={{
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+            }}
           />
 
           {/* Puntos de datos */}
@@ -225,17 +201,20 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               key={index}
               cx={point.x}
               cy={point.y}
-              r="4"
+              r="5"
               fill="#3b82f6"
               stroke="white"
               strokeWidth="2"
+              style={{
+                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+              }}
             />
           ))}
 
           {/* Etiquetas de las secciones */}
           {radarPoints.map((point, index) => {
             const angle = (point.angle - 90) * (Math.PI / 180);
-            const labelRadius = maxRadius + 40;
+            const labelRadius = maxRadius + 50;
             const labelX = centerX + labelRadius * Math.cos(angle);
             const labelY = centerY + labelRadius * Math.sin(angle);
             
@@ -251,22 +230,33 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
             return (
               <g key={index}>
+                {/* Fondo blanco para mejor legibilidad */}
+                <rect
+                  x={labelX - (textAnchor === 'start' ? 0 : textAnchor === 'end' ? 100 : 50)}
+                  y={labelY - 15}
+                  width="100"
+                  height="30"
+                  fill="rgba(255, 255, 255, 0.9)"
+                  rx="4"
+                  stroke="rgba(0, 0, 0, 0.1)"
+                  strokeWidth="1"
+                />
                 <text
                   x={labelX}
-                  y={labelY}
+                  y={labelY - 3}
                   textAnchor={textAnchor}
                   dominantBaseline={dominantBaseline}
-                  className="text-xs font-medium fill-gray-700"
+                  className="text-xs font-medium fill-gray-800"
                   style={{ maxWidth: '80px' }}
                 >
-                  {point.name.length > 20 ? point.name.substring(0, 20) + '...' : point.name}
+                  {point.name.length > 15 ? point.name.substring(0, 15) + '...' : point.name}
                 </text>
                 <text
                   x={labelX}
-                  y={labelY + 12}
+                  y={labelY + 10}
                   textAnchor={textAnchor}
                   dominantBaseline={dominantBaseline}
-                  className="text-xs font-bold fill-blue-600"
+                  className="text-sm font-bold fill-blue-600"
                 >
                   {Math.round(point.percentage)}%
                 </text>
@@ -275,26 +265,30 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           })}
 
           {/* Etiquetas de porcentajes en los anillos */}
-          <text x={centerX + minRadius + 0.2 * (maxRadius - minRadius)} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">20%</text>
-          <text x={centerX + minRadius + 0.4 * (maxRadius - minRadius)} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">40%</text>
-          <text x={centerX + minRadius + 0.6 * (maxRadius - minRadius)} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">60%</text>
-          <text x={centerX + minRadius + 0.8 * (maxRadius - minRadius)} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">80%</text>
-          <text x={centerX + maxRadius} y={centerY - 5} className="text-xs fill-gray-500" textAnchor="middle">100%</text>
+          <g className="opacity-70">
+            <text x={centerX + minRadius + 0.2 * (maxRadius - minRadius)} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">20%</text>
+            <text x={centerX + minRadius + 0.4 * (maxRadius - minRadius)} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">40%</text>
+            <text x={centerX + minRadius + 0.6 * (maxRadius - minRadius)} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">60%</text>
+            <text x={centerX + minRadius + 0.8 * (maxRadius - minRadius)} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">80%</text>
+            <text x={centerX + maxRadius} y={centerY - 8} className="text-xs fill-white font-medium" textAnchor="middle">100%</text>
+          </g>
         </svg>
         
         {/* Información central */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <div className={`text-4xl font-bold ${getScoreColor(score, isPersonalEvaluation)} mb-2`}>
-            {score}%
-          </div>
-          <div className="text-sm text-gray-600 text-center">
-            Puntuación: {score}
-          </div>
-          {!isPlantStatus && correctAnswers && (
-            <div className="text-xs text-gray-500 mt-1">
-              Correctas: {correctAnswers}/{totalAnswers}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20">
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-lg border border-gray-200">
+            <div className={`text-4xl font-bold ${getScoreColor(score, isPersonalEvaluation)} text-center mb-2`}>
+              {score}%
             </div>
-          )}
+            <div className="text-sm text-gray-600 text-center">
+              Puntuación: {score}
+            </div>
+            {!isPlantStatus && correctAnswers && (
+              <div className="text-xs text-gray-500 mt-1 text-center">
+                Correctas: {correctAnswers}/{totalAnswers}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -701,7 +695,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 )}
               </div>
 
-              {/* Gráfica radar con anillos de colores de fondo */}
+              {/* Gráfica radar con imagen de fondo */}
               <div className="flex justify-center mb-8">
                 {generateRadarChart()}
               </div>
