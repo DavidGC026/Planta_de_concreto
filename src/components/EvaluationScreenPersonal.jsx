@@ -72,6 +72,112 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
     }
   };
 
+  // Función para generar evaluación simulada
+  const generateSimulatedEvaluation = () => {
+    if (!evaluationData?.secciones) {
+      // Si no hay datos reales, crear datos simulados
+      const simulatedSections = [
+        { nombre: 'Conocimiento técnico y operativo', ponderacion: 15.00 },
+        { nombre: 'Gestión de la producción', ponderacion: 20.00 },
+        { nombre: 'Mantenimiento del equipo', ponderacion: 10.00 },
+        { nombre: 'Gestión del personal', ponderacion: 10.00 },
+        { nombre: 'Seguridad y cumplimiento normativo', ponderacion: 10.00 },
+        { nombre: 'Control de calidad', ponderacion: 10.00 },
+        { nombre: 'Documentación y control administrativo', ponderacion: 5.00 },
+        { nombre: 'Mejora continua y enfoque a resultados', ponderacion: 7.50 },
+        { nombre: 'Coordinación con logística y clientes', ponderacion: 5.00 },
+        { nombre: 'Resolución de problemas', ponderacion: 7.50 }
+      ];
+
+      return generateSimulatedResults(simulatedSections);
+    }
+
+    return generateSimulatedResults(evaluationData.secciones);
+  };
+
+  const generateSimulatedResults = (sections) => {
+    const simulatedAnswers = {};
+    const simulatedSections = [];
+    let totalQuestions = 0;
+    let correctAnswers = 0;
+
+    sections.forEach((section, sectionIndex) => {
+      // Generar 5 preguntas simuladas por sección
+      const questionsPerSection = 5;
+      const sectionQuestions = [];
+      
+      for (let i = 0; i < questionsPerSection; i++) {
+        const questionId = `${selectedRole || 'simulado'}-${sectionIndex}-${i}`;
+        
+        // Generar respuesta aleatoria con tendencia hacia respuestas positivas
+        const randomValue = Math.random();
+        let answer;
+        
+        if (randomValue < 0.7) { // 70% probabilidad de respuesta correcta
+          answer = 'si';
+          correctAnswers++;
+        } else if (randomValue < 0.9) { // 20% probabilidad de respuesta incorrecta
+          answer = 'no';
+        } else { // 10% probabilidad de N/A
+          answer = 'na';
+        }
+        
+        simulatedAnswers[questionId] = answer;
+        totalQuestions++;
+
+        // Crear pregunta simulada
+        sectionQuestions.push({
+          id: i,
+          pregunta_id: i,
+          pregunta: `Pregunta simulada ${i + 1} de ${section.nombre || section.title}`,
+          tipo_pregunta: 'abierta',
+          es_trampa: false
+        });
+      }
+
+      simulatedSections.push({
+        ...section,
+        preguntas: sectionQuestions
+      });
+    });
+
+    // Calcular puntuación simulada
+    const finalScore = Math.round((correctAnswers / totalQuestions) * 100);
+
+    // Crear objeto de resultados simulados
+    const simulatedResults = {
+      answers: simulatedAnswers,
+      score: finalScore,
+      totalAnswers: totalQuestions,
+      correctAnswers: correctAnswers,
+      evaluationTitle: `Evaluación de Personal Simulada - ${selectedRole || 'Rol Genérico'}`,
+      sections: simulatedSections,
+      isPersonalEvaluation: true,
+      isSimulated: true
+    };
+
+    return simulatedResults;
+  };
+
+  const handleSkipToResults = () => {
+    try {
+      const simulatedResults = generateSimulatedEvaluation();
+      
+      toast({
+        title: "🎯 Evaluación Simulada",
+        description: "Se ha generado una evaluación con respuestas aleatorias para demostración"
+      });
+
+      onComplete(simulatedResults);
+    } catch (error) {
+      console.error('Error generating simulated evaluation:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo generar la evaluación simulada"
+      });
+    }
+  };
+
   const totalSections = evaluationData?.secciones?.length || 0;
   const currentSectionData = evaluationData?.secciones?.[currentSection];
 
@@ -335,6 +441,19 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
               <p className="text-white/80">Selecciona el rol a evaluar</p>
             </div>
 
+            {/* Botón para saltar a resultados simulados */}
+            <div className="mb-6 flex justify-center">
+              <Button
+                onClick={handleSkipToResults}
+                variant="outline"
+                size="lg"
+                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
+              >
+                <Zap className="w-5 h-5" />
+                <span>Ver Evaluación Simulada</span>
+              </Button>
+            </div>
+
             {roles.map((role, index) => (
               <motion.div
                 key={role.codigo}
@@ -407,13 +526,13 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         {currentSection === 0 && (
           <div className="mb-4 flex justify-end">
             <Button
-              onClick={onSkipToResults}
+              onClick={handleSkipToResults}
               variant="outline"
               size="sm"
               className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
             >
               <Zap className="w-4 h-4" />
-              <span>Saltar a Resultados (Dev)</span>
+              <span>Saltar a Resultados (Simulado)</span>
             </Button>
           </div>
         )}

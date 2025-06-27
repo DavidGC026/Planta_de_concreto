@@ -83,6 +83,77 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
     }
   }, [currentSection]);
 
+  // Función para generar evaluación simulada de operación
+  const generateSimulatedOperationEvaluation = () => {
+    const simulatedAnswers = {};
+    let totalItems = 0;
+    let goodItems = 0;
+
+    plantStatusEvaluation.sections.forEach((section, sectionIndex) => {
+      section.items.forEach((item, itemIndex) => {
+        const key = `${sectionIndex}-${itemIndex}`;
+        
+        // Generar respuesta aleatoria con tendencia hacia respuestas positivas
+        const randomValue = Math.random();
+        let status;
+        
+        if (randomValue < 0.7) { // 70% probabilidad de "bueno"
+          status = 'bueno';
+          goodItems++;
+        } else if (randomValue < 0.9) { // 20% probabilidad de "regular"
+          status = 'regular';
+        } else { // 10% probabilidad de "malo"
+          status = 'malo';
+        }
+        
+        simulatedAnswers[key] = status;
+        totalItems++;
+      });
+    });
+
+    // Calcular puntuación simulada
+    let score = 0;
+    Object.values(simulatedAnswers).forEach(status => {
+      if (status === 'bueno') score += 10;
+      else if (status === 'regular') score += 5;
+      // 'malo' = 0 puntos
+    });
+
+    const finalScore = Math.round((score / (totalItems * 10)) * 100);
+
+    // Crear objeto de resultados simulados
+    const simulatedResults = {
+      answers: simulatedAnswers,
+      score: finalScore,
+      totalAnswers: totalItems,
+      evaluationTitle: 'Evaluación de Operación Simulada',
+      sections: plantStatusEvaluation.sections,
+      isPlantStatus: true,
+      isSimulated: true
+    };
+
+    return simulatedResults;
+  };
+
+  const handleSkipToResults = () => {
+    try {
+      const simulatedResults = generateSimulatedOperationEvaluation();
+      
+      toast({
+        title: "🎯 Evaluación de Operación Simulada",
+        description: "Se ha generado una evaluación con respuestas aleatorias para demostración"
+      });
+
+      onComplete(simulatedResults);
+    } catch (error) {
+      console.error('Error generating simulated operation evaluation:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo generar la evaluación simulada"
+      });
+    }
+  };
+
   const totalSections = evaluationData.sections.length;
   const currentSectionData = evaluationData.sections[currentSection];
 
@@ -232,13 +303,13 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
         {currentSection === 0 && (
           <div className="mb-4 flex justify-end">
             <Button
-              onClick={onSkipToResults}
+              onClick={handleSkipToResults}
               variant="outline"
               size="sm"
               className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
             >
               <Zap className="w-4 h-4" />
-              <span>Saltar a Resultados (Dev)</span>
+              <span>Saltar a Resultados (Simulado)</span>
             </Button>
           </div>
         )}
