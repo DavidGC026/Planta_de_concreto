@@ -27,9 +27,9 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   // Scroll al inicio cuando cambia la sección
   useEffect(() => {
     if (evaluationContentRef.current) {
-      evaluationContentRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
+      evaluationContentRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
       });
     }
   }, [currentSection]);
@@ -57,7 +57,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         tipo: 'personal',
         rol: selectedRole
       };
-      
+
       const data = await apiService.getPreguntas(params);
       setEvaluationData(data);
       setEvaluationStarted(true);
@@ -105,14 +105,14 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       // Generar 5 preguntas simuladas por sección
       const questionsPerSection = 5;
       const sectionQuestions = [];
-      
+
       for (let i = 0; i < questionsPerSection; i++) {
         const questionId = `${selectedRole || 'simulado'}-${sectionIndex}-${i}`;
-        
+
         // Generar respuesta aleatoria con tendencia hacia respuestas positivas
         const randomValue = Math.random();
         let answer;
-        
+
         if (randomValue < 0.7) { // 70% probabilidad de respuesta correcta
           answer = 'si';
           correctAnswers++;
@@ -121,7 +121,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         } else { // 10% probabilidad de N/A
           answer = 'na';
         }
-        
+
         simulatedAnswers[questionId] = answer;
         totalQuestions++;
 
@@ -162,7 +162,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   const handleSkipToResults = () => {
     try {
       const simulatedResults = generateSimulatedEvaluation();
-      
+
       toast({
         title: "🎯 Evaluación Simulada",
         description: "Se ha generado una evaluación con respuestas aleatorias para demostración"
@@ -181,7 +181,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   const totalSections = evaluationData?.secciones?.length || 0;
   const currentSectionData = evaluationData?.secciones?.[currentSection];
 
-  const progress = totalSections > 0 
+  const progress = totalSections > 0
     ? ((currentSection + 1) / totalSections) * 100
     : 0;
 
@@ -202,15 +202,15 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       const sectionAnswers = Object.entries(answers)
         .filter(([key]) => key.startsWith(`${selectedRole}-${currentSection}-`));
-      
+
       sectionAnswers.forEach(([key, answer]) => {
         const [, sectionIndex, questionIndex] = key.split('-');
         const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
-        
+
         // Solo contar preguntas normales (no trampa)
         if (question && !question.es_trampa) {
           totalQuestions++;
-          if (answer === 'si' || 
+          if (answer === 'si' ||
               (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
             sectionScore += 10; // Puntuación estándar por pregunta
             correctAnswers++;
@@ -268,18 +268,18 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       Object.entries(answers).forEach(([key, selectedAnswer]) => {
         const [roleOrType, sectionIndex, questionIndex] = key.split('-');
         const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
-        
+
         if (question) {
           if (question.es_trampa) {
             // Verificar preguntas trampa (solo contar errores)
-            if (selectedAnswer === 'no' || 
+            if (selectedAnswer === 'no' ||
                 (question.tipo_pregunta === 'seleccion_multiple' && selectedAnswer !== question.respuesta_correcta)) {
               wrongTrapAnswers++;
             }
           } else {
             // Contar preguntas normales
             totalNormalQuestions++;
-            if (selectedAnswer === 'si' || 
+            if (selectedAnswer === 'si' ||
                 (question.tipo_pregunta === 'seleccion_multiple' && selectedAnswer === question.respuesta_correcta)) {
               totalScore += 10;
               correctNormalAnswers++;
@@ -290,7 +290,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       // Determinar si reprueba por preguntas trampa
       const failedByTrapQuestions = wrongTrapAnswers >= 2;
-      
+
       // Calcular porcentaje final (solo de preguntas normales)
       const finalPercentage = totalNormalQuestions > 0 ? (correctNormalAnswers / totalNormalQuestions) * 100 : 0;
 
@@ -302,7 +302,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         respuestas: Object.entries(answers).map(([key, selectedAnswer]) => {
           const [roleOrType, sectionIndex, questionIndex] = key.split('-');
           const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
-          
+
           return {
             pregunta_id: question?.pregunta_id || question?.id || null,
             respuesta: selectedAnswer,
@@ -328,7 +328,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       toast({
         title: failedByTrapQuestions ? "❌ Evaluación reprobada" : "✅ Evaluación completada",
-        description: failedByTrapQuestions 
+        description: failedByTrapQuestions
           ? "Evaluación reprobada por preguntas de verificación"
           : "Los resultados han sido guardados exitosamente con ponderación por secciones"
       });
@@ -385,13 +385,13 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
     Object.entries(answers).forEach(([key, answer]) => {
       const [roleOrType, sectionIndex, questionIndex] = key.split('-');
       const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
-      
+
       if (question && !question.es_trampa) {
         // Contar respuestas normales
         if (responseStats.hasOwnProperty(answer)) {
           responseStats[answer]++;
-          
-          if (answer === 'si' || 
+
+          if (answer === 'si' ||
               (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
             correctAnswers++;
           }
@@ -403,18 +403,18 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
     const sectionsInfo = evaluationData.secciones.map((seccion, sectionIndex) => {
       const normalQuestions = seccion.preguntas?.filter(p => !p.es_trampa) || [];
       const totalSectionQuestions = normalQuestions.length;
-      
+
       // Contar respuestas de esta sección
       let sectionAnswered = 0;
       let sectionCorrect = 0;
-      
+
       normalQuestions.forEach((question, qIndex) => {
         const key = `${selectedRole}-${sectionIndex}-${qIndex}`;
         const answer = answers[key];
-        
+
         if (answer) {
           sectionAnswered++;
-          if (answer === 'si' || 
+          if (answer === 'si' ||
               (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
             sectionCorrect++;
           }
@@ -423,7 +423,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       const sectionProgress = totalSectionQuestions > 0 ? (sectionAnswered / totalSectionQuestions) * 100 : 0;
       const sectionScore = sectionAnswered > 0 ? (sectionCorrect / sectionAnswered) * 100 : 0;
-      
+
       return {
         nombre: seccion.nombre,
         ponderacion: seccion.ponderacion || 0,
@@ -600,7 +600,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                 <div
                   key={i}
                   className={`flex-1 ${i < currentSection ? 'bg-blue-600' :
-                    i === currentSection ? 'bg-blue-400' : 'bg-gray-300'} 
+                    i === currentSection ? 'bg-blue-400' : 'bg-gray-300'}
                     ${i < totalSections - 1 ? 'mr-1' : ''}`}
                 />
               ))}
@@ -646,16 +646,16 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                               {index + 1}. {question.pregunta}
                               {/* NO mostrar indicador de preguntas trampa */}
                             </h3>
-                            
+
                             {question.tipo_pregunta === 'seleccion_multiple' ? (
                               // Pregunta de selección múltiple
                               <div className="space-y-2">
                                 {['a', 'b', 'c'].map((option) => {
                                   const optionText = question[`opcion_${option}`];
                                   if (!optionText) return null;
-                                  
+
                                   return (
-                                    <label 
+                                    <label
                                       key={option}
                                       className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50"
                                     >
@@ -688,7 +688,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                                   <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
                                   <span className="text-gray-700">Sí</span>
                                 </label>
-                                
+
                                 <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
                                   <input
                                     type="radio"
@@ -701,7 +701,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                                   <XCircle className="w-5 h-5 text-red-600 mr-2" />
                                   <span className="text-gray-700">No</span>
                                 </label>
-                                
+
                                 <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
                                   <input
                                     type="radio"
@@ -755,7 +755,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                     Criterios de evaluación
                   </h3>
                 </div>
-                
+
                 <div className="p-4">
                   <div className="space-y-4">
                     {/* Tabla de criterios de evaluación */}
@@ -765,15 +765,14 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                           <tr className="bg-gray-50">
                             <th className="text-left p-2 font-medium text-gray-700">Criterios de evaluación</th>
                             <th className="text-center p-2 font-medium text-gray-700">Porcentaje</th>
-                            <th className="text-center p-2 font-medium text-gray-700">Total de preguntas</th>
                           </tr>
                         </thead>
                         <tbody>
                           {enhancedStats.sectionsInfo.map((section, index) => (
-                            <tr 
-                              key={index} 
+                            <tr
+                              key={index}
                               className={`border-b border-gray-100 ${
-                                section.isCurrentSection ? 'bg-blue-50' : 
+                                section.isCurrentSection ? 'bg-blue-50' :
                                 section.isCompleted ? 'bg-green-50' : ''
                               }`}
                             >
@@ -796,15 +795,11 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                               <td className="text-center p-2 text-xs font-medium">
                                 {section.ponderacion}
                               </td>
-                              <td className="text-center p-2 text-xs">
-                                {section.totalPreguntas}
-                              </td>
                             </tr>
                           ))}
                           <tr className="bg-gray-100 font-bold">
                             <td className="p-2 text-xs">TOTAL</td>
-                            <td className="text-center p-2 text-xs">{enhancedStats.totalPonderacion}</td>
-                            <td className="text-center p-2 text-xs">{enhancedStats.totalQuestions}</td>
+                            <td className="text-center p-2 text-xs">100</td>
                           </tr>
                         </tbody>
                       </table>
@@ -818,7 +813,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                         <span>{Math.round(enhancedStats.progressPercentage)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${enhancedStats.progressPercentage}%` }}
                         />
@@ -840,9 +835,6 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
                           {enhancedStats.correctAnswers} correctas de {enhancedStats.answeredQuestions} respondidas
-                        </div>
-                        <div className="text-xs text-orange-600 mt-1 font-medium">
-                          ⚠️ Puntuación final se calcula por ponderación
                         </div>
                       </div>
                     </div>
@@ -896,23 +888,6 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                                 <span className="font-medium">{enhancedStats.responseStats.c}</span>
                               </div>
                             </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Información de configuración */}
-                    <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Configuración</h4>
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <div>Rol: {selectedRole}</div>
-                        <div>Sistema: Ponderación por secciones</div>
-                        <div>Criterio: ≥91% para aprobar</div>
-                        <div>Fuente: tabla secciones_evaluacion</div>
-                        {enhancedStats.configuracion && (
-                          <>
-                            <div>Preguntas trampa: {enhancedStats.configuracion.total_preguntas_trampa || 0}</div>
-                            <div>Por sección: {enhancedStats.configuracion.preguntas_trampa_por_seccion || 0}</div>
                           </>
                         )}
                       </div>
