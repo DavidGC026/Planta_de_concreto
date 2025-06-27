@@ -12,20 +12,14 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
     correctAnswers, 
     isPlantStatus, 
     evaluationTitle,
-    wrongTrapAnswers = 0,
-    failedByTrapQuestions = false,
+    // NO mostrar información de preguntas trampa
     isPersonalEvaluation = false
   } = results;
   
   // Determinar el estado según el tipo de evaluación y puntaje
   let status, statusColor, statusIcon;
   
-  // Verificar si reprobó por preguntas trampa
-  if (failedByTrapQuestions) {
-    status = 'REPROBADO POR PREGUNTAS TRAMPA';
-    statusColor = 'text-red-600';
-    statusIcon = AlertTriangle;
-  } else if (isPlantStatus) {
+  if (isPlantStatus) {
     // Para evaluación de estado de planta (operación)
     if (score >= 80) {
       status = 'EXCELENTE';
@@ -84,9 +78,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
     
     // Determinar color del progreso según los rangos especificados
     let progressColor;
-    if (failedByTrapQuestions) {
-      progressColor = '#ef4444'; // Rojo para preguntas trampa
-    } else if (isPersonalEvaluation) {
+    if (isPersonalEvaluation) {
       // Para evaluación de personal: 0-90% rojo, 91-100% verde
       progressColor = score >= 91 ? '#22c55e' : '#ef4444';
     } else {
@@ -155,7 +147,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         
         {/* Contenido central */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className={`text-6xl font-bold ${getScoreColor(score, isPersonalEvaluation, failedByTrapQuestions)}`}>
+          <div className={`text-6xl font-bold ${getScoreColor(score, isPersonalEvaluation)}`}>
             {score}%
           </div>
           <div className="text-lg text-gray-600 mt-2">
@@ -180,8 +172,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         puntuacion: score,
         total_preguntas: totalAnswers,
         respuestas_correctas: correctAnswers || 'N/A',
-        preguntas_trampa_incorrectas: wrongTrapAnswers || 0,
-        reprobado_por_trampa: failedByTrapQuestions,
         estado: status,
         tipo: isPlantStatus ? 'Estado de Planta' : 'Cuestionario con Ponderación por Secciones',
         sistema_calificacion: isPersonalEvaluation 
@@ -193,9 +183,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       estadisticas: {
         porcentaje_aciertos: isPlantStatus ? 'N/A' : Math.round((correctAnswers / totalAnswers) * 100),
         tiempo_evaluacion: 'N/A',
-        observaciones: failedByTrapQuestions 
-          ? `Evaluación reprobada por ${wrongTrapAnswers} errores en preguntas de verificación`
-          : 'Evaluación completada exitosamente con ponderación por secciones',
+        observaciones: 'Evaluación completada exitosamente con ponderación por secciones',
         rango_color: getRangeDescription(score, isPersonalEvaluation),
         sistema_ponderacion: 'Basado en tabla secciones_evaluacion'
       }
@@ -256,8 +244,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             .status.deficiente { background-color: #f8d7da; color: #721c24; }
             .section { margin: 20px 0; }
             .section-title { background-color: #f8f9fa; padding: 10px; font-weight: bold; }
-            .trap-warning { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }
-            .color-system-box { background-color: #f0f9ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid ${getChartColor(score, isPersonalEvaluation, failedByTrapQuestions)}; }
+            .color-system-box { background-color: #f0f9ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid ${getChartColor(score, isPersonalEvaluation)}; }
             .ponderation-box { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #6366f1; }
             table { width: 100%; border-collapse: collapse; margin: 10px 0; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -299,14 +286,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             <p><em>Ejemplo: Sección A (20% peso) con 80% aciertos = 16% de contribución al total</em></p>
           </div>
           
-          ${failedByTrapQuestions ? `
-          <div class="trap-warning">
-            <h3>⚠️ Evaluación Reprobada por Preguntas de Verificación</h3>
-            <p>La evaluación fue reprobada debido a <strong>${wrongTrapAnswers} errores</strong> en preguntas de verificación.</p>
-            <p>Las preguntas de verificación evalúan conocimientos fundamentales y son críticas para la aprobación.</p>
-          </div>
-          ` : ''}
-          
           <div class="color-system-box">
             <h3>Sistema de Evaluación por Anillos de Color</h3>
             ${isPersonalEvaluation ? `
@@ -318,7 +297,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
               <p><strong>🟡 Amarillo (61-85%):</strong> Nivel regular - Requiere algunas mejoras</p>
               <p><strong>🟢 Verde (86-100%):</strong> Nivel excelente - Cumple con los estándares</p>
             `}
-            <p><em>Preguntas de verificación: 2 o más errores = Reprobación automática</em></p>
           </div>
           
           <div class="status ${status.toLowerCase().replace(/\s+/g, '_')}">
@@ -333,7 +311,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           <div class="footer">
             <p>© ${new Date().getFullYear()} IMCYC - Instituto Mexicano del Cemento y del Concreto A.C.</p>
             <p>Reporte generado automáticamente el ${new Date().toLocaleString('es-MX')}</p>
-            <p>Sistema de Evaluación con Ponderación por Secciones y Preguntas de Verificación</p>
+            <p>Sistema de Evaluación con Ponderación por Secciones</p>
           </div>
         </body>
         </html>
@@ -361,9 +339,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
   };
 
   // Función para obtener el color de la estadística según el puntaje
-  const getScoreColor = (score, isPersonal, failedTrap) => {
-    if (failedTrap) return 'text-red-600';
-    
+  const getScoreColor = (score, isPersonal) => {
     if (isPersonal) {
       return score >= 91 ? 'text-green-600' : 'text-red-600';
     } else {
@@ -374,9 +350,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
   };
 
   // Función para obtener el color de fondo de la estadística
-  const getScoreBgColor = (score, isPersonal, failedTrap) => {
-    if (failedTrap) return 'bg-red-50';
-    
+  const getScoreBgColor = (score, isPersonal) => {
     if (isPersonal) {
       return score >= 91 ? 'bg-green-50' : 'bg-red-50';
     } else {
@@ -398,9 +372,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
   };
 
   // Función para obtener color del gráfico
-  const getChartColor = (score, isPersonal, failedTrap) => {
-    if (failedTrap) return '#ef4444';
-    
+  const getChartColor = (score, isPersonal) => {
     if (isPersonal) {
       return score >= 91 ? '#22c55e' : '#ef4444';
     } else {
@@ -434,23 +406,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 </div>
               </div>
 
-              {/* Alerta de preguntas trampa */}
-              {failedByTrapQuestions && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center justify-center space-x-2">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                    <span className="font-medium text-red-800">
-                      Reprobado por {wrongTrapAnswers} errores en preguntas de verificación
-                    </span>
-                  </div>
-                  <p className="text-sm text-red-600 mt-2">
-                    Las preguntas de verificación evalúan conocimientos fundamentales críticos
-                  </p>
-                </div>
-              )}
-
               {/* Indicador del sistema de calificación para personal */}
-              {isPersonalEvaluation && !failedByTrapQuestions && (
+              {isPersonalEvaluation && (
                 <div className="mt-2 text-sm text-gray-600">
                   <span className="font-medium">Sistema de Personal:</span> Se requiere ≥91% para aprobar
                 </div>
@@ -503,9 +460,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                     </div>
                   </div>
                 )}
-                <div className="text-center text-sm text-gray-600 bg-orange-50 p-3 rounded border border-orange-200 mt-4">
-                  <strong>Preguntas de Verificación:</strong> 2 o más errores = Reprobación automática
-                </div>
               </div>
 
               {/* Gráfica circular con anillos */}
@@ -515,12 +469,11 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
               {/* Estadísticas con colores dinámicos */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className={`${getScoreBgColor(score, isPersonalEvaluation, failedByTrapQuestions)} p-4 rounded-lg text-center border border-opacity-30`}>
-                  <div className={`text-2xl font-bold ${getScoreColor(score, isPersonalEvaluation, failedByTrapQuestions)}`}>{score}%</div>
+                <div className={`${getScoreBgColor(score, isPersonalEvaluation)} p-4 rounded-lg text-center border border-opacity-30`}>
+                  <div className={`text-2xl font-bold ${getScoreColor(score, isPersonalEvaluation)}`}>{score}%</div>
                   <div className="text-sm text-gray-600">Puntuación Final</div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {failedByTrapQuestions ? '🔴 Reprobado por verificación' :
-                     getRangeDescription(score, isPersonalEvaluation)}
+                    {getRangeDescription(score, isPersonalEvaluation)}
                   </div>
                 </div>
                 
@@ -548,7 +501,6 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                   <p className="text-indigo-700 text-sm">
                     Esta evaluación utiliza el sistema de <strong>ponderación por secciones</strong> de la tabla <code>secciones_evaluacion</code>. 
                     Cada sección tiene un peso específico que se multiplica por el porcentaje de aciertos de esa sección.
-                    Las preguntas de verificación actúan como filtro de seguridad: 2 o más errores resultan en reprobación automática.
                     {isPersonalEvaluation && (
                       <span className="block mt-2 font-medium">
                         Para evaluación de personal se requiere una puntuación ≥91% para aprobar.

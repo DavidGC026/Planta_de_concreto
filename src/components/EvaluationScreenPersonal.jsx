@@ -216,15 +216,14 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         correctAnswers: correctNormalAnswers,
         evaluationTitle: `Evaluación de Personal - ${selectedRole}`,
         sections: evaluationData.secciones || [],
-        wrongTrapAnswers: wrongTrapAnswers,
-        failedByTrapQuestions: failedByTrapQuestions,
+        // NO incluir información de preguntas trampa
         isPersonalEvaluation: true
       });
 
       toast({
         title: failedByTrapQuestions ? "❌ Evaluación reprobada" : "✅ Evaluación completada",
         description: failedByTrapQuestions 
-          ? `Reprobado por ${wrongTrapAnswers} errores en preguntas trampa`
+          ? "Evaluación reprobada por preguntas de verificación"
           : "Los resultados han sido guardados exitosamente con ponderación por secciones"
       });
 
@@ -275,28 +274,19 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
     };
 
     let correctAnswers = 0;
-    let wrongTrapAnswers = 0;
 
     Object.entries(answers).forEach(([key, answer]) => {
       const [roleOrType, sectionIndex, questionIndex] = key.split('-');
       const question = evaluationData?.secciones?.[sectionIndex]?.preguntas?.[questionIndex];
       
-      if (question) {
-        if (question.es_trampa) {
-          // Contar errores en preguntas trampa
-          if (answer === 'no' || 
-              (question.tipo_pregunta === 'seleccion_multiple' && answer !== question.respuesta_correcta)) {
-            wrongTrapAnswers++;
-          }
-        } else {
-          // Contar respuestas normales
-          if (responseStats.hasOwnProperty(answer)) {
-            responseStats[answer]++;
-            
-            if (answer === 'si' || 
-                (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
-              correctAnswers++;
-            }
+      if (question && !question.es_trampa) {
+        // Contar respuestas normales
+        if (responseStats.hasOwnProperty(answer)) {
+          responseStats[answer]++;
+          
+          if (answer === 'si' || 
+              (question.tipo_pregunta === 'seleccion_multiple' && answer === question.respuesta_correcta)) {
+            correctAnswers++;
           }
         }
       }
@@ -308,7 +298,6 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       progressPercentage,
       responseStats,
       correctAnswers,
-      wrongTrapAnswers,
       currentScore: answeredQuestions > 0 ? Math.round((correctAnswers / answeredQuestions) * 100) : 0
     };
   };
@@ -489,12 +478,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                           <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
                             <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                               {index + 1}. {question.pregunta}
-                              {/* Indicador visual para preguntas trampa (opcional) */}
-                              {question.es_trampa && (
-                                <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
-                                  Verificación
-                                </span>
-                              )}
+                              {/* NO mostrar indicador de preguntas trampa */}
                             </h3>
                             
                             {question.tipo_pregunta === 'seleccion_multiple' ? (
@@ -694,23 +678,6 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                         )}
                       </div>
                     </div>
-
-                    {/* Alerta de preguntas trampa */}
-                    {simpleStats.wrongTrapAnswers > 0 && (
-                      <div className="border-t pt-3">
-                        <div className={`p-3 rounded-lg ${simpleStats.wrongTrapAnswers >= 2 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-                          <h4 className={`text-sm font-medium mb-1 ${simpleStats.wrongTrapAnswers >= 2 ? 'text-red-800' : 'text-yellow-800'}`}>
-                            Preguntas de Verificación
-                          </h4>
-                          <div className={`text-xs ${simpleStats.wrongTrapAnswers >= 2 ? 'text-red-600' : 'text-yellow-600'}`}>
-                            {simpleStats.wrongTrapAnswers} error{simpleStats.wrongTrapAnswers > 1 ? 'es' : ''} detectado{simpleStats.wrongTrapAnswers > 1 ? 's' : ''}
-                            {simpleStats.wrongTrapAnswers >= 2 && (
-                              <div className="font-medium mt-1">⚠️ Evaluación será reprobada</div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Información de configuración */}
                     <div className="border-t pt-3">

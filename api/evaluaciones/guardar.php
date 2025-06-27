@@ -60,6 +60,42 @@ try {
         $rol_personal_id = $stmt->fetchColumn();
     }
     
+    // Verificar y agregar columnas si no existen
+    try {
+        $check_column = $db->query("SHOW COLUMNS FROM evaluaciones LIKE 'puntuacion_ponderada'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE evaluaciones ADD COLUMN puntuacion_ponderada DECIMAL(5,2) DEFAULT 0.00");
+        }
+        
+        $check_column = $db->query("SHOW COLUMNS FROM evaluaciones LIKE 'preguntas_trampa_respondidas'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE evaluaciones ADD COLUMN preguntas_trampa_respondidas INT DEFAULT 0");
+        }
+        
+        $check_column = $db->query("SHOW COLUMNS FROM evaluaciones LIKE 'preguntas_trampa_incorrectas'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE evaluaciones ADD COLUMN preguntas_trampa_incorrectas INT DEFAULT 0");
+        }
+        
+        $check_column = $db->query("SHOW COLUMNS FROM respuestas_evaluacion LIKE 'es_trampa'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN es_trampa BOOLEAN DEFAULT FALSE");
+        }
+        
+        $check_column = $db->query("SHOW COLUMNS FROM respuestas_evaluacion LIKE 'ponderacion_obtenida'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN ponderacion_obtenida DECIMAL(5,2) DEFAULT 0.00");
+        }
+        
+        $check_column = $db->query("SHOW COLUMNS FROM respuestas_evaluacion LIKE 'subseccion_id'");
+        if ($check_column->rowCount() == 0) {
+            $db->exec("ALTER TABLE respuestas_evaluacion ADD COLUMN subseccion_id INT NULL");
+        }
+        
+    } catch (Exception $e) {
+        error_log("Error verificando/agregando columnas: " . $e->getMessage());
+    }
+    
     // Obtener secciones con su ponderación
     $query = "SELECT 
                 s.id as seccion_id,
@@ -68,15 +104,19 @@ try {
                 s.es_trampa
               FROM secciones_evaluacion s
               WHERE s.tipo_evaluacion_id = :tipo_evaluacion_id
-                AND s.activo = 1
-                AND (s.rol_personal_id IS NULL OR s.rol_personal_id = :rol_personal_id)
-              ORDER BY s.orden";
+                AND s.activo = 1";
+    
+    $params = [':tipo_evaluacion_id' => $tipo_evaluacion_id];
+    
+    if ($rol_personal_id) {
+        $query .= " AND (s.rol_personal_id IS NULL OR s.rol_personal_id = :rol_personal_id)";
+        $params[':rol_personal_id'] = $rol_personal_id;
+    }
+    
+    $query .= " ORDER BY s.orden";
     
     $stmt = $db->prepare($query);
-    $stmt->execute([
-        ':tipo_evaluacion_id' => $tipo_evaluacion_id,
-        ':rol_personal_id' => $rol_personal_id
-    ]);
+    $stmt->execute($params);
     $secciones = $stmt->fetchAll();
     
     // Calcular puntuación por secciones usando ponderación
@@ -116,7 +156,7 @@ try {
             // Buscar la respuesta para esta pregunta
             $respuesta_encontrada = null;
             foreach ($respuestas as $respuesta) {
-                if ($respuesta['pregunta_id'] == $pregunta['id']) {
+                if (isset($respuesta['pregunta_id']) && $respuesta['pregunta_id'] == $pregunta['id']) {
                     $respuesta_encontrada = $respuesta['respuesta'];
                     break;
                 }
@@ -173,6 +213,7 @@ try {
             
             if ($es_correcta) {
                 $respuestas_correctas_seccion++;
+                $puntuacion_total += 10; // Puntos individuales
             }
         }
         
@@ -191,36 +232,6 @@ try {
         error_log("  - Respuestas correctas: {$respuestas_correctas_seccion}");
         error_log("  - Porcentaje sección: " . round($porcentaje_seccion, 2) . "%");
         error_log("  - Contribución ponderada: " . round($contribucion_ponderada, 2));
-    }
-    
-    // La puntuación total es la suma de puntos (10 por respuesta correcta)
-    $puntuacion_total = 0;
-    foreach ($respuestas as $respuesta) {
-        $pregunta_id = $respuesta['pregunta_id'] ?? null;
-        $respuesta_valor = $respuesta['respuesta'];
-        
-        if ($pregunta_id) {
-            $query = "SELECT tipo_pregunta, respuesta_correcta, es_trampa
-                      FROM preguntas 
-                      WHERE id = :pregunta_id";
-            
-            $stmt = $db->prepare($query);
-            $stmt->bindParam(':pregunta_id', $pregunta_id);
-            $stmt->execute();
-            $pregunta_info = $stmt->fetch();
-            
-            if ($pregunta_info && !$pregunta_info['es_trampa']) {
-                if ($pregunta_info['tipo_pregunta'] === 'seleccion_multiple') {
-                    if ($respuesta_valor === $pregunta_info['respuesta_correcta']) {
-                        $puntuacion_total += 10;
-                    }
-                } else {
-                    if ($respuesta_valor === 'si') {
-                        $puntuacion_total += 10;
-                    }
-                }
-            }
-        }
     }
     
     // Determinar si reprueba por preguntas trampa
