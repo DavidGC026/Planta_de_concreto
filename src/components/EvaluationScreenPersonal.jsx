@@ -841,9 +841,6 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                         <div className="text-xs text-gray-500 mt-1">
                           {enhancedStats.correctAnswers} correctas de {enhancedStats.answeredQuestions} respondidas
                         </div>
-                        <div className="text-xs text-orange-600 mt-1 font-medium">
-                          ⚠️ Puntuación final se calcula por ponderación
-                        </div>
                       </div>
                     </div>
 
@@ -896,23 +893,6 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                                 <span className="font-medium">{enhancedStats.responseStats.c}</span>
                               </div>
                             </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Información de configuración */}
-                    <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Configuración</h4>
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <div>Rol: {selectedRole}</div>
-                        <div>Sistema: Ponderación por secciones</div>
-                        <div>Criterio: ≥91% para aprobar</div>
-                        <div>Fuente: tabla secciones_evaluacion</div>
-                        {enhancedStats.configuracion && (
-                          <>
-                            <div>Preguntas trampa: {enhancedStats.configuracion.total_preguntas_trampa || 0}</div>
-                            <div>Por sección: {enhancedStats.configuracion.preguntas_trampa_por_seccion || 0}</div>
                           </>
                         )}
                       </div>
