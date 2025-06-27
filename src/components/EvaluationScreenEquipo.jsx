@@ -112,6 +112,91 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   }, [currentSubsectionIndex]);
 
+  // Función para generar evaluación simulada de equipo
+  const generateSimulatedEquipmentEvaluation = () => {
+    const simulatedAnswers = {};
+    const simulatedSections = [];
+    let totalQuestions = 0;
+    let correctAnswers = 0;
+
+    equipmentSections.forEach((section, sectionIndex) => {
+      const sectionQuestions = [];
+      
+      section.subsections.forEach((subsection, subsectionIndex) => {
+        // Generar 5 preguntas por subsección
+        for (let i = 0; i < 5; i++) {
+          const questionKey = `${section.id}-${subsection.id}-${i}`;
+          
+          // Generar respuesta aleatoria con tendencia hacia respuestas positivas
+          const randomValue = Math.random();
+          let answer;
+          
+          if (randomValue < 0.75) { // 75% probabilidad de respuesta correcta
+            answer = 'si';
+            correctAnswers++;
+          } else if (randomValue < 0.9) { // 15% probabilidad de respuesta incorrecta
+            answer = 'no';
+          } else { // 10% probabilidad de N/A
+            answer = 'na';
+          }
+          
+          simulatedAnswers[questionKey] = answer;
+          totalQuestions++;
+
+          // Crear pregunta simulada
+          sectionQuestions.push({
+            id: i,
+            pregunta_id: i,
+            pregunta: `¿Los equipos de ${subsection.name.toLowerCase()} están en óptimas condiciones de funcionamiento?`,
+            tipo_pregunta: 'abierta',
+            es_trampa: false
+          });
+        }
+      });
+
+      simulatedSections.push({
+        ...section,
+        preguntas: sectionQuestions
+      });
+    });
+
+    // Calcular puntuación simulada
+    const finalScore = Math.round((correctAnswers / totalQuestions) * 100);
+
+    // Crear objeto de resultados simulados
+    const simulatedResults = {
+      answers: simulatedAnswers,
+      score: finalScore,
+      totalAnswers: totalQuestions,
+      correctAnswers: correctAnswers,
+      evaluationTitle: `Evaluación de Equipo Simulada - ${selectedPlantType || 'Planta Genérica'}`,
+      sections: simulatedSections,
+      isEquipmentEvaluation: true,
+      isSimulated: true
+    };
+
+    return simulatedResults;
+  };
+
+  const handleSkipToResults = () => {
+    try {
+      const simulatedResults = generateSimulatedEquipmentEvaluation();
+      
+      toast({
+        title: "🎯 Evaluación de Equipo Simulada",
+        description: "Se ha generado una evaluación con respuestas aleatorias para demostración"
+      });
+
+      onComplete(simulatedResults);
+    } catch (error) {
+      console.error('Error generating simulated equipment evaluation:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo generar la evaluación simulada"
+      });
+    }
+  };
+
   // Generar preguntas para una subsección
   const generateQuestionsForSubsection = (subsectionId) => {
     const questions = [];
@@ -560,6 +645,19 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               <p className="text-white/80">Seleccione el tipo de planta a evaluar</p>
             </div>
 
+            {/* Botón para saltar a resultados simulados */}
+            <div className="mb-6 flex justify-center">
+              <Button
+                onClick={handleSkipToResults}
+                variant="outline"
+                size="lg"
+                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
+              >
+                <Zap className="w-5 h-5" />
+                <span>Ver Evaluación Simulada</span>
+              </Button>
+            </div>
+
             <h3 className="text-xl font-semibold text-white mb-4">Tipo de planta:</h3>
             <div className="space-y-4">
               {plantTypes.map((type, index) => (
@@ -614,6 +712,19 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo - {selectedPlantType}</h2>
               <p className="text-white/80">Seleccione la sección a evaluar</p>
+            </div>
+
+            {/* Botón para saltar a resultados simulados */}
+            <div className="mb-6 flex justify-center">
+              <Button
+                onClick={handleSkipToResults}
+                variant="outline"
+                size="lg"
+                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
+              >
+                <Zap className="w-5 h-5" />
+                <span>Ver Evaluación Simulada</span>
+              </Button>
             </div>
 
             <div className="space-y-4">
@@ -713,13 +824,13 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
           </Button>
           
           <Button
-            onClick={onSkipToResults}
+            onClick={handleSkipToResults}
             variant="outline"
             size="sm"
             className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
           >
             <Zap className="w-4 h-4" />
-            <span>Saltar a Resultados (Dev)</span>
+            <span>Saltar a Resultados (Simulado)</span>
           </Button>
         </div>
 
