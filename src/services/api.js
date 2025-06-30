@@ -147,13 +147,29 @@ class ApiService {
   }
 
   /**
-   * Nuevo método para guardar progreso de sección
+   * Método para guardar progreso de sección (compatible con ambos sistemas)
    */
   async guardarProgresoSeccion(progresoData) {
     try {
-      const response = await this.request('evaluaciones/progreso-seccion.php', {
+      // Determinar qué endpoint usar según el tipo de evaluación
+      const endpoint = progresoData.tipo_evaluacion === 'equipo' 
+        ? 'evaluaciones/progreso-subseccion.php'
+        : 'evaluaciones/progreso-seccion.php';
+
+      // Mapear campos para compatibilidad
+      const dataToSend = {
+        ...progresoData,
+        // Para evaluación de equipo, mapear seccion_* a subseccion_*
+        ...(progresoData.tipo_evaluacion === 'equipo' && {
+          subseccion_nombre: progresoData.seccion_nombre,
+          subseccion_orden: progresoData.seccion_orden,
+          puntaje_subseccion: progresoData.puntaje_seccion
+        })
+      };
+
+      const response = await this.request(endpoint, {
         method: 'POST',
-        body: JSON.stringify(progresoData),
+        body: JSON.stringify(dataToSend),
       });
       return response.data;
     } catch (error) {
@@ -163,10 +179,15 @@ class ApiService {
   }
 
   /**
-   * Método para obtener progreso de secciones
+   * Método para obtener progreso de secciones (compatible con ambos sistemas)
    */
   async getProgresoSecciones(filtros = {}) {
     try {
+      // Determinar qué endpoint usar según el tipo de evaluación
+      const endpoint = filtros.tipo_evaluacion === 'equipo'
+        ? 'evaluaciones/progreso-subsecciones.php'
+        : 'evaluaciones/progreso-secciones.php';
+
       const params = new URLSearchParams();
       
       Object.keys(filtros).forEach(key => {
@@ -175,7 +196,7 @@ class ApiService {
         }
       });
 
-      const response = await this.request(`evaluaciones/progreso-secciones.php?${params}`);
+      const response = await this.request(`${endpoint}?${params}`);
       return response.data;
     } catch (error) {
       console.error('Error getting section progress:', error);

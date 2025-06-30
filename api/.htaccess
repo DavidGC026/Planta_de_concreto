@@ -26,6 +26,10 @@ RewriteRule ^evaluaciones/roles/?$ evaluaciones/roles.php [L,QSA]
 RewriteRule ^evaluaciones/preguntas/?$ evaluaciones/preguntas.php [L,QSA]
 RewriteRule ^evaluaciones/guardar/?$ evaluaciones/guardar.php [L,QSA]
 RewriteRule ^evaluaciones/historial/?$ evaluaciones/historial.php [L,QSA]
+RewriteRule ^evaluaciones/progreso-seccion/?$ evaluaciones/progreso-seccion.php [L,QSA]
+RewriteRule ^evaluaciones/progreso-secciones/?$ evaluaciones/progreso-secciones.php [L,QSA]
+RewriteRule ^evaluaciones/progreso-subseccion/?$ evaluaciones/progreso-subseccion.php [L,QSA]
+RewriteRule ^evaluaciones/progreso-subsecciones/?$ evaluaciones/progreso-subsecciones.php [L,QSA]
 
 # Rutas de reportes
 RewriteRule ^reportes/generar/?$ reportes/generar.php [L,QSA]
