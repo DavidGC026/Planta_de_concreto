@@ -2,15 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, Save } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, Save, ChevronRight, Building2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 
 const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username }) => {
-  const [currentSubsection, setCurrentSubsection] = useState(0);
-  const [answers, setAnswers] = useState({});
+  // Estados principales del flujo
+  const [currentStep, setCurrentStep] = useState('plantType'); // 'plantType' -> 'sectionSelection' -> 'subsectionEvaluation'
   const [selectedPlantType, setSelectedPlantType] = useState(null);
-  const [evaluationStarted, setEvaluationStarted] = useState(false);
+  const [selectedSection, setSelectedSection] = useState(null);
+  const [selectedSubsection, setSelectedSubsection] = useState(null);
+  const [currentSubsectionIndex, setCurrentSubsectionIndex] = useState(0);
+  
+  // Estados de datos
+  const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
   const [subsectionProgress, setSubsectionProgress] = useState({});
@@ -19,7 +24,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
 
-  // Configuración simplificada - solo tipos de planta
+  // Configuración de tipos de planta
   const plantTypes = [
     { id: 'pequena', name: 'Planta Pequeña', description: 'Hasta 30 m³/h' },
     { id: 'mediana', name: 'Planta Mediana', description: '30-60 m³/h' },
@@ -27,13 +32,13 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   ];
 
   useEffect(() => {
-    // Cargar datos de evaluación cuando se inicia
-    if (evaluationStarted && selectedPlantType) {
+    // Cargar datos de evaluación cuando se selecciona tipo de planta
+    if (selectedPlantType && currentStep === 'sectionSelection') {
       loadEvaluationData();
     }
-  }, [evaluationStarted, selectedPlantType]);
+  }, [selectedPlantType, currentStep]);
 
-  // Scroll al inicio cuando cambia la subsección
+  // Scroll al inicio cuando cambia el paso
   useEffect(() => {
     if (evaluationContentRef.current) {
       evaluationContentRef.current.scrollIntoView({
@@ -41,20 +46,19 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         block: 'start'
       });
     }
-  }, [currentSubsection]);
+  }, [currentStep, selectedSection, currentSubsectionIndex]);
 
-  // Cargar progreso guardado al iniciar evaluación
+  // Cargar progreso guardado
   useEffect(() => {
-    if (evaluationStarted && selectedPlantType && evaluationData) {
+    if (selectedPlantType && evaluationData) {
       loadSavedProgress();
     }
-  }, [evaluationStarted, selectedPlantType, evaluationData]);
+  }, [selectedPlantType, evaluationData]);
 
   const loadEvaluationData = async () => {
     try {
       setLoading(true);
       
-      // Obtener datos de evaluación de equipo desde la API
       const data = await apiService.getPreguntas({
         tipo: 'equipo',
         tipoPlanta: selectedPlantType
@@ -70,7 +74,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         description: "No se pudieron cargar los datos de evaluación"
       });
       
-      // Fallback a datos predefinidos si falla la carga
+      // Fallback a datos predefinidos
       setEvaluationData(generateFallbackData());
     } finally {
       setLoading(false);
@@ -78,22 +82,338 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   };
 
   const generateFallbackData = () => {
-    // Datos de respaldo en caso de que falle la carga desde la API
     return {
       title: 'Evaluación de Equipo',
       secciones: [
         {
-          id: 'mezclado',
-          nombre: 'Sistema de Mezclado',
-          ponderacion: 25,
+          id: 'produccion_mezclado',
+          nombre: 'Producción y mezclado',
+          ponderacion: 19.90,
           subsecciones: [
             {
-              id: 'mezcladora',
+              id: 'mezcladora_principal',
               nombre: 'Mezcladora Principal',
+              ponderacion_subseccion: 3.32,
               preguntas: [
-                { id: 1, pregunta: '¿La mezcladora está en buen estado general?', tipo_pregunta: 'abierta' },
-                { id: 2, pregunta: '¿Las paletas mezcladoras están completas y sin desgaste excesivo?', tipo_pregunta: 'abierta' },
-                { id: 3, pregunta: '¿El sistema de descarga funciona correctamente?', tipo_pregunta: 'abierta' }
+                { id: 1, pregunta: '¿La mezcladora principal se encuentra estructuralmente íntegra, sin fugas, grietas visibles ni desgaste severo en las paletas?', tipo_pregunta: 'abierta' },
+                { id: 2, pregunta: '¿Los motores de la mezcladora operan sin vibraciones anormales, sobrecalentamiento o ruidos extraños?', tipo_pregunta: 'abierta' },
+                { id: 3, pregunta: '¿El sistema de transmisión (reductores, acoplamientos) funciona correctamente sin fugas de aceite?', tipo_pregunta: 'abierta' },
+                { id: 4, pregunta: '¿Las paletas mezcladoras mantienen la geometría adecuada y están firmemente sujetas?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistema_dosificacion',
+              nombre: 'Sistema de Dosificación',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 5, pregunta: '¿Las básculas de cemento están calibradas y funcionan con precisión?', tipo_pregunta: 'abierta' },
+                { id: 6, pregunta: '¿Las básculas de agregados pesan correctamente y están libres de obstrucciones?', tipo_pregunta: 'abierta' },
+                { id: 7, pregunta: '¿El sistema de dosificación de agua funciona con precisión y sin fugas?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'bandas_transportadoras',
+              nombre: 'Bandas Transportadoras',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 8, pregunta: '¿Las bandas transportadoras están en buen estado, sin roturas ni desgaste excesivo?', tipo_pregunta: 'abierta' },
+                { id: 9, pregunta: '¿Los motores y reductores de las bandas operan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 10, pregunta: '¿Los sistemas de limpieza de bandas funcionan adecuadamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'tolvas_silos',
+              nombre: 'Tolvas y Silos',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 11, pregunta: '¿Las tolvas de agregados están estructuralmente íntegras y libres de obstrucciones?', tipo_pregunta: 'abierta' },
+                { id: 12, pregunta: '¿Los silos de cemento mantienen su integridad estructural y sistemas de descarga?', tipo_pregunta: 'abierta' },
+                { id: 13, pregunta: '¿Los sistemas de vibración y fluidización funcionan correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistema_agua',
+              nombre: 'Sistema de Agua',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 14, pregunta: '¿El sistema de suministro de agua mantiene presión y caudal adecuados?', tipo_pregunta: 'abierta' },
+                { id: 15, pregunta: '¿Los tanques de agua están limpios y en buen estado?', tipo_pregunta: 'abierta' },
+                { id: 16, pregunta: '¿El sistema de dosificación de aditivos funciona correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistema_control',
+              nombre: 'Sistema de Control',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 17, pregunta: '¿El sistema de control automatizado responde correctamente a los comandos?', tipo_pregunta: 'abierta' },
+                { id: 18, pregunta: '¿Los sensores y dispositivos de medición están calibrados y funcionando?', tipo_pregunta: 'abierta' },
+                { id: 19, pregunta: '¿El software de control está actualizado y libre de errores?', tipo_pregunta: 'abierta' }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'transporte_entrega',
+          nombre: 'Transporte y entrega',
+          ponderacion: 12.04,
+          subsecciones: [
+            {
+              id: 'camiones_revolvedores',
+              nombre: 'Camiones Revolvedores',
+              ponderacion_subseccion: 3.01,
+              preguntas: [
+                { id: 20, pregunta: '¿Los tambores de los camiones están en buen estado estructural?', tipo_pregunta: 'abierta' },
+                { id: 21, pregunta: '¿Los sistemas hidráulicos de los camiones funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 22, pregunta: '¿Las paletas internas del tambor están completas y bien fijadas?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'bombas_concreto',
+              nombre: 'Bombas de Concreto',
+              ponderacion_subseccion: 3.01,
+              preguntas: [
+                { id: 23, pregunta: '¿Las bombas de concreto operan sin fugas ni obstrucciones?', tipo_pregunta: 'abierta' },
+                { id: 24, pregunta: '¿Los sistemas de limpieza de bombas funcionan adecuadamente?', tipo_pregunta: 'abierta' },
+                { id: 25, pregunta: '¿Las mangueras y tuberías están en buen estado?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistemas_carga',
+              nombre: 'Sistemas de Carga',
+              ponderacion_subseccion: 3.01,
+              preguntas: [
+                { id: 26, pregunta: '¿Los sistemas de carga de camiones funcionan eficientemente?', tipo_pregunta: 'abierta' },
+                { id: 27, pregunta: '¿Las tolvas de descarga están libres de obstrucciones?', tipo_pregunta: 'abierta' },
+                { id: 28, pregunta: '¿Los controles de carga responden correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_limpieza',
+              nombre: 'Equipos de Limpieza',
+              ponderacion_subseccion: 3.01,
+              preguntas: [
+                { id: 29, pregunta: '¿Los equipos de lavado de camiones funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 30, pregunta: '¿Los sistemas de reciclaje de agua operan adecuadamente?', tipo_pregunta: 'abierta' },
+                { id: 31, pregunta: '¿Las instalaciones de limpieza están en buen estado?', tipo_pregunta: 'abierta' }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'control_calidad',
+          nombre: 'Control de calidad',
+          ponderacion: 18.50,
+          subsecciones: [
+            {
+              id: 'equipos_laboratorio',
+              nombre: 'Equipos de Laboratorio',
+              ponderacion_subseccion: 3.70,
+              preguntas: [
+                { id: 32, pregunta: '¿Las prensas de laboratorio están calibradas y funcionando?', tipo_pregunta: 'abierta' },
+                { id: 33, pregunta: '¿Las balanzas de precisión están calibradas?', tipo_pregunta: 'abierta' },
+                { id: 34, pregunta: '¿Los equipos de ensayo están en buen estado?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'instrumentos_medicion',
+              nombre: 'Instrumentos de Medición',
+              ponderacion_subseccion: 3.70,
+              preguntas: [
+                { id: 35, pregunta: '¿Los instrumentos de medición están calibrados?', tipo_pregunta: 'abierta' },
+                { id: 36, pregunta: '¿Los medidores de humedad funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 37, pregunta: '¿Los termómetros están calibrados y funcionando?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_muestreo',
+              nombre: 'Equipos de Muestreo',
+              ponderacion_subseccion: 3.70,
+              preguntas: [
+                { id: 38, pregunta: '¿Los equipos para toma de muestras están disponibles?', tipo_pregunta: 'abierta' },
+                { id: 39, pregunta: '¿Los contenedores de muestras están limpios?', tipo_pregunta: 'abierta' },
+                { id: 40, pregunta: '¿Los equipos de muestreo están calibrados?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistemas_curado',
+              nombre: 'Sistemas de Curado',
+              ponderacion_subseccion: 3.70,
+              preguntas: [
+                { id: 41, pregunta: '¿Las cámaras húmedas mantienen condiciones adecuadas?', tipo_pregunta: 'abierta' },
+                { id: 42, pregunta: '¿Los sistemas de control de temperatura funcionan?', tipo_pregunta: 'abierta' },
+                { id: 43, pregunta: '¿Los sistemas de humedad están operativos?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_pruebas',
+              nombre: 'Equipos de Pruebas',
+              ponderacion_subseccion: 3.70,
+              preguntas: [
+                { id: 44, pregunta: '¿Los equipos para pruebas específicas están disponibles?', tipo_pregunta: 'abierta' },
+                { id: 45, pregunta: '¿Los equipos de ensayo están calibrados?', tipo_pregunta: 'abierta' },
+                { id: 46, pregunta: '¿Los instrumentos de medición están funcionando?', tipo_pregunta: 'abierta' }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'mantenimiento',
+          nombre: 'Mantenimiento',
+          ponderacion: 15.20,
+          subsecciones: [
+            {
+              id: 'herramientas_mantenimiento',
+              nombre: 'Herramientas de Mantenimiento',
+              ponderacion_subseccion: 3.80,
+              preguntas: [
+                { id: 47, pregunta: '¿Las herramientas de mantenimiento están disponibles?', tipo_pregunta: 'abierta' },
+                { id: 48, pregunta: '¿Las herramientas están en buen estado?', tipo_pregunta: 'abierta' },
+                { id: 49, pregunta: '¿Se cuenta con repuestos básicos?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_diagnostico',
+              nombre: 'Equipos de Diagnóstico',
+              ponderacion_subseccion: 3.80,
+              preguntas: [
+                { id: 50, pregunta: '¿Los equipos de diagnóstico están disponibles?', tipo_pregunta: 'abierta' },
+                { id: 51, pregunta: '¿Los instrumentos de medición funcionan?', tipo_pregunta: 'abierta' },
+                { id: 52, pregunta: '¿Se cuenta con equipos de análisis?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistemas_lubricacion',
+              nombre: 'Sistemas de Lubricación',
+              ponderacion_subseccion: 3.80,
+              preguntas: [
+                { id: 53, pregunta: '¿Los sistemas de lubricación automática funcionan?', tipo_pregunta: 'abierta' },
+                { id: 54, pregunta: '¿Se cuenta con lubricantes adecuados?', tipo_pregunta: 'abierta' },
+                { id: 55, pregunta: '¿Los sistemas de distribución están operativos?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_soldadura',
+              nombre: 'Equipos de Soldadura',
+              ponderacion_subseccion: 3.80,
+              preguntas: [
+                { id: 56, pregunta: '¿Los equipos de soldadura están disponibles?', tipo_pregunta: 'abierta' },
+                { id: 57, pregunta: '¿Los equipos de soldadura funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 58, pregunta: '¿Se cuenta con materiales de soldadura?', tipo_pregunta: 'abierta' }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'seguridad_ambiente',
+          nombre: 'Seguridad y medio ambiente',
+          ponderacion: 20.36,
+          subsecciones: [
+            {
+              id: 'equipos_incendios',
+              nombre: 'Equipos Contra Incendios',
+              ponderacion_subseccion: 3.39,
+              preguntas: [
+                { id: 59, pregunta: '¿Los extintores están en buen estado y vigentes?', tipo_pregunta: 'abierta' },
+                { id: 60, pregunta: '¿Los sistemas contra incendios funcionan?', tipo_pregunta: 'abierta' },
+                { id: 61, pregunta: '¿Las alarmas de incendio están operativas?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_proteccion',
+              nombre: 'Equipos de Protección Personal',
+              ponderacion_subseccion: 3.39,
+              preguntas: [
+                { id: 62, pregunta: '¿Se cuenta con EPP suficiente y en buen estado?', tipo_pregunta: 'abierta' },
+                { id: 63, pregunta: '¿Los equipos de seguridad están disponibles?', tipo_pregunta: 'abierta' },
+                { id: 64, pregunta: '¿Los EPP cumplen con las normas?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'control_polvo',
+              nombre: 'Control de Polvo',
+              ponderacion_subseccion: 3.39,
+              preguntas: [
+                { id: 65, pregunta: '¿Los sistemas de control de polvo funcionan?', tipo_pregunta: 'abierta' },
+                { id: 66, pregunta: '¿Los filtros están en buen estado?', tipo_pregunta: 'abierta' },
+                { id: 67, pregunta: '¿Los sistemas de aspersión operan correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'tratamiento_aguas',
+              nombre: 'Tratamiento de Aguas',
+              ponderacion_subseccion: 3.39,
+              preguntas: [
+                { id: 68, pregunta: '¿Los sistemas de tratamiento de aguas funcionan?', tipo_pregunta: 'abierta' },
+                { id: 69, pregunta: '¿Las plantas de tratamiento están operativas?', tipo_pregunta: 'abierta' },
+                { id: 70, pregunta: '¿Los sistemas de reciclaje funcionan?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistemas_emergencia',
+              nombre: 'Sistemas de Emergencia',
+              ponderacion_subseccion: 3.39,
+              preguntas: [
+                { id: 71, pregunta: '¿Los sistemas de alarma funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 72, pregunta: '¿Los sistemas de emergencia están operativos?', tipo_pregunta: 'abierta' },
+                { id: 73, pregunta: '¿Las rutas de evacuación están señalizadas?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'monitoreo_ambiental',
+              nombre: 'Monitoreo Ambiental',
+              ponderacion_subseccion: 3.39,
+              preguntas: [
+                { id: 74, pregunta: '¿Los equipos de monitoreo ambiental funcionan?', tipo_pregunta: 'abierta' },
+                { id: 75, pregunta: '¿Los sensores ambientales están calibrados?', tipo_pregunta: 'abierta' },
+                { id: 76, pregunta: '¿Los sistemas de medición están operativos?', tipo_pregunta: 'abierta' }
+              ]
+            }
+          ]
+        },
+        {
+          id: 'gestion_administracion',
+          nombre: 'Gestión y administración',
+          ponderacion: 14.00,
+          subsecciones: [
+            {
+              id: 'sistemas_informaticos',
+              nombre: 'Sistemas Informáticos',
+              ponderacion_subseccion: 3.50,
+              preguntas: [
+                { id: 77, pregunta: '¿Los sistemas informáticos funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 78, pregunta: '¿El software está actualizado?', tipo_pregunta: 'abierta' },
+                { id: 79, pregunta: '¿Los sistemas de respaldo funcionan?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_comunicacion',
+              nombre: 'Equipos de Comunicación',
+              ponderacion_subseccion: 3.50,
+              preguntas: [
+                { id: 80, pregunta: '¿Los equipos de comunicación funcionan?', tipo_pregunta: 'abierta' },
+                { id: 81, pregunta: '¿Los sistemas de telecomunicaciones están operativos?', tipo_pregunta: 'abierta' },
+                { id: 82, pregunta: '¿Los radios y teléfonos funcionan correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistemas_pesaje',
+              nombre: 'Sistemas de Pesaje',
+              ponderacion_subseccion: 3.50,
+              preguntas: [
+                { id: 83, pregunta: '¿Las básculas de camiones están calibradas?', tipo_pregunta: 'abierta' },
+                { id: 84, pregunta: '¿Los sistemas de pesaje funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 85, pregunta: '¿Los indicadores de peso están operativos?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_oficina',
+              nombre: 'Equipos de Oficina',
+              ponderacion_subseccion: 3.50,
+              preguntas: [
+                { id: 86, pregunta: '¿Los equipos de oficina están en buen estado?', tipo_pregunta: 'abierta' },
+                { id: 87, pregunta: '¿Las computadoras funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 88, pregunta: '¿Los equipos de impresión están operativos?', tipo_pregunta: 'abierta' }
               ]
             }
           ]
@@ -116,7 +436,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       if (progressData.progreso_secciones && progressData.progreso_secciones.length > 0) {
         const savedProgress = {};
         progressData.progreso_secciones.forEach(progress => {
-          savedProgress[progress.seccion_orden - 1] = {
+          const key = `${progress.seccion_orden - 1}`;
+          savedProgress[key] = {
             completed: true,
             score: progress.puntaje_porcentaje,
             correctAnswers: progress.respuestas_correctas,
@@ -140,53 +461,29 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     let totalQuestions = 0;
     let correctAnswers = 0;
 
-    // Usar datos reales si están disponibles, sino usar fallback
     const sectionsToUse = evaluationData?.secciones || generateFallbackData().secciones;
 
     sectionsToUse.forEach((seccion, sectionIndex) => {
-      // Si la sección tiene subsecciones, usarlas
       if (seccion.subsecciones && seccion.subsecciones.length > 0) {
         seccion.subsecciones.forEach((subseccion, subsectionIndex) => {
           subseccion.preguntas?.forEach((pregunta, questionIndex) => {
             const key = `${selectedPlantType}-${sectionIndex}-${subsectionIndex}-${questionIndex}`;
             
-            // Generar respuesta aleatoria con tendencia hacia respuestas positivas
             const randomValue = Math.random();
             let answer;
             
-            if (randomValue < 0.75) { // 75% probabilidad de "sí"
+            if (randomValue < 0.75) {
               answer = 'si';
               correctAnswers++;
-            } else if (randomValue < 0.95) { // 20% probabilidad de "no"
+            } else if (randomValue < 0.95) {
               answer = 'no';
-            } else { // 5% probabilidad de "na"
+            } else {
               answer = 'na';
             }
             
             simulatedAnswers[key] = answer;
             totalQuestions++;
           });
-        });
-      } else {
-        // Fallback para secciones sin subsecciones
-        const questions = seccion.preguntas || [];
-        questions.forEach((pregunta, questionIndex) => {
-          const key = `${selectedPlantType}-${sectionIndex}-${questionIndex}`;
-          
-          const randomValue = Math.random();
-          let answer;
-          
-          if (randomValue < 0.75) {
-            answer = 'si';
-            correctAnswers++;
-          } else if (randomValue < 0.95) {
-            answer = 'no';
-          } else {
-            answer = 'na';
-          }
-          
-          simulatedAnswers[key] = answer;
-          totalQuestions++;
         });
       }
     });
@@ -225,26 +522,42 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
+  // Manejar selección de tipo de planta
+  const handlePlantTypeSelect = (plantType) => {
+    setSelectedPlantType(plantType);
+    setCurrentStep('sectionSelection');
+    setAnswers({});
+    setSubsectionProgress({});
+  };
+
+  // Manejar selección de sección
+  const handleSectionSelect = (section) => {
+    setSelectedSection(section);
+    setCurrentSubsectionIndex(0);
+    setCurrentStep('subsectionEvaluation');
+  };
+
+  // Manejar respuesta a pregunta
   const handleAnswer = (questionIndex, selectedOption) => {
-    const key = `${selectedPlantType}-${currentSubsection}-${questionIndex}`;
+    const key = `${selectedPlantType}-${selectedSection.id}-${currentSubsectionIndex}-${questionIndex}`;
     setAnswers(prev => ({ ...prev, [key]: selectedOption }));
   };
 
+  // Guardar progreso de subsección actual
   const saveCurrentSubsectionProgress = async () => {
     try {
       const user = apiService.getCurrentUser();
       if (!user) return;
 
-      const currentSubsectionData = getCurrentSubsectionData();
-      if (!currentSubsectionData) return;
+      const currentSubsection = selectedSection.subsecciones[currentSubsectionIndex];
+      if (!currentSubsection) return;
       
-      // Calcular progreso de la subsección actual
       let subsectionScore = 0;
       let correctAnswers = 0;
       let totalQuestions = 0;
 
-      currentSubsectionData.preguntas?.forEach((question, qIndex) => {
-        const key = `${selectedPlantType}-${currentSubsection}-${qIndex}`;
+      currentSubsection.preguntas?.forEach((question, qIndex) => {
+        const key = `${selectedPlantType}-${selectedSection.id}-${currentSubsectionIndex}-${qIndex}`;
         const answer = answers[key];
         
         if (answer) {
@@ -258,12 +571,11 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const subsectionPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
-      // Guardar progreso de subsección
       await apiService.guardarProgresoSeccion({
         usuario_id: user.id,
         tipo_evaluacion: 'equipo',
-        seccion_nombre: currentSubsectionData.nombre,
-        seccion_orden: currentSubsection + 1,
+        seccion_nombre: currentSubsection.nombre,
+        seccion_orden: currentSubsectionIndex + 1,
         puntaje_seccion: subsectionScore,
         puntaje_porcentaje: subsectionPercentage,
         respuestas_correctas: correctAnswers,
@@ -271,10 +583,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         tipo_planta: selectedPlantType
       });
 
-      // Actualizar estado local del progreso
+      const progressKey = `${selectedSection.id}-${currentSubsectionIndex}`;
       setSubsectionProgress(prev => ({
         ...prev,
-        [currentSubsection]: {
+        [progressKey]: {
           completed: true,
           score: subsectionPercentage,
           correctAnswers: correctAnswers,
@@ -284,7 +596,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       toast({
         title: "💾 Progreso guardado",
-        description: `Subsección "${currentSubsectionData.nombre}" guardada exitosamente`
+        description: `Subsección "${currentSubsection.nombre}" guardada exitosamente`
       });
 
     } catch (error) {
@@ -296,19 +608,33 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
+  // Continuar a siguiente subsección o completar evaluación
   const handleNextSubsection = async () => {
-    // Guardar progreso de la subsección actual
     await saveCurrentSubsectionProgress();
 
-    const totalSubsections = getTotalSubsections();
-    if (currentSubsection < totalSubsections - 1) {
-      setCurrentSubsection(prev => prev + 1);
+    if (currentSubsectionIndex < selectedSection.subsecciones.length - 1) {
+      setCurrentSubsectionIndex(prev => prev + 1);
     } else {
-      // Completar evaluación
-      await completeEvaluation();
+      // Verificar si todas las secciones están completas
+      const allSectionsCompleted = evaluationData?.secciones?.every(section => 
+        section.subsecciones?.every((_, subIndex) => {
+          const progressKey = `${section.id}-${subIndex}`;
+          return subsectionProgress[progressKey]?.completed;
+        })
+      );
+
+      if (allSectionsCompleted) {
+        await completeEvaluation();
+      } else {
+        // Volver a selección de secciones
+        setCurrentStep('sectionSelection');
+        setSelectedSection(null);
+        setCurrentSubsectionIndex(0);
+      }
     }
   };
 
+  // Completar evaluación completa
   const completeEvaluation = async () => {
     try {
       setLoading(true);
@@ -318,7 +644,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         throw new Error('Usuario no autenticado');
       }
 
-      // Calcular puntuación final
       let totalScore = 0;
       let totalQuestions = 0;
       let correctAnswers = 0;
@@ -335,15 +660,11 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const finalPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
-      // Preparar datos para guardar
       const evaluacionData = {
         usuario_id: user.id,
         tipo_evaluacion: 'equipo',
         rol_personal: null,
         respuestas: Object.entries(answers).map(([key, selectedAnswer]) => {
-          const keyParts = key.split('-');
-          const questionId = `equipo_${keyParts.join('_')}`;
-
           return {
             pregunta_id: null,
             respuesta: selectedAnswer,
@@ -353,9 +674,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         observaciones: `Evaluación de equipo completada - Tipo: ${selectedPlantType}`
       };
 
-      console.log('Enviando datos de evaluación:', evaluacionData);
-
-      // Guardar en base de datos
       const result = await apiService.guardarEvaluacion(evaluacionData);
 
       onComplete({
@@ -364,7 +682,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         totalAnswers: totalQuestions,
         correctAnswers: correctAnswers,
         evaluationTitle: `Evaluación de Equipo - ${selectedPlantType}`,
-        sections: getAllSubsections(),
+        sections: evaluationData?.secciones || [],
         isEquipmentEvaluation: true,
         plantType: selectedPlantType
       });
@@ -385,105 +703,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
-  const handlePlantTypeSelect = (plantType) => {
-    setSelectedPlantType(plantType);
-    setCurrentSubsection(0);
-    setAnswers({});
-    setSubsectionProgress({});
-    setEvaluationStarted(true);
-  };
-
-  // Funciones auxiliares para manejar la estructura de datos
-  const getAllSubsections = () => {
-    if (!evaluationData?.secciones) return [];
-    
-    const allSubsections = [];
-    evaluationData.secciones.forEach(seccion => {
-      if (seccion.subsecciones && seccion.subsecciones.length > 0) {
-        allSubsections.push(...seccion.subsecciones);
-      } else {
-        // Si no hay subsecciones, tratar la sección como subsección
-        allSubsections.push({
-          id: seccion.id,
-          nombre: seccion.nombre,
-          preguntas: seccion.preguntas || []
-        });
-      }
-    });
-    
-    return allSubsections;
-  };
-
-  const getTotalSubsections = () => {
-    return getAllSubsections().length;
-  };
-
-  const getCurrentSubsectionData = () => {
-    const allSubsections = getAllSubsections();
-    return allSubsections[currentSubsection] || null;
-  };
-
-  // Calcular estadísticas para la gráfica
-  const calculateSubsectionStats = () => {
-    const allSubsections = getAllSubsections();
-    if (allSubsections.length === 0) return null;
-
-    const subsectionsInfo = allSubsections.map((subsection, index) => {
-      const totalQuestions = subsection.preguntas?.length || 0;
-      
-      // Contar respuestas de esta subsección
-      let answered = 0;
-      let correct = 0;
-
-      subsection.preguntas?.forEach((question, qIndex) => {
-        const key = `${selectedPlantType}-${index}-${qIndex}`;
-        const answer = answers[key];
-        
-        if (answer) {
-          answered++;
-          if (answer === 'si') {
-            correct++;
-          }
-        }
-      });
-
-      const progress = totalQuestions > 0 ? (answered / totalQuestions) * 100 : 0;
-      const score = answered > 0 ? (correct / answered) * 100 : 0;
-      
-      // Usar progreso guardado si existe
-      const savedProgress = subsectionProgress[index];
-      
-      return {
-        nombre: subsection.nombre,
-        ponderacion: subsection.ponderacion_subseccion || 0,
-        totalPreguntas: totalQuestions,
-        preguntasRespondidas: answered,
-        respuestasCorrectas: correct,
-        progreso: savedProgress?.completed ? 100 : progress,
-        puntuacion: savedProgress?.score || score,
-        isCurrentSubsection: index === currentSubsection,
-        isCompleted: savedProgress?.completed || progress === 100,
-        isSaved: !!savedProgress?.completed
-      };
-    });
-
-    const totalProgress = subsectionsInfo.reduce((sum, sub) => sum + sub.progreso, 0) / subsectionsInfo.length;
-    const totalAnswered = subsectionsInfo.reduce((sum, sub) => sum + sub.preguntasRespondidas, 0);
-    const totalQuestions = subsectionsInfo.reduce((sum, sub) => sum + sub.totalPreguntas, 0);
-    const totalCorrect = subsectionsInfo.reduce((sum, sub) => sum + sub.respuestasCorrectas, 0);
-
-    return {
-      subsectionsInfo,
-      totalProgress,
-      totalAnswered,
-      totalQuestions,
-      totalCorrect,
-      currentScore: totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
-    };
-  };
-
-  const stats = calculateSubsectionStats();
-
   // Pantalla de carga
   if (loading) {
     return (
@@ -491,15 +710,15 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-lg text-gray-600">
-            {evaluationStarted ? 'Guardando evaluación de equipo...' : 'Cargando datos de evaluación...'}
+            {currentStep === 'subsectionEvaluation' ? 'Guardando evaluación de equipo...' : 'Cargando datos de evaluación...'}
           </p>
         </div>
       </div>
     );
   }
 
-  // Pantalla de selección simplificada - solo tipos de planta
-  if (!evaluationStarted) {
+  // PASO 1: Selección de tipo de planta
+  if (currentStep === 'plantType') {
     return (
       <div className="min-h-screen relative bg-gray-100 overflow-hidden">
         <div
@@ -545,7 +764,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                   >
                     <div className="flex flex-col items-center space-y-3">
                       <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Settings className="w-8 h-8 text-blue-600" />
+                        <Building2 className="w-8 h-8 text-blue-600" />
                       </div>
                       <div>
                         <span className="text-gray-800 font-bold text-lg block">{type.name}</span>
@@ -568,100 +787,189 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  const totalSubsections = getTotalSubsections();
-  const currentSubsectionData = getCurrentSubsectionData();
-
-  if (!currentSubsectionData) {
+  // PASO 2: Selección de sección
+  if (currentStep === 'sectionSelection') {
     return (
-      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
-        <Settings size={64} className="mb-4 text-blue-600" />
-        <h1 className="text-3xl font-bold mb-2">Evaluación no disponible</h1>
-        <p className="text-lg mb-6 text-center">No se encontraron subsecciones para esta evaluación.</p>
-        <Button onClick={onBack} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Menú
-        </Button>
-      </div>
-    );
-  }
+      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("public/Fondo.png")`,
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
 
-  const progress = totalSubsections > 0 ? ((currentSubsection + 1) / totalSubsections) * 100 : 0;
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8" ref={evaluationContentRef}>
+          <div className="w-full max-w-2xl space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo - {selectedPlantType}</h2>
+              <p className="text-white/80">Selecciona la sección a evaluar</p>
+            </div>
 
-  // Verificar si todas las preguntas de la subsección actual han sido respondidas
-  const allQuestionsAnswered = currentSubsectionData?.preguntas?.every((_, index) => {
-    const key = `${selectedPlantType}-${currentSubsection}-${index}`;
-    return answers[key] !== undefined;
-  });
-
-  // Pantalla de evaluación
-  return (
-    <div className="min-h-screen relative bg-gray-100 overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url("public/Fondo.png")`,
-        }}
-      />
-      <div className="absolute inset-0 bg-black/20" />
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
-        {/* Botón de desarrollo para saltar a resultados - solo en primera subsección */}
-        {currentSubsection === 0 && (
-          <div className="mb-4 flex justify-end">
-            <Button
-              onClick={handleSkipToResults}
-              variant="outline"
-              size="sm"
-              className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
-            >
-              <Zap className="w-4 h-4" />
-              <span>Saltar a Resultados (Simulado)</span>
-            </Button>
-          </div>
-        )}
-
-        {/* Barra de progreso */}
-        <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-gray-800">
-              Evaluación de Equipo - {selectedPlantType}
-            </h2>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {Math.round(progress)}% completado
-              </span>
+            {/* Botón para saltar a resultados simulados */}
+            <div className="mb-6 flex justify-center">
               <Button
-                onClick={() => setShowStats(!showStats)}
+                onClick={handleSkipToResults}
                 variant="outline"
-                size="sm"
-                className="flex items-center space-x-2"
+                size="lg"
+                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
               >
-                <BarChart3 className="w-4 h-4" />
-                <span>{showStats ? 'Ocultar' : 'Mostrar'} Estadísticas</span>
+                <Zap className="w-5 h-5" />
+                <span>Ver Evaluación Simulada</span>
               </Button>
             </div>
-          </div>
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div className="flex h-full">
-              {Array.from({ length: totalSubsections }, (_, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 ${
-                    subsectionProgress[i]?.completed ? 'bg-green-600' :
-                    i < currentSubsection ? 'bg-blue-600' :
-                    i === currentSubsection ? 'bg-blue-400' : 'bg-gray-300'
-                  } ${i < totalSubsections - 1 ? 'mr-1' : ''}`}
-                />
-              ))}
+
+            {/* Lista de secciones */}
+            <div className="space-y-4">
+              {evaluationData?.secciones?.map((section, index) => {
+                const completedSubsections = section.subsecciones?.filter((_, subIndex) => {
+                  const progressKey = `${section.id}-${subIndex}`;
+                  return subsectionProgress[progressKey]?.completed;
+                }).length || 0;
+
+                const totalSubsections = section.subsecciones?.length || 0;
+                const isCompleted = completedSubsections === totalSubsections && totalSubsections > 0;
+
+                return (
+                  <motion.div
+                    key={section.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <button
+                      onClick={() => handleSectionSelect(section)}
+                      className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-6 text-left border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            isCompleted ? 'bg-green-100' : 'bg-blue-100'
+                          }`}>
+                            {isCompleted ? (
+                              <CheckCircle className="w-6 h-6 text-green-600" />
+                            ) : (
+                              <Settings className="w-6 h-6 text-blue-600" />
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-gray-800 font-bold text-lg block">{section.nombre}</span>
+                            <span className="text-gray-600 text-sm">
+                              {totalSubsections} subsecciones
+                              {completedSubsections > 0 && (
+                                <span className="ml-2 text-green-600 font-medium">
+                                  ({completedSubsections}/{totalSubsections} completadas)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-6 h-6 text-gray-400" />
+                      </div>
+                    </button>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Botón para volver */}
+            <div className="flex justify-center mt-8">
+              <Button
+                onClick={() => setCurrentStep('plantType')}
+                variant="outline"
+                className="bg-white/90 border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Cambiar Tipo de Planta
+              </Button>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-6">
+        <img
+          src="public/Concreton.png"
+          alt="Mascota Concreton"
+          className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+        />
+      </div>
+    );
+  }
+
+  // PASO 3: Evaluación de subsección
+  if (currentStep === 'subsectionEvaluation' && selectedSection) {
+    const currentSubsection = selectedSection.subsecciones[currentSubsectionIndex];
+    const progressKey = `${selectedSection.id}-${currentSubsectionIndex}`;
+    const isSubsectionCompleted = subsectionProgress[progressKey]?.completed;
+
+    if (!currentSubsection) {
+      return (
+        <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
+          <Settings size={64} className="mb-4 text-blue-600" />
+          <h1 className="text-3xl font-bold mb-2">Subsección no encontrada</h1>
+          <p className="text-lg mb-6 text-center">No se encontró la subsección solicitada.</p>
+          <Button onClick={() => setCurrentStep('sectionSelection')} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Secciones
+          </Button>
+        </div>
+      );
+    }
+
+    // Verificar si todas las preguntas de la subsección actual han sido respondidas
+    const allQuestionsAnswered = currentSubsection?.preguntas?.every((_, index) => {
+      const key = `${selectedPlantType}-${selectedSection.id}-${currentSubsectionIndex}-${index}`;
+      return answers[key] !== undefined;
+    });
+
+    return (
+      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("public/Fondo.png")`,
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
+          {/* Barra de progreso */}
+          <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold text-gray-800">
+                {selectedSection.nombre} - {currentSubsection.nombre}
+              </h2>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">
+                  Subsección {currentSubsectionIndex + 1} de {selectedSection.subsecciones.length}
+                </span>
+                {isSubsectionCompleted && (
+                  <div className="flex items-center space-x-2 text-green-600">
+                    <CheckCircle className="w-5 h-5" />
+                    <span className="text-sm font-medium">Guardado ({Math.round(subsectionProgress[progressKey]?.score || 0)}%)</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="flex h-full">
+                {Array.from({ length: selectedSection.subsecciones.length }, (_, i) => (
+                  <div
+                    key={i}
+                    className={`flex-1 ${
+                      subsectionProgress[`${selectedSection.id}-${i}`]?.completed ? 'bg-green-600' :
+                      i < currentSubsectionIndex ? 'bg-blue-600' :
+                      i === currentSubsectionIndex ? 'bg-blue-400' : 'bg-gray-300'
+                    } ${i < selectedSection.subsecciones.length - 1 ? 'mr-1' : ''}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Panel principal de evaluación */}
-          <div className={`${showStats && stats ? 'w-3/5' : 'w-full'}`}>
+          <div className="w-full">
             <AnimatePresence mode="wait">
               <motion.div
-                key={currentSubsection}
+                key={currentSubsectionIndex}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -670,20 +978,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
                   {/* Header de la subsección */}
                   <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        {currentSubsectionData?.nombre}
-                      </h2>
-                      {subsectionProgress[currentSubsection]?.completed && (
-                        <div className="flex items-center space-x-2 text-green-600">
-                          <CheckCircle className="w-5 h-5" />
-                          <span className="text-sm font-medium">Guardado</span>
-                        </div>
-                      )}
-                    </div>
-                    {currentSubsectionData?.ponderacion_subseccion && (
+                    <h2 className="text-xl font-semibold text-gray-800 text-center">
+                      {currentSubsection.nombre}
+                    </h2>
+                    {currentSubsection.ponderacion_subseccion && (
                       <div className="text-center text-sm text-gray-600 mt-1">
-                        Ponderación: {currentSubsectionData.ponderacion_subseccion}%
+                        Ponderación: {currentSubsection.ponderacion_subseccion}%
                       </div>
                     )}
                   </div>
@@ -691,8 +991,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                   {/* Contenido */}
                   <div className="p-6">
                     <div className="space-y-6">
-                      {currentSubsectionData?.preguntas?.map((question, index) => {
-                        const key = `${selectedPlantType}-${currentSubsection}-${index}`;
+                      {currentSubsection?.preguntas?.map((question, index) => {
+                        const key = `${selectedPlantType}-${selectedSection.id}-${currentSubsectionIndex}-${index}`;
                         const selectedAnswer = answers[key];
 
                         return (
@@ -767,154 +1067,48 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                       >
                         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                         <span>
-                          {currentSubsection < totalSubsections - 1 ? 'Siguiente Subsección' : 'Finalizar Evaluación'}
+                          {currentSubsectionIndex < selectedSection.subsecciones.length - 1 ? 'Siguiente Subsección' : 'Finalizar Sección'}
                         </span>
                       </Button>
                     </div>
 
-                    {/* Contador de subsecciones */}
-                    <div className="mt-6 text-center text-sm text-gray-500">
-                      Subsección {currentSubsection + 1} de {totalSubsections}
+                    {/* Botón para volver a secciones */}
+                    <div className="mt-6 flex justify-center">
+                      <Button
+                        onClick={() => setCurrentStep('sectionSelection')}
+                        variant="outline"
+                        size="sm"
+                        className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Volver a Secciones
+                      </Button>
                     </div>
                   </div>
                 </div>
               </motion.div>
             </AnimatePresence>
           </div>
-
-          {/* Panel de estadísticas */}
-          {showStats && stats && (
-            <div className="w-2/5">
-              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 sticky top-8">
-                <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                    <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-                    Estado de Subsecciones
-                  </h3>
-                </div>
-
-                <div className="p-4">
-                  <div className="space-y-4">
-                    {/* Tabla de subsecciones */}
-                    <div className="overflow-hidden">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-gray-50">
-                            <th className="text-left p-2 font-medium text-gray-700">Subsección</th>
-                            <th className="text-center p-2 font-medium text-gray-700">%</th>
-                            <th className="text-center p-2 font-medium text-gray-700">Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stats.subsectionsInfo.map((subsection, index) => (
-                            <tr
-                              key={index}
-                              className={`border-b border-gray-100 ${
-                                subsection.isCurrentSubsection ? 'bg-blue-50' :
-                                subsection.isCompleted ? 'bg-green-50' : ''
-                              }`}
-                            >
-                              <td className="p-2">
-                                <div className="flex items-center">
-                                  <span className="text-xs font-medium text-blue-600 mr-1">
-                                    {index + 1}
-                                  </span>
-                                  <span className="text-xs text-gray-800 truncate" title={subsection.nombre}>
-                                    {subsection.nombre.length > 20 ? subsection.nombre.substring(0, 20) + '...' : subsection.nombre}
-                                  </span>
-                                  {subsection.isCurrentSubsection && (
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full ml-1 flex-shrink-0" />
-                                  )}
-                                  {subsection.isSaved && (
-                                    <CheckCircle className="w-3 h-3 text-green-500 ml-1 flex-shrink-0" />
-                                  )}
-                                </div>
-                              </td>
-                              <td className="text-center p-2 text-xs font-medium">
-                                {Math.round(subsection.puntuacion)}
-                              </td>
-                              <td className="text-center p-2">
-                                <div className={`w-3 h-3 rounded-full ${
-                                  subsection.isSaved ? 'bg-green-500' :
-                                  subsection.isCompleted ? 'bg-blue-500' :
-                                  subsection.progreso > 0 ? 'bg-yellow-500' : 'bg-gray-300'
-                                }`} />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Progreso general */}
-                    <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Progreso general</h4>
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Progreso</span>
-                        <span>{Math.round(stats.totalProgress)}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${stats.totalProgress}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {stats.totalAnswered} de {stats.totalQuestions} preguntas
-                      </div>
-                    </div>
-
-                    {/* Puntuación estimada */}
-                    <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {stats.currentScore}%
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          puntos acumulados
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {stats.totalCorrect} correctas de {stats.totalAnswered} respondidas
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Leyenda de estados */}
-                    <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Leyenda</h4>
-                      <div className="space-y-1 text-xs">
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
-                          <span>Guardado</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-blue-500 rounded-full mr-2" />
-                          <span>Completado</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2" />
-                          <span>En progreso</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-gray-300 rounded-full mr-2" />
-                          <span>Pendiente</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-      </div>
 
-      <img
-        src="public/Concreton.png"
-        alt="Mascota Concreton"
-        className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
-      />
+        <img
+          src="public/Concreton.png"
+          alt="Mascota Concreton"
+          className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+        />
+      </div>
+    );
+  }
+
+  // Fallback
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
+      <Settings size={64} className="mb-4 text-blue-600" />
+      <h1 className="text-3xl font-bold mb-2">Estado no válido</h1>
+      <p className="text-lg mb-6 text-center">Ha ocurrido un error en el flujo de evaluación.</p>
+      <Button onClick={onBack} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Menú
+      </Button>
     </div>
   );
 };
