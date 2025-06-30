@@ -112,6 +112,17 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   }, [currentSubsectionIndex]);
 
+  // Función para verificar si una respuesta es válida para evaluación de equipo
+  const isValidEquipmentAnswer = (answer, questionType = 'abierta') => {
+    if (questionType === 'seleccion_multiple') {
+      // Para selección múltiple: A o C son válidas
+      return answer === 'a' || answer === 'c';
+    } else {
+      // Para preguntas abiertas: Sí o No Aplica son válidas
+      return answer === 'si' || answer === 'na';
+    }
+  };
+
   // Función para generar evaluación simulada de equipo
   const generateSimulatedEquipmentEvaluation = () => {
     const simulatedAnswers = {};
@@ -127,17 +138,33 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         for (let i = 0; i < 5; i++) {
           const questionKey = `${section.id}-${subsection.id}-${i}`;
           
-          // Generar respuesta aleatoria con tendencia hacia respuestas positivas
+          // Generar respuesta aleatoria con tendencia hacia respuestas válidas
           const randomValue = Math.random();
           let answer;
+          let questionType = Math.random() > 0.5 ? 'abierta' : 'seleccion_multiple';
           
-          if (randomValue < 0.75) { // 75% probabilidad de respuesta correcta
-            answer = 'si';
-            correctAnswers++;
-          } else if (randomValue < 0.9) { // 15% probabilidad de respuesta incorrecta
-            answer = 'no';
-          } else { // 10% probabilidad de N/A
-            answer = 'na';
+          if (questionType === 'seleccion_multiple') {
+            // Para selección múltiple, elegir entre a, b, c con preferencia por a y c
+            if (randomValue < 0.4) {
+              answer = 'a'; // 40% probabilidad - válida
+              correctAnswers++;
+            } else if (randomValue < 0.6) {
+              answer = 'c'; // 20% probabilidad - válida
+              correctAnswers++;
+            } else {
+              answer = 'b'; // 40% probabilidad - no válida
+            }
+          } else {
+            // Para preguntas abiertas, elegir entre si, no, na con preferencia por si y na
+            if (randomValue < 0.5) {
+              answer = 'si'; // 50% probabilidad - válida
+              correctAnswers++;
+            } else if (randomValue < 0.75) {
+              answer = 'na'; // 25% probabilidad - válida
+              correctAnswers++;
+            } else {
+              answer = 'no'; // 25% probabilidad - no válida
+            }
           }
           
           simulatedAnswers[questionKey] = answer;
@@ -148,8 +175,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             id: i,
             pregunta_id: i,
             pregunta: `¿Los equipos de ${subsection.name.toLowerCase()} están en óptimas condiciones de funcionamiento?`,
-            tipo_pregunta: 'abierta',
-            es_trampa: false
+            tipo_pregunta: questionType,
+            es_trampa: false,
+            opcion_a: questionType === 'seleccion_multiple' ? 'Excelente estado' : null,
+            opcion_b: questionType === 'seleccion_multiple' ? 'Estado regular' : null,
+            opcion_c: questionType === 'seleccion_multiple' ? 'Buen estado' : null,
+            respuesta_correcta: questionType === 'seleccion_multiple' ? (Math.random() > 0.5 ? 'a' : 'c') : null
           });
         }
       });
@@ -207,64 +238,115 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     // Preguntas predefinidas para subsecciones específicas
     const predefinedQuestions = {
       "mezcladora": [
-        "¿La mezcladora principal se encuentra estructuralmente íntegra, sin fugas, grietas visibles ni desgaste severo en las paletas?",
-        "¿Los motores de la mezcladora operan sin vibraciones anormales, sobrecalentamiento o ruidos extraños?",
-        "¿El sistema de transmisión (reductores, acoplamientos) funciona correctamente sin fugas de aceite?",
-        "¿Las paletas mezcladoras mantienen la geometría adecuada y están firmemente sujetas?",
-        "¿El sistema de descarga de la mezcladora opera sin obstrucciones y con sellado adecuado?"
+        {
+          pregunta: "¿La mezcladora principal se encuentra estructuralmente íntegra, sin fugas, grietas visibles ni desgaste severo en las paletas?",
+          tipo: 'abierta'
+        },
+        {
+          pregunta: "¿Cuál es el estado de los motores de la mezcladora?",
+          tipo: 'seleccion_multiple',
+          opciones: {
+            a: "Operan sin vibraciones anormales ni sobrecalentamiento",
+            b: "Presentan vibraciones moderadas",
+            c: "Funcionan correctamente con mantenimiento regular"
+          }
+        },
+        {
+          pregunta: "¿El sistema de transmisión (reductores, acoplamientos) funciona correctamente sin fugas de aceite?",
+          tipo: 'abierta'
+        },
+        {
+          pregunta: "¿Cómo evalúa el estado de las paletas mezcladoras?",
+          tipo: 'seleccion_multiple',
+          opciones: {
+            a: "Mantienen geometría adecuada y están firmemente sujetas",
+            b: "Requieren ajuste menor",
+            c: "En buen estado general"
+          }
+        },
+        {
+          pregunta: "¿El sistema de descarga de la mezcladora opera sin obstrucciones y con sellado adecuado?",
+          tipo: 'abierta'
+        }
       ],
       "dosificacion": [
-        "¿Las básculas de cemento están calibradas y funcionan dentro de los parámetros de tolerancia especificados?",
-        "¿Las básculas de agregados mantienen la precisión requerida y están libres de interferencias?",
-        "¿El sistema de dosificación de agua cuenta con medidores calibrados y válvulas en buen estado?",
-        "¿Los sistemas de dosificación de aditivos operan con precisión y están libres de obstrucciones?",
-        "¿Las celdas de carga de las básculas están protegidas y funcionan correctamente?"
+        {
+          pregunta: "¿Las básculas de cemento están calibradas y funcionan dentro de los parámetros de tolerancia especificados?",
+          tipo: 'abierta'
+        },
+        {
+          pregunta: "¿Cuál es el estado de las básculas de agregados?",
+          tipo: 'seleccion_multiple',
+          opciones: {
+            a: "Mantienen precisión requerida sin interferencias",
+            b: "Funcionan con calibración pendiente",
+            c: "Operan correctamente"
+          }
+        },
+        {
+          pregunta: "¿El sistema de dosificación de agua cuenta con medidores calibrados y válvulas en buen estado?",
+          tipo: 'abierta'
+        },
+        {
+          pregunta: "¿Cómo evalúa los sistemas de dosificación de aditivos?",
+          tipo: 'seleccion_multiple',
+          opciones: {
+            a: "Operan con precisión sin obstrucciones",
+            b: "Requieren limpieza rutinaria",
+            c: "Funcionan adecuadamente"
+          }
+        },
+        {
+          pregunta: "¿Las celdas de carga de las básculas están protegidas y funcionan correctamente?",
+          tipo: 'abierta'
+        }
       ],
       "bandas": [
-        "¿Las bandas transportadoras operan sin deslizamientos, desalineaciones o daños en la superficie?",
-        "¿Los motores y reductores de las bandas funcionan sin vibraciones anormales ni sobrecalentamiento?",
-        "¿Los rodillos de soporte están alineados y giran libremente sin desgaste excesivo?",
-        "¿Los sistemas de limpieza de bandas (raspadores) funcionan correctamente?",
-        "¿Las protecciones de seguridad de las bandas están instaladas y en buen estado?"
-      ],
-      "tolvas": [
-        "¿Los silos de cemento mantienen hermeticidad y están libres de grietas o corrosión?",
-        "¿Las tolvas de agregados están libres de obstrucciones y sus compuertas operan correctamente?",
-        "¿Los sistemas de descarga de silos funcionan sin obstrucciones ni fugas de aire?",
-        "¿Los sensores de nivel en silos y tolvas proporcionan lecturas precisas y confiables?",
-        "¿Las estructuras de soporte de silos y tolvas están en condiciones seguras?"
-      ],
-      "camiones": [
-        "¿Los tambores revolvedores mantienen la integridad estructural sin grietas, deformaciones ni corrosión severa?",
-        "¿El sistema hidráulico de los camiones opera sin fugas y mantiene la presión adecuada?",
-        "¿Las paletas internas del tambor están completas, bien fijadas y con geometría adecuada?",
-        "¿Los motores hidráulicos del tambor funcionan sin ruidos anormales ni sobrecalentamiento?",
-        "¿Los neumáticos están en condiciones óptimas con presión adecuada y sin desgaste irregular?"
-      ],
-      "bombas": [
-        "¿Las bombas de concreto funcionan sin obstrucciones y mantienen el caudal especificado?",
-        "¿Las mangueras y conexiones están libres de desgaste excesivo y fugas?",
-        "¿El sistema hidráulico de las bombas opera sin fugas y con presión adecuada?",
-        "¿Los sistemas de limpieza de tuberías funcionan correctamente?",
-        "¿Las válvulas de cambio (S-valve) operan suavemente sin obstrucciones?"
-      ],
-      "laboratorio": [
-        "¿La prensa de compresión está calibrada y opera dentro de los parámetros de precisión requeridos?",
-        "¿Los moldes para especímenes están en buenas condiciones y libres de deformaciones?",
-        "¿La balanza de laboratorio mantiene la precisión requerida y está debidamente calibrada?",
-        "¿Los equipos de curado mantienen temperatura y humedad controladas?",
-        "¿Los instrumentos de medición están calibrados y certificados?"
+        {
+          pregunta: "¿Las bandas transportadoras operan sin deslizamientos, desalineaciones o daños en la superficie?",
+          tipo: 'abierta'
+        },
+        {
+          pregunta: "¿Cuál es el estado de los motores y reductores de las bandas?",
+          tipo: 'seleccion_multiple',
+          opciones: {
+            a: "Funcionan sin vibraciones anormales ni sobrecalentamiento",
+            b: "Presentan desgaste normal",
+            c: "Operan en condiciones óptimas"
+          }
+        },
+        {
+          pregunta: "¿Los rodillos de soporte están alineados y giran libremente sin desgaste excesivo?",
+          tipo: 'abierta'
+        },
+        {
+          pregunta: "¿Cómo evalúa los sistemas de limpieza de bandas (raspadores)?",
+          tipo: 'seleccion_multiple',
+          opciones: {
+            a: "Funcionan correctamente",
+            b: "Requieren ajuste",
+            c: "En buen estado operativo"
+          }
+        },
+        {
+          pregunta: "¿Las protecciones de seguridad de las bandas están instaladas y en buen estado?",
+          tipo: 'abierta'
+        }
       ]
     };
 
     // Si hay preguntas predefinidas para esta subsección, usarlas
     if (predefinedQuestions[subsectionId]) {
-      return predefinedQuestions[subsectionId].map((pregunta, index) => ({
+      return predefinedQuestions[subsectionId].map((preguntaData, index) => ({
         id: index,
         pregunta_id: index,
-        pregunta,
-        tipo_pregunta: 'abierta',
-        es_trampa: false
+        pregunta: preguntaData.pregunta,
+        tipo_pregunta: preguntaData.tipo,
+        es_trampa: false,
+        opcion_a: preguntaData.opciones?.a || null,
+        opcion_b: preguntaData.opciones?.b || null,
+        opcion_c: preguntaData.opciones?.c || null,
+        respuesta_correcta: preguntaData.tipo === 'seleccion_multiple' ? (Math.random() > 0.5 ? 'a' : 'c') : null
       }));
     }
 
@@ -272,18 +354,35 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     const numQuestions = 5; // Número estándar de preguntas por subsección
     for (let i = 0; i < numQuestions; i++) {
       let pregunta = "";
+      let tipo_pregunta = i % 2 === 0 ? 'abierta' : 'seleccion_multiple';
+      let opciones = {};
+
       switch (i) {
         case 0:
           pregunta = `¿Los equipos de ${subsection.name.toLowerCase()} están en buenas condiciones de funcionamiento?`;
           break;
         case 1:
-          pregunta = `¿Se realiza mantenimiento preventivo regular a los equipos de ${subsection.name.toLowerCase()}?`;
+          pregunta = `¿Cómo evalúa el mantenimiento de los equipos de ${subsection.name.toLowerCase()}?`;
+          if (tipo_pregunta === 'seleccion_multiple') {
+            opciones = {
+              a: "Mantenimiento preventivo regular",
+              b: "Mantenimiento correctivo únicamente",
+              c: "Buen programa de mantenimiento"
+            };
+          }
           break;
         case 2:
           pregunta = `¿Los equipos de ${subsection.name.toLowerCase()} cumplen con las especificaciones técnicas requeridas?`;
           break;
         case 3:
-          pregunta = `¿Existe documentación actualizada para los equipos de ${subsection.name.toLowerCase()}?`;
+          pregunta = `¿Cuál es el estado de la documentación para los equipos de ${subsection.name.toLowerCase()}?`;
+          if (tipo_pregunta === 'seleccion_multiple') {
+            opciones = {
+              a: "Documentación actualizada y completa",
+              b: "Documentación parcial",
+              c: "Registros adecuados disponibles"
+            };
+          }
           break;
         case 4:
           pregunta = `¿El personal está capacitado para operar los equipos de ${subsection.name.toLowerCase()}?`;
@@ -294,8 +393,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         id: i,
         pregunta_id: i,
         pregunta,
-        tipo_pregunta: 'abierta',
-        es_trampa: false
+        tipo_pregunta,
+        es_trampa: false,
+        opcion_a: opciones.a || null,
+        opcion_b: opciones.b || null,
+        opcion_c: opciones.c || null,
+        respuesta_correcta: tipo_pregunta === 'seleccion_multiple' ? (Math.random() > 0.5 ? 'a' : 'c') : null
       });
     }
 
@@ -341,7 +444,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const currentSubsection = selectedSection.subsections[currentSubsectionIndex];
 
-      // Calcular progreso de la subsección actual (solo preguntas normales)
+      // Calcular progreso de la subsección actual usando la nueva lógica de validación
       let subsectionScore = 0;
       let totalQuestions = 0;
       let correctAnswers = 0;
@@ -351,7 +454,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       
       totalQuestions = subsectionAnswers.length;
       subsectionAnswers.forEach(([key, answer]) => {
-        if (answer === 'si') {
+        const questionIndex = parseInt(key.split('-')[2]);
+        const question = currentQuestions[questionIndex];
+        const questionType = question?.tipo_pregunta || 'abierta';
+        
+        // Usar la nueva lógica de validación para equipos
+        if (isValidEquipmentAnswer(answer, questionType)) {
           subsectionScore += 10;
           correctAnswers++;
         }
@@ -446,14 +554,35 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         throw new Error('Usuario no autenticado');
       }
 
-      // Calcular puntuación total (solo preguntas normales)
+      // Calcular puntuación total usando la nueva lógica de validación
       let totalScore = 0;
       let totalQuestions = 0;
       let correctAnswers = 0;
 
       Object.entries(answers).forEach(([key, answer]) => {
         totalQuestions++;
-        if (answer === 'si') {
+        
+        // Determinar el tipo de pregunta basado en la clave y las preguntas generadas
+        const keyParts = key.split('-');
+        const sectionId = keyParts[0];
+        const subsectionId = keyParts[1];
+        const questionIndex = parseInt(keyParts[2]);
+        
+        // Buscar la pregunta correspondiente para determinar su tipo
+        let questionType = 'abierta'; // Por defecto
+        
+        // Intentar encontrar la pregunta en las preguntas generadas
+        const section = equipmentSections.find(s => s.id === sectionId);
+        if (section) {
+          const questions = generateQuestionsForSubsection(subsectionId);
+          const question = questions[questionIndex];
+          if (question) {
+            questionType = question.tipo_pregunta;
+          }
+        }
+        
+        // Usar la nueva lógica de validación para equipos
+        if (isValidEquipmentAnswer(answer, questionType)) {
           totalScore += 10;
           correctAnswers++;
         }
@@ -473,10 +602,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
           return {
             pregunta_id: questionIndex,
             respuesta: selectedAnswer,
-            observacion: `Sección: ${sectionId}, Subsección: ${subsectionId}`
+            observacion: `Sección: ${sectionId}, Subsección: ${subsectionId} - Sistema de validación: A/C para selección múltiple, Sí/NA para abiertas`
           };
         }),
-        observaciones: `Evaluación de equipo completada - Tipo: ${selectedPlantType}`
+        observaciones: `Evaluación de equipo completada - Tipo: ${selectedPlantType} - Sistema: A/C válidas para selección múltiple, Sí/NA válidas para abiertas`
       };
 
       // Guardar en base de datos
@@ -494,7 +623,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       toast({
         title: "✅ Evaluación completada",
-        description: "Los resultados han sido guardados exitosamente"
+        description: "Los resultados han sido guardados exitosamente con el nuevo sistema de validación"
       });
 
     } catch (error) {
@@ -520,7 +649,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     });
   };
 
-  // Calcular estadísticas simplificadas
+  // Calcular estadísticas simplificadas con nueva lógica
   const calculateSimpleStats = () => {
     if (!evaluationStarted || !selectedSection) return null;
 
@@ -555,7 +684,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     const responseStats = {
       si: 0,
       no: 0,
-      na: 0
+      na: 0,
+      a: 0,
+      b: 0,
+      c: 0
     };
     
     let correctAnswers = 0;
@@ -563,7 +695,18 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     Object.entries(answers).forEach(([key, answer]) => {
       if (key.startsWith(`${selectedSection.id}-`) && responseStats.hasOwnProperty(answer)) {
         responseStats[answer]++;
-        if (answer === 'si') {
+        
+        // Determinar tipo de pregunta para validación
+        const keyParts = key.split('-');
+        const subsectionId = keyParts[1];
+        const questionIndex = parseInt(keyParts[2]);
+        
+        const questions = generateQuestionsForSubsection(subsectionId);
+        const question = questions[questionIndex];
+        const questionType = question?.tipo_pregunta || 'abierta';
+        
+        // Usar nueva lógica de validación
+        if (isValidEquipmentAnswer(answer, questionType)) {
           correctAnswers++;
         }
       }
@@ -643,6 +786,17 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo</h2>
               <p className="text-white/80">Seleccione el tipo de planta a evaluar</p>
+              <div className="mt-4 p-3 bg-blue-100/90 rounded-lg border border-blue-300">
+                <p className="text-blue-800 text-sm font-medium">
+                  📋 Sistema de Validación Especial para Equipos:
+                </p>
+                <p className="text-blue-700 text-xs mt-1">
+                  • Selección múltiple: A o C = Válidas
+                </p>
+                <p className="text-blue-700 text-xs">
+                  • Preguntas abiertas: Sí o No Aplica = Válidas
+                </p>
+              </div>
             </div>
 
             {/* Botón para saltar a resultados simulados */}
@@ -712,6 +866,17 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo - {selectedPlantType}</h2>
               <p className="text-white/80">Seleccione la sección a evaluar</p>
+              <div className="mt-4 p-3 bg-green-100/90 rounded-lg border border-green-300">
+                <p className="text-green-800 text-sm font-medium">
+                  ✅ Respuestas Válidas:
+                </p>
+                <p className="text-green-700 text-xs mt-1">
+                  • Opción A o C en preguntas de selección múltiple
+                </p>
+                <p className="text-green-700 text-xs">
+                  • "Sí" o "No Aplica" en preguntas abiertas
+                </p>
+              </div>
             </div>
 
             {/* Botón para saltar a resultados simulados */}
@@ -852,6 +1017,11 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               style={{ width: `${simpleStats?.progressPercentage || 0}%` }}
             />
           </div>
+          
+          {/* Indicador del sistema de validación */}
+          <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded">
+            <span className="font-medium">Sistema de validación:</span> A/C válidas para selección múltiple • Sí/NA válidas para abiertas
+          </div>
         </div>
 
         <div className="flex gap-6">
@@ -884,47 +1054,108 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                               {index + 1}. {question.pregunta}
                             </h3>
                             
-                            {/* Pregunta abierta (Sí/No/NA) */}
-                            <div className="space-y-2">
-                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                                <input
-                                  type="radio"
-                                  name={`question-${index}`}
-                                  value="si"
-                                  checked={selectedAnswer === 'si'}
-                                  onChange={() => handleAnswer(index, 'si')}
-                                  className="mr-3 text-green-600 focus:ring-green-500"
-                                />
-                                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                                <span className="text-gray-700">Sí</span>
-                              </label>
-                              
-                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                                <input
-                                  type="radio"
-                                  name={`question-${index}`}
-                                  value="no"
-                                  checked={selectedAnswer === 'no'}
-                                  onChange={() => handleAnswer(index, 'no')}
-                                  className="mr-3 text-red-600 focus:ring-red-500"
-                                />
-                                <XCircle className="w-5 h-5 text-red-600 mr-2" />
-                                <span className="text-gray-700">No</span>
-                              </label>
-                              
-                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                                <input
-                                  type="radio"
-                                  name={`question-${index}`}
-                                  value="na"
-                                  checked={selectedAnswer === 'na'}
-                                  onChange={() => handleAnswer(index, 'na')}
-                                  className="mr-3 text-gray-600 focus:ring-gray-500"
-                                />
-                                <MinusCircle className="w-5 h-5 text-gray-600 mr-2" />
-                                <span className="text-gray-700">No Aplica</span>
-                              </label>
-                            </div>
+                            {question.tipo_pregunta === 'seleccion_multiple' ? (
+                              // Pregunta de selección múltiple
+                              <div className="space-y-2">
+                                {['a', 'b', 'c'].map((option) => {
+                                  const optionText = question[`opcion_${option}`];
+                                  if (!optionText) return null;
+
+                                  // Determinar si esta opción es válida según las nuevas reglas
+                                  const isValidOption = option === 'a' || option === 'c';
+
+                                  return (
+                                    <label
+                                      key={option}
+                                      className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                        selectedAnswer === option
+                                          ? isValidOption
+                                            ? 'border-green-400 bg-green-50'
+                                            : 'border-red-400 bg-red-50'
+                                          : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`question-${index}`}
+                                        value={option}
+                                        checked={selectedAnswer === option}
+                                        onChange={() => handleAnswer(index, option)}
+                                        className="mr-3 text-blue-600 focus:ring-blue-500"
+                                      />
+                                      <span className="font-medium text-blue-600 mr-2">{option.toUpperCase()})</span>
+                                      <span className="text-gray-700">{optionText}</span>
+                                      {isValidOption && (
+                                        <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+                                      )}
+                                    </label>
+                                  );
+                                })}
+                                <div className="text-xs text-gray-500 mt-2">
+                                  ✅ Opciones A y C se consideran válidas
+                                </div>
+                              </div>
+                            ) : (
+                              // Pregunta abierta (Sí/No/NA)
+                              <div className="space-y-2">
+                                <label className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                  selectedAnswer === 'si'
+                                    ? 'border-green-400 bg-green-50'
+                                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                                }`}>
+                                  <input
+                                    type="radio"
+                                    name={`question-${index}`}
+                                    value="si"
+                                    checked={selectedAnswer === 'si'}
+                                    onChange={() => handleAnswer(index, 'si')}
+                                    className="mr-3 text-green-600 focus:ring-green-500"
+                                  />
+                                  <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                                  <span className="text-gray-700">Sí</span>
+                                  <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+                                </label>
+                                
+                                <label className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                  selectedAnswer === 'no'
+                                    ? 'border-red-400 bg-red-50'
+                                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                                }`}>
+                                  <input
+                                    type="radio"
+                                    name={`question-${index}`}
+                                    value="no"
+                                    checked={selectedAnswer === 'no'}
+                                    onChange={() => handleAnswer(index, 'no')}
+                                    className="mr-3 text-red-600 focus:ring-red-500"
+                                  />
+                                  <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                                  <span className="text-gray-700">No</span>
+                                </label>
+                                
+                                <label className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                  selectedAnswer === 'na'
+                                    ? 'border-green-400 bg-green-50'
+                                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                                }`}>
+                                  <input
+                                    type="radio"
+                                    name={`question-${index}`}
+                                    value="na"
+                                    checked={selectedAnswer === 'na'}
+                                    onChange={() => handleAnswer(index, 'na')}
+                                    className="mr-3 text-gray-600 focus:ring-gray-500"
+                                  />
+                                  <MinusCircle className="w-5 h-5 text-gray-600 mr-2" />
+                                  <span className="text-gray-700">No Aplica</span>
+                                  <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+                                </label>
+                                
+                                <div className="text-xs text-gray-500 mt-2">
+                                  ✅ "Sí" y "No Aplica" se consideran válidas
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -994,7 +1225,22 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                           {simpleStats.currentScore}%
                         </div>
                         <div className="text-xs text-gray-500">
-                          {simpleStats.correctAnswers} correctas de {simpleStats.totalAnsweredQuestions} respondidas
+                          {simpleStats.correctAnswers} válidas de {simpleStats.totalAnsweredQuestions} respondidas
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sistema de validación */}
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Sistema de Validación</h4>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <div className="flex items-center">
+                          <CheckCircle className="w-3 h-3 text-green-500 mr-1" />
+                          <span>Selección múltiple: A o C</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="w-3 h-3 text-green-500 mr-1" />
+                          <span>Abiertas: Sí o No Aplica</span>
                         </div>
                       </div>
                     </div>
@@ -1049,6 +1295,27 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                           </div>
                           <span className="font-medium">{simpleStats.responseStats.na}</span>
                         </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <span className="w-4 h-4 bg-blue-600 rounded mr-2 text-xs text-white text-center">A</span>
+                            <span>Opción A</span>
+                          </div>
+                          <span className="font-medium">{simpleStats.responseStats.a}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <span className="w-4 h-4 bg-gray-600 rounded mr-2 text-xs text-white text-center">B</span>
+                            <span>Opción B</span>
+                          </div>
+                          <span className="font-medium">{simpleStats.responseStats.b}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <span className="w-4 h-4 bg-blue-600 rounded mr-2 text-xs text-white text-center">C</span>
+                            <span>Opción C</span>
+                          </div>
+                          <span className="font-medium">{simpleStats.responseStats.c}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -1059,6 +1326,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                         <div>Tipo de planta: {selectedPlantType}</div>
                         <div>Sección: {selectedSection?.name}</div>
                         <div>Subsección: {selectedSection?.subsections[currentSubsectionIndex]?.name}</div>
+                        <div className="text-green-600 font-medium">Sistema: A/C y Sí/NA válidas</div>
                       </div>
                     </div>
                   </div>
