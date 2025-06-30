@@ -26,85 +26,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     { id: 'grande', name: 'Planta Grande', description: 'Más de 60 m³/h' }
   ];
 
-  // Datos de evaluación de equipo predefinidos
-  const equipmentEvaluationData = {
-    title: 'Evaluación de Equipo',
-    subsections: [
-      {
-        id: 'mezclado',
-        title: 'Sistema de Mezclado',
-        ponderacion: 25,
-        questions: [
-          { id: 1, text: '¿La mezcladora está en buen estado general?', type: 'abierta' },
-          { id: 2, text: '¿Las paletas mezcladoras están completas y sin desgaste excesivo?', type: 'abierta' },
-          { id: 3, text: '¿El sistema de descarga funciona correctamente?', type: 'abierta' },
-          { id: 4, text: '¿Los sellos y empaques están en buen estado?', type: 'abierta' },
-          { id: 5, text: '¿El motor de la mezcladora opera sin problemas?', type: 'abierta' }
-        ]
-      },
-      {
-        id: 'dosificacion',
-        title: 'Sistema de Dosificación',
-        ponderacion: 20,
-        questions: [
-          { id: 6, text: '¿Las básculas de cemento están calibradas?', type: 'abierta' },
-          { id: 7, text: '¿Las básculas de agregados funcionan correctamente?', type: 'abierta' },
-          { id: 8, text: '¿El sistema de dosificación de agua es preciso?', type: 'abierta' },
-          { id: 9, text: '¿Los aditivos se dosifican correctamente?', type: 'abierta' },
-          { id: 10, text: '¿Las tolvas están limpias y sin obstrucciones?', type: 'abierta' }
-        ]
-      },
-      {
-        id: 'transporte',
-        title: 'Sistema de Transporte',
-        ponderacion: 15,
-        questions: [
-          { id: 11, text: '¿Las bandas transportadoras están en buen estado?', type: 'abierta' },
-          { id: 12, text: '¿Los elevadores funcionan sin problemas?', type: 'abierta' },
-          { id: 13, text: '¿Los sistemas de limpieza de bandas operan correctamente?', type: 'abierta' },
-          { id: 14, text: '¿Las estructuras de soporte están estables?', type: 'abierta' }
-        ]
-      },
-      {
-        id: 'almacenamiento',
-        title: 'Sistema de Almacenamiento',
-        ponderacion: 15,
-        questions: [
-          { id: 15, text: '¿Los silos de cemento están en buen estado?', type: 'abierta' },
-          { id: 16, text: '¿Los sistemas de aireación funcionan correctamente?', type: 'abierta' },
-          { id: 17, text: '¿Las tolvas de agregados están limpias?', type: 'abierta' },
-          { id: 18, text: '¿Los sistemas de descarga operan sin problemas?', type: 'abierta' }
-        ]
-      },
-      {
-        id: 'control',
-        title: 'Sistema de Control',
-        ponderacion: 15,
-        questions: [
-          { id: 19, text: '¿El panel de control funciona correctamente?', type: 'abierta' },
-          { id: 20, text: '¿Los sensores están calibrados?', type: 'abierta' },
-          { id: 21, text: '¿El software de control está actualizado?', type: 'abierta' },
-          { id: 22, text: '¿Los sistemas de seguridad están activos?', type: 'abierta' }
-        ]
-      },
-      {
-        id: 'auxiliares',
-        title: 'Sistemas Auxiliares',
-        ponderacion: 10,
-        questions: [
-          { id: 23, text: '¿El compresor de aire funciona correctamente?', type: 'abierta' },
-          { id: 24, text: '¿El sistema eléctrico está en buen estado?', type: 'abierta' },
-          { id: 25, text: '¿Los sistemas de iluminación funcionan?', type: 'abierta' }
-        ]
-      }
-    ]
-  };
-
   useEffect(() => {
-    if (!evaluationStarted) {
-      setEvaluationData(equipmentEvaluationData);
+    // Cargar datos de evaluación cuando se inicia
+    if (evaluationStarted && selectedPlantType) {
+      loadEvaluationData();
     }
-  }, []);
+  }, [evaluationStarted, selectedPlantType]);
 
   // Scroll al inicio cuando cambia la subsección
   useEffect(() => {
@@ -118,10 +45,62 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   // Cargar progreso guardado al iniciar evaluación
   useEffect(() => {
-    if (evaluationStarted && selectedPlantType) {
+    if (evaluationStarted && selectedPlantType && evaluationData) {
       loadSavedProgress();
     }
-  }, [evaluationStarted, selectedPlantType]);
+  }, [evaluationStarted, selectedPlantType, evaluationData]);
+
+  const loadEvaluationData = async () => {
+    try {
+      setLoading(true);
+      
+      // Obtener datos de evaluación de equipo desde la API
+      const data = await apiService.getPreguntas({
+        tipo: 'equipo',
+        tipoPlanta: selectedPlantType
+      });
+      
+      console.log('Datos de evaluación cargados:', data);
+      setEvaluationData(data);
+      
+    } catch (error) {
+      console.error('Error loading evaluation data:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudieron cargar los datos de evaluación"
+      });
+      
+      // Fallback a datos predefinidos si falla la carga
+      setEvaluationData(generateFallbackData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateFallbackData = () => {
+    // Datos de respaldo en caso de que falle la carga desde la API
+    return {
+      title: 'Evaluación de Equipo',
+      secciones: [
+        {
+          id: 'mezclado',
+          nombre: 'Sistema de Mezclado',
+          ponderacion: 25,
+          subsecciones: [
+            {
+              id: 'mezcladora',
+              nombre: 'Mezcladora Principal',
+              preguntas: [
+                { id: 1, pregunta: '¿La mezcladora está en buen estado general?', tipo_pregunta: 'abierta' },
+                { id: 2, pregunta: '¿Las paletas mezcladoras están completas y sin desgaste excesivo?', tipo_pregunta: 'abierta' },
+                { id: 3, pregunta: '¿El sistema de descarga funciona correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+  };
 
   const loadSavedProgress = async () => {
     try {
@@ -161,26 +140,55 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     let totalQuestions = 0;
     let correctAnswers = 0;
 
-    equipmentEvaluationData.subsections.forEach((subsection, subsectionIndex) => {
-      subsection.questions.forEach((question, questionIndex) => {
-        const key = `${selectedPlantType}-${subsectionIndex}-${questionIndex}`;
-        
-        // Generar respuesta aleatoria con tendencia hacia respuestas positivas
-        const randomValue = Math.random();
-        let answer;
-        
-        if (randomValue < 0.75) { // 75% probabilidad de "sí"
-          answer = 'si';
-          correctAnswers++;
-        } else if (randomValue < 0.95) { // 20% probabilidad de "no"
-          answer = 'no';
-        } else { // 5% probabilidad de "na"
-          answer = 'na';
-        }
-        
-        simulatedAnswers[key] = answer;
-        totalQuestions++;
-      });
+    // Usar datos reales si están disponibles, sino usar fallback
+    const sectionsToUse = evaluationData?.secciones || generateFallbackData().secciones;
+
+    sectionsToUse.forEach((seccion, sectionIndex) => {
+      // Si la sección tiene subsecciones, usarlas
+      if (seccion.subsecciones && seccion.subsecciones.length > 0) {
+        seccion.subsecciones.forEach((subseccion, subsectionIndex) => {
+          subseccion.preguntas?.forEach((pregunta, questionIndex) => {
+            const key = `${selectedPlantType}-${sectionIndex}-${subsectionIndex}-${questionIndex}`;
+            
+            // Generar respuesta aleatoria con tendencia hacia respuestas positivas
+            const randomValue = Math.random();
+            let answer;
+            
+            if (randomValue < 0.75) { // 75% probabilidad de "sí"
+              answer = 'si';
+              correctAnswers++;
+            } else if (randomValue < 0.95) { // 20% probabilidad de "no"
+              answer = 'no';
+            } else { // 5% probabilidad de "na"
+              answer = 'na';
+            }
+            
+            simulatedAnswers[key] = answer;
+            totalQuestions++;
+          });
+        });
+      } else {
+        // Fallback para secciones sin subsecciones
+        const questions = seccion.preguntas || [];
+        questions.forEach((pregunta, questionIndex) => {
+          const key = `${selectedPlantType}-${sectionIndex}-${questionIndex}`;
+          
+          const randomValue = Math.random();
+          let answer;
+          
+          if (randomValue < 0.75) {
+            answer = 'si';
+            correctAnswers++;
+          } else if (randomValue < 0.95) {
+            answer = 'no';
+          } else {
+            answer = 'na';
+          }
+          
+          simulatedAnswers[key] = answer;
+          totalQuestions++;
+        });
+      }
     });
 
     const finalScore = Math.round((correctAnswers / totalQuestions) * 100);
@@ -191,7 +199,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       totalAnswers: totalQuestions,
       correctAnswers: correctAnswers,
       evaluationTitle: `Evaluación de Equipo Simulada - ${selectedPlantType}`,
-      sections: equipmentEvaluationData.subsections,
+      sections: sectionsToUse,
       isEquipmentEvaluation: true,
       isSimulated: true,
       plantType: selectedPlantType
@@ -227,14 +235,15 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       const user = apiService.getCurrentUser();
       if (!user) return;
 
-      const currentSubsectionData = evaluationData.subsections[currentSubsection];
+      const currentSubsectionData = getCurrentSubsectionData();
+      if (!currentSubsectionData) return;
       
       // Calcular progreso de la subsección actual
       let subsectionScore = 0;
       let correctAnswers = 0;
       let totalQuestions = 0;
 
-      currentSubsectionData.questions.forEach((question, qIndex) => {
+      currentSubsectionData.preguntas?.forEach((question, qIndex) => {
         const key = `${selectedPlantType}-${currentSubsection}-${qIndex}`;
         const answer = answers[key];
         
@@ -253,7 +262,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       await apiService.guardarProgresoSeccion({
         usuario_id: user.id,
         tipo_evaluacion: 'equipo',
-        seccion_nombre: currentSubsectionData.title,
+        seccion_nombre: currentSubsectionData.nombre,
         seccion_orden: currentSubsection + 1,
         puntaje_seccion: subsectionScore,
         puntaje_porcentaje: subsectionPercentage,
@@ -275,7 +284,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       toast({
         title: "💾 Progreso guardado",
-        description: `Subsección "${currentSubsectionData.title}" guardada exitosamente`
+        description: `Subsección "${currentSubsectionData.nombre}" guardada exitosamente`
       });
 
     } catch (error) {
@@ -291,7 +300,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     // Guardar progreso de la subsección actual
     await saveCurrentSubsectionProgress();
 
-    if (currentSubsection < evaluationData.subsections.length - 1) {
+    const totalSubsections = getTotalSubsections();
+    if (currentSubsection < totalSubsections - 1) {
       setCurrentSubsection(prev => prev + 1);
     } else {
       // Completar evaluación
@@ -325,18 +335,17 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const finalPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
-      // Preparar datos para guardar - FORMATO SIMPLIFICADO
+      // Preparar datos para guardar
       const evaluacionData = {
         usuario_id: user.id,
         tipo_evaluacion: 'equipo',
         rol_personal: null,
         respuestas: Object.entries(answers).map(([key, selectedAnswer]) => {
-          // Generar un ID único para cada respuesta
           const keyParts = key.split('-');
           const questionId = `equipo_${keyParts.join('_')}`;
 
           return {
-            pregunta_id: null, // No hay pregunta_id real para evaluación de equipo
+            pregunta_id: null,
             respuesta: selectedAnswer,
             observacion: `Equipo: ${selectedPlantType} - Pregunta: ${key}`
           };
@@ -355,7 +364,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         totalAnswers: totalQuestions,
         correctAnswers: correctAnswers,
         evaluationTitle: `Evaluación de Equipo - ${selectedPlantType}`,
-        sections: evaluationData.subsections,
+        sections: getAllSubsections(),
         isEquipmentEvaluation: true,
         plantType: selectedPlantType
       });
@@ -384,18 +393,49 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     setEvaluationStarted(true);
   };
 
+  // Funciones auxiliares para manejar la estructura de datos
+  const getAllSubsections = () => {
+    if (!evaluationData?.secciones) return [];
+    
+    const allSubsections = [];
+    evaluationData.secciones.forEach(seccion => {
+      if (seccion.subsecciones && seccion.subsecciones.length > 0) {
+        allSubsections.push(...seccion.subsecciones);
+      } else {
+        // Si no hay subsecciones, tratar la sección como subsección
+        allSubsections.push({
+          id: seccion.id,
+          nombre: seccion.nombre,
+          preguntas: seccion.preguntas || []
+        });
+      }
+    });
+    
+    return allSubsections;
+  };
+
+  const getTotalSubsections = () => {
+    return getAllSubsections().length;
+  };
+
+  const getCurrentSubsectionData = () => {
+    const allSubsections = getAllSubsections();
+    return allSubsections[currentSubsection] || null;
+  };
+
   // Calcular estadísticas para la gráfica
   const calculateSubsectionStats = () => {
-    if (!evaluationData?.subsections) return null;
+    const allSubsections = getAllSubsections();
+    if (allSubsections.length === 0) return null;
 
-    const subsectionsInfo = evaluationData.subsections.map((subsection, index) => {
-      const totalQuestions = subsection.questions.length;
+    const subsectionsInfo = allSubsections.map((subsection, index) => {
+      const totalQuestions = subsection.preguntas?.length || 0;
       
       // Contar respuestas de esta subsección
       let answered = 0;
       let correct = 0;
 
-      subsection.questions.forEach((question, qIndex) => {
+      subsection.preguntas?.forEach((question, qIndex) => {
         const key = `${selectedPlantType}-${index}-${qIndex}`;
         const answer = answers[key];
         
@@ -414,8 +454,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       const savedProgress = subsectionProgress[index];
       
       return {
-        nombre: subsection.title,
-        ponderacion: subsection.ponderacion,
+        nombre: subsection.nombre,
+        ponderacion: subsection.ponderacion_subseccion || 0,
         totalPreguntas: totalQuestions,
         preguntasRespondidas: answered,
         respuestasCorrectas: correct,
@@ -450,7 +490,9 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       <div className="min-h-screen relative bg-gray-100 overflow-hidden flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-lg text-gray-600">Guardando evaluación de equipo...</p>
+          <p className="text-lg text-gray-600">
+            {evaluationStarted ? 'Guardando evaluación de equipo...' : 'Cargando datos de evaluación...'}
+          </p>
         </div>
       </div>
     );
@@ -526,7 +568,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  if (!evaluationData || !evaluationData.subsections || evaluationData.subsections.length === 0) {
+  const totalSubsections = getTotalSubsections();
+  const currentSubsectionData = getCurrentSubsectionData();
+
+  if (!currentSubsectionData) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
         <Settings size={64} className="mb-4 text-blue-600" />
@@ -539,12 +584,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  const totalSubsections = evaluationData.subsections.length;
-  const currentSubsectionData = evaluationData.subsections[currentSubsection];
   const progress = totalSubsections > 0 ? ((currentSubsection + 1) / totalSubsections) * 100 : 0;
 
   // Verificar si todas las preguntas de la subsección actual han sido respondidas
-  const allQuestionsAnswered = currentSubsectionData?.questions?.every((_, index) => {
+  const allQuestionsAnswered = currentSubsectionData?.preguntas?.every((_, index) => {
     const key = `${selectedPlantType}-${currentSubsection}-${index}`;
     return answers[key] !== undefined;
   });
@@ -629,7 +672,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                   <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <h2 className="text-xl font-semibold text-gray-800">
-                        {currentSubsectionData?.title}
+                        {currentSubsectionData?.nombre}
                       </h2>
                       {subsectionProgress[currentSubsection]?.completed && (
                         <div className="flex items-center space-x-2 text-green-600">
@@ -638,9 +681,9 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                         </div>
                       )}
                     </div>
-                    {currentSubsectionData?.ponderacion && (
+                    {currentSubsectionData?.ponderacion_subseccion && (
                       <div className="text-center text-sm text-gray-600 mt-1">
-                        Ponderación: {currentSubsectionData.ponderacion}%
+                        Ponderación: {currentSubsectionData.ponderacion_subseccion}%
                       </div>
                     )}
                   </div>
@@ -648,14 +691,14 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                   {/* Contenido */}
                   <div className="p-6">
                     <div className="space-y-6">
-                      {currentSubsectionData?.questions?.map((question, index) => {
+                      {currentSubsectionData?.preguntas?.map((question, index) => {
                         const key = `${selectedPlantType}-${currentSubsection}-${index}`;
                         const selectedAnswer = answers[key];
 
                         return (
                           <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
                             <h3 className="text-lg font-medium text-gray-800 mb-4">
-                              {index + 1}. {question.text}
+                              {index + 1}. {question.pregunta}
                             </h3>
 
                             <div className="space-y-2">
