@@ -10,7 +10,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [currentSubsection, setCurrentSubsection] = useState(0);
   const [answers, setAnswers] = useState({});
   const [selectedPlantType, setSelectedPlantType] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
   const [evaluationStarted, setEvaluationStarted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
@@ -20,16 +19,11 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
 
-  // Configuración de tipos de planta y categorías
+  // Configuración simplificada - solo tipos de planta
   const plantTypes = [
     { id: 'pequena', name: 'Planta Pequeña', description: 'Hasta 30 m³/h' },
     { id: 'mediana', name: 'Planta Mediana', description: '30-60 m³/h' },
     { id: 'grande', name: 'Planta Grande', description: 'Más de 60 m³/h' }
-  ];
-
-  const categories = [
-    { id: 'fija', name: 'Planta Fija', description: 'Instalación permanente' },
-    { id: 'movil', name: 'Planta Móvil', description: 'Instalación temporal' }
   ];
 
   // Datos de evaluación de equipo predefinidos
@@ -124,10 +118,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   // Cargar progreso guardado al iniciar evaluación
   useEffect(() => {
-    if (evaluationStarted && selectedPlantType && selectedCategory) {
+    if (evaluationStarted && selectedPlantType) {
       loadSavedProgress();
     }
-  }, [evaluationStarted, selectedPlantType, selectedCategory]);
+  }, [evaluationStarted, selectedPlantType]);
 
   const loadSavedProgress = async () => {
     try {
@@ -137,8 +131,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       const progressData = await apiService.getProgresoSecciones({
         usuario_id: user.id,
         tipo_evaluacion: 'equipo',
-        tipo_planta: selectedPlantType,
-        categoria: selectedCategory
+        tipo_planta: selectedPlantType
       });
 
       if (progressData.progreso_secciones && progressData.progreso_secciones.length > 0) {
@@ -155,7 +148,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
         toast({
           title: "📊 Progreso cargado",
-          description: `Se encontró progreso previo para ${selectedPlantType} - ${selectedCategory}`
+          description: `Se encontró progreso previo para ${selectedPlantType}`
         });
       }
     } catch (error) {
@@ -170,7 +163,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
     equipmentEvaluationData.subsections.forEach((subsection, subsectionIndex) => {
       subsection.questions.forEach((question, questionIndex) => {
-        const key = `${selectedPlantType}-${selectedCategory}-${subsectionIndex}-${questionIndex}`;
+        const key = `${selectedPlantType}-${subsectionIndex}-${questionIndex}`;
         
         // Generar respuesta aleatoria con tendencia hacia respuestas positivas
         const randomValue = Math.random();
@@ -197,12 +190,11 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       score: finalScore,
       totalAnswers: totalQuestions,
       correctAnswers: correctAnswers,
-      evaluationTitle: `Evaluación de Equipo Simulada - ${selectedPlantType} ${selectedCategory}`,
+      evaluationTitle: `Evaluación de Equipo Simulada - ${selectedPlantType}`,
       sections: equipmentEvaluationData.subsections,
       isEquipmentEvaluation: true,
       isSimulated: true,
-      plantType: selectedPlantType,
-      category: selectedCategory
+      plantType: selectedPlantType
     };
   };
 
@@ -226,7 +218,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   };
 
   const handleAnswer = (questionIndex, selectedOption) => {
-    const key = `${selectedPlantType}-${selectedCategory}-${currentSubsection}-${questionIndex}`;
+    const key = `${selectedPlantType}-${currentSubsection}-${questionIndex}`;
     setAnswers(prev => ({ ...prev, [key]: selectedOption }));
   };
 
@@ -243,7 +235,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       let totalQuestions = 0;
 
       currentSubsectionData.questions.forEach((question, qIndex) => {
-        const key = `${selectedPlantType}-${selectedCategory}-${currentSubsection}-${qIndex}`;
+        const key = `${selectedPlantType}-${currentSubsection}-${qIndex}`;
         const answer = answers[key];
         
         if (answer) {
@@ -267,8 +259,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         puntaje_porcentaje: subsectionPercentage,
         respuestas_correctas: correctAnswers,
         total_preguntas: totalQuestions,
-        tipo_planta: selectedPlantType,
-        categoria: selectedCategory
+        tipo_planta: selectedPlantType
       });
 
       // Actualizar estado local del progreso
@@ -334,24 +325,26 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const finalPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
-      // Preparar datos para guardar
+      // Preparar datos para guardar - FORMATO SIMPLIFICADO
       const evaluacionData = {
         usuario_id: user.id,
         tipo_evaluacion: 'equipo',
         rol_personal: null,
         respuestas: Object.entries(answers).map(([key, selectedAnswer]) => {
-          const [plantType, category, subsectionIndex, questionIndex] = key.split('-');
-          const subsection = evaluationData.subsections[parseInt(subsectionIndex)];
-          const question = subsection?.questions[parseInt(questionIndex)];
+          // Generar un ID único para cada respuesta
+          const keyParts = key.split('-');
+          const questionId = `equipo_${keyParts.join('_')}`;
 
           return {
-            pregunta_id: question?.id || null,
+            pregunta_id: null, // No hay pregunta_id real para evaluación de equipo
             respuesta: selectedAnswer,
-            observacion: `Equipo: ${plantType} - ${category} - ${subsection?.title}`
+            observacion: `Equipo: ${selectedPlantType} - Pregunta: ${key}`
           };
         }),
-        observaciones: `Evaluación de equipo completada - Tipo: ${selectedPlantType} - Categoría: ${selectedCategory}`
+        observaciones: `Evaluación de equipo completada - Tipo: ${selectedPlantType}`
       };
+
+      console.log('Enviando datos de evaluación:', evaluacionData);
 
       // Guardar en base de datos
       const result = await apiService.guardarEvaluacion(evaluacionData);
@@ -361,11 +354,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         score: Math.round(result.puntuacion_ponderada || finalPercentage),
         totalAnswers: totalQuestions,
         correctAnswers: correctAnswers,
-        evaluationTitle: `Evaluación de Equipo - ${selectedPlantType} ${selectedCategory}`,
+        evaluationTitle: `Evaluación de Equipo - ${selectedPlantType}`,
         sections: evaluationData.subsections,
         isEquipmentEvaluation: true,
-        plantType: selectedPlantType,
-        category: selectedCategory
+        plantType: selectedPlantType
       });
 
       toast({
@@ -377,16 +369,15 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       console.error('Error completing evaluation:', error);
       toast({
         title: "❌ Error",
-        description: "No se pudo guardar la evaluación. Intenta nuevamente."
+        description: `No se pudo guardar la evaluación: ${error.message}`
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleConfigurationSelect = (plantType, category) => {
+  const handlePlantTypeSelect = (plantType) => {
     setSelectedPlantType(plantType);
-    setSelectedCategory(category);
     setCurrentSubsection(0);
     setAnswers({});
     setSubsectionProgress({});
@@ -405,7 +396,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       let correct = 0;
 
       subsection.questions.forEach((question, qIndex) => {
-        const key = `${selectedPlantType}-${selectedCategory}-${index}-${qIndex}`;
+        const key = `${selectedPlantType}-${index}-${qIndex}`;
         const answer = answers[key];
         
         if (answer) {
@@ -465,7 +456,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  // Pantalla de selección de configuración
+  // Pantalla de selección simplificada - solo tipos de planta
   if (!evaluationStarted) {
     return (
       <div className="min-h-screen relative bg-gray-100 overflow-hidden">
@@ -478,10 +469,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         <div className="absolute inset-0 bg-black/20" />
 
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
-          <div className="w-full max-w-4xl space-y-6">
+          <div className="w-full max-w-2xl space-y-6">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo</h2>
-              <p className="text-white/80">Selecciona el tipo de planta y categoría</p>
+              <p className="text-white/80">Selecciona el tipo de planta a evaluar</p>
             </div>
 
             {/* Botón para saltar a resultados simulados */}
@@ -497,92 +488,32 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               </Button>
             </div>
 
-            {/* Selección de configuración */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Tipos de planta */}
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-white text-center">Tipo de Planta</h3>
-                {plantTypes.map((type, index) => (
-                  <motion.div
-                    key={type.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <button
-                      onClick={() => setSelectedPlantType(type.id)}
-                      className={`w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-4 text-left border-2 ${
-                        selectedPlantType === type.id ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-blue-300'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          selectedPlantType === type.id ? 'bg-blue-500' : 'bg-blue-100'
-                        }`}>
-                          <Settings className={`w-5 h-5 ${
-                            selectedPlantType === type.id ? 'text-white' : 'text-blue-600'
-                          }`} />
-                        </div>
-                        <div>
-                          <span className="text-gray-800 font-medium block">{type.name}</span>
-                          <span className="text-gray-600 text-sm">{type.description}</span>
-                        </div>
-                      </div>
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Categorías */}
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-white text-center">Categoría</h3>
-                {categories.map((category, index) => (
-                  <motion.div
-                    key={category.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 + 0.3 }}
-                  >
-                    <button
-                      onClick={() => setSelectedCategory(category.id)}
-                      className={`w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-4 text-left border-2 ${
-                        selectedCategory === category.id ? 'border-green-500 bg-green-50/50' : 'border-gray-200 hover:border-green-300'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          selectedCategory === category.id ? 'bg-green-500' : 'bg-green-100'
-                        }`}>
-                          <Settings className={`w-5 h-5 ${
-                            selectedCategory === category.id ? 'text-white' : 'text-green-600'
-                          }`} />
-                        </div>
-                        <div>
-                          <span className="text-gray-800 font-medium block">{category.name}</span>
-                          <span className="text-gray-600 text-sm">{category.description}</span>
-                        </div>
-                      </div>
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-
-            {/* Botón para iniciar */}
-            {selectedPlantType && selectedCategory && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex justify-center mt-8"
-              >
-                <Button
-                  onClick={() => handleConfigurationSelect(selectedPlantType, selectedCategory)}
-                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg"
+            {/* Selección de tipo de planta */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {plantTypes.map((type, index) => (
+                <motion.div
+                  key={type.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
                 >
-                  Iniciar Evaluación de {plantTypes.find(p => p.id === selectedPlantType)?.name} {categories.find(c => c.id === selectedCategory)?.name}
-                </Button>
-              </motion.div>
-            )}
+                  <button
+                    onClick={() => handlePlantTypeSelect(type.id)}
+                    className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-6 text-center border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
+                  >
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Settings className="w-8 h-8 text-blue-600" />
+                      </div>
+                      <div>
+                        <span className="text-gray-800 font-bold text-lg block">{type.name}</span>
+                        <span className="text-gray-600 text-sm">{type.description}</span>
+                      </div>
+                    </div>
+                  </button>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -614,7 +545,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   // Verificar si todas las preguntas de la subsección actual han sido respondidas
   const allQuestionsAnswered = currentSubsectionData?.questions?.every((_, index) => {
-    const key = `${selectedPlantType}-${selectedCategory}-${currentSubsection}-${index}`;
+    const key = `${selectedPlantType}-${currentSubsection}-${index}`;
     return answers[key] !== undefined;
   });
 
@@ -649,7 +580,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-gray-800">
-              Evaluación de Equipo - {selectedPlantType} {selectedCategory}
+              Evaluación de Equipo - {selectedPlantType}
             </h2>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
@@ -718,7 +649,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                   <div className="p-6">
                     <div className="space-y-6">
                       {currentSubsectionData?.questions?.map((question, index) => {
-                        const key = `${selectedPlantType}-${selectedCategory}-${currentSubsection}-${index}`;
+                        const key = `${selectedPlantType}-${currentSubsection}-${index}`;
                         const selectedAnswer = answers[key];
 
                         return (
