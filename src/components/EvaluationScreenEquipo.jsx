@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, Save, ChevronRight, Building2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
-import SectionResultsModal from '@/components/SectionResultsModal';
+import SectionCompletionModal from '@/components/SectionCompletionModal';
 import EvaluationSummaryModal from '@/components/EvaluationSummaryModal';
 
 const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username }) => {
@@ -21,11 +21,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [loading, setLoading] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
   const [subsectionProgress, setSubsectionProgress] = useState({});
+  const [sectionProgress, setSectionProgress] = useState({});
   const [showStats, setShowStats] = useState(false);
 
   // Estados para modales de resultados
-  const [showSectionResults, setShowSectionResults] = useState(false);
-  const [currentSectionResults, setCurrentSectionResults] = useState(null);
+  const [showSectionCompletion, setShowSectionCompletion] = useState(false);
+  const [currentSectionCompletionData, setCurrentSectionCompletionData] = useState(null);
   const [showEvaluationSummary, setShowEvaluationSummary] = useState(false);
   const [evaluationSummaryData, setEvaluationSummaryData] = useState(null);
 
@@ -118,6 +119,46 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 { id: 6, pregunta: '¿Las básculas de agregados pesan correctamente y están libres de obstrucciones?', tipo_pregunta: 'abierta' },
                 { id: 7, pregunta: '¿El sistema de dosificación de agua funciona con precisión y sin fugas?', tipo_pregunta: 'abierta' }
               ]
+            },
+            {
+              id: 'bandas_transportadoras',
+              nombre: 'Bandas Transportadoras',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 8, pregunta: '¿Las bandas transportadoras están en buen estado, sin roturas ni desgaste excesivo?', tipo_pregunta: 'abierta' },
+                { id: 9, pregunta: '¿Los motores y reductores de las bandas operan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 10, pregunta: '¿Los sistemas de limpieza de bandas funcionan adecuadamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'tolvas_silos',
+              nombre: 'Tolvas y Silos',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 11, pregunta: '¿Las tolvas de agregados están estructuralmente íntegras y libres de obstrucciones?', tipo_pregunta: 'abierta' },
+                { id: 12, pregunta: '¿Los silos de cemento mantienen su integridad estructural y sistemas de descarga?', tipo_pregunta: 'abierta' },
+                { id: 13, pregunta: '¿Los sistemas de vibración y fluidización funcionan correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistema_agua',
+              nombre: 'Sistema de Agua',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 14, pregunta: '¿El sistema de suministro de agua mantiene presión y caudal adecuados?', tipo_pregunta: 'abierta' },
+                { id: 15, pregunta: '¿Los tanques de agua están limpios y en buen estado?', tipo_pregunta: 'abierta' },
+                { id: 16, pregunta: '¿El sistema de dosificación de aditivos funciona correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistema_control',
+              nombre: 'Sistema de Control',
+              ponderacion_subseccion: 3.32,
+              preguntas: [
+                { id: 17, pregunta: '¿El sistema de control automatizado responde correctamente a los comandos?', tipo_pregunta: 'abierta' },
+                { id: 18, pregunta: '¿Los sensores y dispositivos de medición están calibrados y funcionando?', tipo_pregunta: 'abierta' },
+                { id: 19, pregunta: '¿El software de control está actualizado y libre de errores?', tipo_pregunta: 'abierta' }
+              ]
             }
           ]
         },
@@ -134,6 +175,36 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 { id: 20, pregunta: '¿Los tambores de los camiones están en buen estado estructural?', tipo_pregunta: 'abierta' },
                 { id: 21, pregunta: '¿Los sistemas hidráulicos de los camiones funcionan correctamente?', tipo_pregunta: 'abierta' },
                 { id: 22, pregunta: '¿Las paletas internas del tambor están completas y bien fijadas?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'bombas_concreto',
+              nombre: 'Bombas de Concreto',
+              ponderacion_subseccion: 3.01,
+              preguntas: [
+                { id: 23, pregunta: '¿Las bombas de concreto operan sin fugas ni obstrucciones?', tipo_pregunta: 'abierta' },
+                { id: 24, pregunta: '¿Los sistemas de limpieza de bombas funcionan adecuadamente?', tipo_pregunta: 'abierta' },
+                { id: 25, pregunta: '¿Las mangueras y tuberías están en buen estado?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'sistemas_carga',
+              nombre: 'Sistemas de Carga',
+              ponderacion_subseccion: 3.01,
+              preguntas: [
+                { id: 26, pregunta: '¿Los sistemas de carga de camiones funcionan eficientemente?', tipo_pregunta: 'abierta' },
+                { id: 27, pregunta: '¿Las tolvas de descarga están libres de obstrucciones?', tipo_pregunta: 'abierta' },
+                { id: 28, pregunta: '¿Los controles de carga responden correctamente?', tipo_pregunta: 'abierta' }
+              ]
+            },
+            {
+              id: 'equipos_limpieza',
+              nombre: 'Equipos de Limpieza',
+              ponderacion_subseccion: 3.01,
+              preguntas: [
+                { id: 29, pregunta: '¿Los equipos de lavado de camiones funcionan correctamente?', tipo_pregunta: 'abierta' },
+                { id: 30, pregunta: '¿Los sistemas de reciclaje de agua operan adecuadamente?', tipo_pregunta: 'abierta' },
+                { id: 31, pregunta: '¿Las instalaciones de limpieza están en buen estado?', tipo_pregunta: 'abierta' }
               ]
             }
           ]
@@ -155,6 +226,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       if (progressData.progreso_secciones && progressData.progreso_secciones.length > 0) {
         const savedProgress = {};
+        const savedSectionProgress = {};
+        
         progressData.progreso_secciones.forEach(progress => {
           const key = `${progress.seccion_orden - 1}`;
           savedProgress[key] = {
@@ -164,6 +237,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             totalQuestions: progress.total_preguntas
           };
         });
+        
         setSubsectionProgress(savedProgress);
 
         toast({
@@ -195,24 +269,60 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
     const percentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
-    // Generar recomendaciones basadas en el porcentaje
-    const recommendations = [];
-    if (percentage < 60) {
-      recommendations.push(`Revisar y mejorar los equipos de ${subsection.nombre.toLowerCase()}`);
-      recommendations.push('Implementar plan de mantenimiento preventivo');
-    } else if (percentage < 80) {
-      recommendations.push('Mantener el buen estado actual');
-      recommendations.push('Considerar mejoras menores para optimización');
-    } else {
-      recommendations.push('Excelente estado de los equipos');
-      recommendations.push('Continuar con el programa de mantenimiento actual');
-    }
-
     return {
       percentage,
       correctAnswers,
+      totalQuestions
+    };
+  };
+
+  // Función para calcular resultados completos de una sección
+  const calculateSectionResults = (section) => {
+    let totalCorrect = 0;
+    let totalQuestions = 0;
+    const subsectionResults = [];
+
+    section.subsecciones?.forEach((subseccion, subsectionIndex) => {
+      const results = calculateSubsectionResults(subseccion, section.id, subsectionIndex);
+      
+      subsectionResults.push({
+        name: subseccion.nombre,
+        percentage: results.percentage,
+        correctAnswers: results.correctAnswers,
+        totalQuestions: results.totalQuestions,
+        ponderacion: subseccion.ponderacion_subseccion
+      });
+
+      totalCorrect += results.correctAnswers;
+      totalQuestions += results.totalQuestions;
+    });
+
+    const overallPercentage = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+
+    // Generar recomendaciones para la sección
+    const recommendations = [];
+    if (overallPercentage >= 80) {
+      recommendations.push(`Excelente estado de ${section.nombre.toLowerCase()}`);
+      recommendations.push('Mantener el programa de mantenimiento actual');
+      recommendations.push('Considerar como referencia para otras plantas');
+    } else if (overallPercentage >= 60) {
+      recommendations.push(`Buen estado general de ${section.nombre.toLowerCase()}`);
+      recommendations.push('Implementar mejoras menores identificadas');
+      recommendations.push('Revisar subsecciones con menor puntuación');
+    } else {
+      recommendations.push(`Requiere atención inmediata en ${section.nombre.toLowerCase()}`);
+      recommendations.push('Desarrollar plan de mejora integral');
+      recommendations.push('Priorizar mantenimiento correctivo');
+    }
+
+    return {
+      sectionName: section.nombre,
+      overallPercentage,
+      totalCorrect,
       totalQuestions,
-      recommendations
+      subsectionResults,
+      recommendations,
+      ponderacion: section.ponderacion
     };
   };
 
@@ -222,21 +332,18 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     let totalCorrect = 0;
     let totalQuestions = 0;
 
-    evaluationData?.secciones?.forEach((seccion, sectionIndex) => {
-      seccion.subsecciones?.forEach((subseccion, subsectionIndex) => {
-        const results = calculateSubsectionResults(subseccion, seccion.id, subsectionIndex);
-        
-        sectionResults.push({
-          name: subseccion.nombre,
-          percentage: results.percentage,
-          correctAnswers: results.correctAnswers,
-          totalQuestions: results.totalQuestions,
-          ponderacion: subseccion.ponderacion_subseccion
-        });
-
-        totalCorrect += results.correctAnswers;
-        totalQuestions += results.totalQuestions;
+    evaluationData?.secciones?.forEach((seccion) => {
+      const sectionData = calculateSectionResults(seccion);
+      sectionResults.push({
+        name: seccion.nombre,
+        percentage: sectionData.overallPercentage,
+        correctAnswers: sectionData.totalCorrect,
+        totalQuestions: sectionData.totalQuestions,
+        ponderacion: seccion.ponderacion
       });
+
+      totalCorrect += sectionData.totalCorrect;
+      totalQuestions += sectionData.totalQuestions;
     });
 
     const overallScore = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
@@ -321,6 +428,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     setCurrentStep('sectionSelection');
     setAnswers({});
     setSubsectionProgress({});
+    setSectionProgress({});
   };
 
   // Manejar selección de sección
@@ -401,44 +509,51 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
-  // Continuar a siguiente subsección o mostrar resultados - CORREGIDO
+  // Continuar a siguiente subsección o mostrar resultados de sección completa
   const handleNextSubsection = async () => {
     // Primero guardar el progreso
     await saveCurrentSubsectionProgress();
 
-    const currentSubsection = selectedSection.subsecciones[currentSubsectionIndex];
-    
-    // Calcular resultados de la subsección actual
-    const sectionResults = calculateSubsectionResults(currentSubsection, selectedSection.id, currentSubsectionIndex);
-    
-    // Mostrar modal de resultados
-    setCurrentSectionResults(sectionResults);
-    setShowSectionResults(true);
-  };
-
-  // Continuar después de ver resultados de sección - CORREGIDO
-  const handleContinueAfterSectionResults = () => {
-    setShowSectionResults(false);
-    
     // Verificar si hay más subsecciones en la sección actual
     if (currentSubsectionIndex < selectedSection.subsecciones.length - 1) {
       // Ir a la siguiente subsección
       setCurrentSubsectionIndex(prev => prev + 1);
     } else {
-      // Verificar si todas las secciones están completas
-      const allSectionsCompleted = checkIfAllSectionsCompleted();
+      // Se completó toda la sección - mostrar resultados de la sección completa
+      const sectionResults = calculateSectionResults(selectedSection);
+      
+      // Marcar la sección como completada
+      setSectionProgress(prev => ({
+        ...prev,
+        [selectedSection.id]: {
+          completed: true,
+          results: sectionResults
+        }
+      }));
 
-      if (allSectionsCompleted) {
-        // Mostrar resumen general
-        const summaryData = calculateOverallResults();
-        setEvaluationSummaryData(summaryData);
-        setShowEvaluationSummary(true);
-      } else {
-        // Volver a selección de secciones
-        setCurrentStep('sectionSelection');
-        setSelectedSection(null);
-        setCurrentSubsectionIndex(0);
-      }
+      // Mostrar modal de resultados de sección completa
+      setCurrentSectionCompletionData(sectionResults);
+      setShowSectionCompletion(true);
+    }
+  };
+
+  // Continuar después de ver resultados de sección completa
+  const handleContinueAfterSectionCompletion = () => {
+    setShowSectionCompletion(false);
+    
+    // Verificar si todas las secciones están completas
+    const allSectionsCompleted = checkIfAllSectionsCompleted();
+
+    if (allSectionsCompleted) {
+      // Mostrar resumen general
+      const summaryData = calculateOverallResults();
+      setEvaluationSummaryData(summaryData);
+      setShowEvaluationSummary(true);
+    } else {
+      // Volver a selección de secciones
+      setCurrentStep('sectionSelection');
+      setSelectedSection(null);
+      setCurrentSubsectionIndex(0);
     }
   };
 
@@ -447,10 +562,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     if (!evaluationData?.secciones) return false;
 
     return evaluationData.secciones.every(section => 
-      section.subsecciones?.every((_, subIndex) => {
-        const progressKey = `${section.id}-${subIndex}`;
-        return subsectionProgress[progressKey]?.completed;
-      })
+      sectionProgress[section.id]?.completed
     );
   };
 
@@ -643,13 +755,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             {/* Lista de secciones */}
             <div className="space-y-4">
               {evaluationData?.secciones?.map((section, index) => {
-                const completedSubsections = section.subsecciones?.filter((_, subIndex) => {
-                  const progressKey = `${section.id}-${subIndex}`;
-                  return subsectionProgress[progressKey]?.completed;
-                }).length || 0;
-
-                const totalSubsections = section.subsecciones?.length || 0;
-                const isCompleted = completedSubsections === totalSubsections && totalSubsections > 0;
+                const isCompleted = sectionProgress[section.id]?.completed;
+                const sectionResults = sectionProgress[section.id]?.results;
 
                 return (
                   <motion.div
@@ -676,10 +783,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                           <div>
                             <span className="text-gray-800 font-bold text-lg block">{section.nombre}</span>
                             <span className="text-gray-600 text-sm">
-                              {totalSubsections} subsecciones
-                              {completedSubsections > 0 && (
+                              {section.subsecciones?.length || 0} subsecciones
+                              {isCompleted && sectionResults && (
                                 <span className="ml-2 text-green-600 font-medium">
-                                  ({completedSubsections}/{totalSubsections} completadas)
+                                  - {Math.round(sectionResults.overallPercentage)}% completado
                                 </span>
                               )}
                             </span>
@@ -913,13 +1020,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         </div>
 
         {/* Modales de resultados */}
-        <SectionResultsModal
-          isOpen={showSectionResults}
-          onClose={() => setShowSectionResults(false)}
-          onContinue={handleContinueAfterSectionResults}
-          sectionData={currentSubsection}
-          sectionResults={currentSectionResults}
-          isLastSection={currentSubsectionIndex === selectedSection?.subsecciones?.length - 1}
+        <SectionCompletionModal
+          isOpen={showSectionCompletion}
+          onClose={() => setShowSectionCompletion(false)}
+          onContinue={handleContinueAfterSectionCompletion}
+          sectionData={currentSectionCompletionData}
+          plantType={selectedPlantType}
         />
 
         <EvaluationSummaryModal
