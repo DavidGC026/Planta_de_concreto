@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, Save, ChevronRight, Building2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
+import SectionResultsModal from '@/components/SectionResultsModal';
+import EvaluationSummaryModal from '@/components/EvaluationSummaryModal';
 
 const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username }) => {
   // Estados principales del flujo
@@ -20,6 +22,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [evaluationData, setEvaluationData] = useState(null);
   const [subsectionProgress, setSubsectionProgress] = useState({});
   const [showStats, setShowStats] = useState(false);
+
+  // Estados para modales de resultados
+  const [showSectionResults, setShowSectionResults] = useState(false);
+  const [currentSectionResults, setCurrentSectionResults] = useState(null);
+  const [showEvaluationSummary, setShowEvaluationSummary] = useState(false);
+  const [evaluationSummaryData, setEvaluationSummaryData] = useState(null);
 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
@@ -110,46 +118,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 { id: 6, pregunta: '¿Las básculas de agregados pesan correctamente y están libres de obstrucciones?', tipo_pregunta: 'abierta' },
                 { id: 7, pregunta: '¿El sistema de dosificación de agua funciona con precisión y sin fugas?', tipo_pregunta: 'abierta' }
               ]
-            },
-            {
-              id: 'bandas_transportadoras',
-              nombre: 'Bandas Transportadoras',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 8, pregunta: '¿Las bandas transportadoras están en buen estado, sin roturas ni desgaste excesivo?', tipo_pregunta: 'abierta' },
-                { id: 9, pregunta: '¿Los motores y reductores de las bandas operan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 10, pregunta: '¿Los sistemas de limpieza de bandas funcionan adecuadamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'tolvas_silos',
-              nombre: 'Tolvas y Silos',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 11, pregunta: '¿Las tolvas de agregados están estructuralmente íntegras y libres de obstrucciones?', tipo_pregunta: 'abierta' },
-                { id: 12, pregunta: '¿Los silos de cemento mantienen su integridad estructural y sistemas de descarga?', tipo_pregunta: 'abierta' },
-                { id: 13, pregunta: '¿Los sistemas de vibración y fluidización funcionan correctamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistema_agua',
-              nombre: 'Sistema de Agua',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 14, pregunta: '¿El sistema de suministro de agua mantiene presión y caudal adecuados?', tipo_pregunta: 'abierta' },
-                { id: 15, pregunta: '¿Los tanques de agua están limpios y en buen estado?', tipo_pregunta: 'abierta' },
-                { id: 16, pregunta: '¿El sistema de dosificación de aditivos funciona correctamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistema_control',
-              nombre: 'Sistema de Control',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 17, pregunta: '¿El sistema de control automatizado responde correctamente a los comandos?', tipo_pregunta: 'abierta' },
-                { id: 18, pregunta: '¿Los sensores y dispositivos de medición están calibrados y funcionando?', tipo_pregunta: 'abierta' },
-                { id: 19, pregunta: '¿El software de control está actualizado y libre de errores?', tipo_pregunta: 'abierta' }
-              ]
             }
           ]
         },
@@ -166,254 +134,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 { id: 20, pregunta: '¿Los tambores de los camiones están en buen estado estructural?', tipo_pregunta: 'abierta' },
                 { id: 21, pregunta: '¿Los sistemas hidráulicos de los camiones funcionan correctamente?', tipo_pregunta: 'abierta' },
                 { id: 22, pregunta: '¿Las paletas internas del tambor están completas y bien fijadas?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'bombas_concreto',
-              nombre: 'Bombas de Concreto',
-              ponderacion_subseccion: 3.01,
-              preguntas: [
-                { id: 23, pregunta: '¿Las bombas de concreto operan sin fugas ni obstrucciones?', tipo_pregunta: 'abierta' },
-                { id: 24, pregunta: '¿Los sistemas de limpieza de bombas funcionan adecuadamente?', tipo_pregunta: 'abierta' },
-                { id: 25, pregunta: '¿Las mangueras y tuberías están en buen estado?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistemas_carga',
-              nombre: 'Sistemas de Carga',
-              ponderacion_subseccion: 3.01,
-              preguntas: [
-                { id: 26, pregunta: '¿Los sistemas de carga de camiones funcionan eficientemente?', tipo_pregunta: 'abierta' },
-                { id: 27, pregunta: '¿Las tolvas de descarga están libres de obstrucciones?', tipo_pregunta: 'abierta' },
-                { id: 28, pregunta: '¿Los controles de carga responden correctamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_limpieza',
-              nombre: 'Equipos de Limpieza',
-              ponderacion_subseccion: 3.01,
-              preguntas: [
-                { id: 29, pregunta: '¿Los equipos de lavado de camiones funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 30, pregunta: '¿Los sistemas de reciclaje de agua operan adecuadamente?', tipo_pregunta: 'abierta' },
-                { id: 31, pregunta: '¿Las instalaciones de limpieza están en buen estado?', tipo_pregunta: 'abierta' }
-              ]
-            }
-          ]
-        },
-        {
-          id: 'control_calidad',
-          nombre: 'Control de calidad',
-          ponderacion: 18.50,
-          subsecciones: [
-            {
-              id: 'equipos_laboratorio',
-              nombre: 'Equipos de Laboratorio',
-              ponderacion_subseccion: 3.70,
-              preguntas: [
-                { id: 32, pregunta: '¿Las prensas de laboratorio están calibradas y funcionando?', tipo_pregunta: 'abierta' },
-                { id: 33, pregunta: '¿Las balanzas de precisión están calibradas?', tipo_pregunta: 'abierta' },
-                { id: 34, pregunta: '¿Los equipos de ensayo están en buen estado?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'instrumentos_medicion',
-              nombre: 'Instrumentos de Medición',
-              ponderacion_subseccion: 3.70,
-              preguntas: [
-                { id: 35, pregunta: '¿Los instrumentos de medición están calibrados?', tipo_pregunta: 'abierta' },
-                { id: 36, pregunta: '¿Los medidores de humedad funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 37, pregunta: '¿Los termómetros están calibrados y funcionando?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_muestreo',
-              nombre: 'Equipos de Muestreo',
-              ponderacion_subseccion: 3.70,
-              preguntas: [
-                { id: 38, pregunta: '¿Los equipos para toma de muestras están disponibles?', tipo_pregunta: 'abierta' },
-                { id: 39, pregunta: '¿Los contenedores de muestras están limpios?', tipo_pregunta: 'abierta' },
-                { id: 40, pregunta: '¿Los equipos de muestreo están calibrados?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistemas_curado',
-              nombre: 'Sistemas de Curado',
-              ponderacion_subseccion: 3.70,
-              preguntas: [
-                { id: 41, pregunta: '¿Las cámaras húmedas mantienen condiciones adecuadas?', tipo_pregunta: 'abierta' },
-                { id: 42, pregunta: '¿Los sistemas de control de temperatura funcionan?', tipo_pregunta: 'abierta' },
-                { id: 43, pregunta: '¿Los sistemas de humedad están operativos?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_pruebas',
-              nombre: 'Equipos de Pruebas',
-              ponderacion_subseccion: 3.70,
-              preguntas: [
-                { id: 44, pregunta: '¿Los equipos para pruebas específicas están disponibles?', tipo_pregunta: 'abierta' },
-                { id: 45, pregunta: '¿Los equipos de ensayo están calibrados?', tipo_pregunta: 'abierta' },
-                { id: 46, pregunta: '¿Los instrumentos de medición están funcionando?', tipo_pregunta: 'abierta' }
-              ]
-            }
-          ]
-        },
-        {
-          id: 'mantenimiento',
-          nombre: 'Mantenimiento',
-          ponderacion: 15.20,
-          subsecciones: [
-            {
-              id: 'herramientas_mantenimiento',
-              nombre: 'Herramientas de Mantenimiento',
-              ponderacion_subseccion: 3.80,
-              preguntas: [
-                { id: 47, pregunta: '¿Las herramientas de mantenimiento están disponibles?', tipo_pregunta: 'abierta' },
-                { id: 48, pregunta: '¿Las herramientas están en buen estado?', tipo_pregunta: 'abierta' },
-                { id: 49, pregunta: '¿Se cuenta con repuestos básicos?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_diagnostico',
-              nombre: 'Equipos de Diagnóstico',
-              ponderacion_subseccion: 3.80,
-              preguntas: [
-                { id: 50, pregunta: '¿Los equipos de diagnóstico están disponibles?', tipo_pregunta: 'abierta' },
-                { id: 51, pregunta: '¿Los instrumentos de medición funcionan?', tipo_pregunta: 'abierta' },
-                { id: 52, pregunta: '¿Se cuenta con equipos de análisis?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistemas_lubricacion',
-              nombre: 'Sistemas de Lubricación',
-              ponderacion_subseccion: 3.80,
-              preguntas: [
-                { id: 53, pregunta: '¿Los sistemas de lubricación automática funcionan?', tipo_pregunta: 'abierta' },
-                { id: 54, pregunta: '¿Se cuenta con lubricantes adecuados?', tipo_pregunta: 'abierta' },
-                { id: 55, pregunta: '¿Los sistemas de distribución están operativos?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_soldadura',
-              nombre: 'Equipos de Soldadura',
-              ponderacion_subseccion: 3.80,
-              preguntas: [
-                { id: 56, pregunta: '¿Los equipos de soldadura están disponibles?', tipo_pregunta: 'abierta' },
-                { id: 57, pregunta: '¿Los equipos de soldadura funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 58, pregunta: '¿Se cuenta con materiales de soldadura?', tipo_pregunta: 'abierta' }
-              ]
-            }
-          ]
-        },
-        {
-          id: 'seguridad_ambiente',
-          nombre: 'Seguridad y medio ambiente',
-          ponderacion: 20.36,
-          subsecciones: [
-            {
-              id: 'equipos_incendios',
-              nombre: 'Equipos Contra Incendios',
-              ponderacion_subseccion: 3.39,
-              preguntas: [
-                { id: 59, pregunta: '¿Los extintores están en buen estado y vigentes?', tipo_pregunta: 'abierta' },
-                { id: 60, pregunta: '¿Los sistemas contra incendios funcionan?', tipo_pregunta: 'abierta' },
-                { id: 61, pregunta: '¿Las alarmas de incendio están operativas?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_proteccion',
-              nombre: 'Equipos de Protección Personal',
-              ponderacion_subseccion: 3.39,
-              preguntas: [
-                { id: 62, pregunta: '¿Se cuenta con EPP suficiente y en buen estado?', tipo_pregunta: 'abierta' },
-                { id: 63, pregunta: '¿Los equipos de seguridad están disponibles?', tipo_pregunta: 'abierta' },
-                { id: 64, pregunta: '¿Los EPP cumplen con las normas?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'control_polvo',
-              nombre: 'Control de Polvo',
-              ponderacion_subseccion: 3.39,
-              preguntas: [
-                { id: 65, pregunta: '¿Los sistemas de control de polvo funcionan?', tipo_pregunta: 'abierta' },
-                { id: 66, pregunta: '¿Los filtros están en buen estado?', tipo_pregunta: 'abierta' },
-                { id: 67, pregunta: '¿Los sistemas de aspersión operan correctamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'tratamiento_aguas',
-              nombre: 'Tratamiento de Aguas',
-              ponderacion_subseccion: 3.39,
-              preguntas: [
-                { id: 68, pregunta: '¿Los sistemas de tratamiento de aguas funcionan?', tipo_pregunta: 'abierta' },
-                { id: 69, pregunta: '¿Las plantas de tratamiento están operativas?', tipo_pregunta: 'abierta' },
-                { id: 70, pregunta: '¿Los sistemas de reciclaje funcionan?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistemas_emergencia',
-              nombre: 'Sistemas de Emergencia',
-              ponderacion_subseccion: 3.39,
-              preguntas: [
-                { id: 71, pregunta: '¿Los sistemas de alarma funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 72, pregunta: '¿Los sistemas de emergencia están operativos?', tipo_pregunta: 'abierta' },
-                { id: 73, pregunta: '¿Las rutas de evacuación están señalizadas?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'monitoreo_ambiental',
-              nombre: 'Monitoreo Ambiental',
-              ponderacion_subseccion: 3.39,
-              preguntas: [
-                { id: 74, pregunta: '¿Los equipos de monitoreo ambiental funcionan?', tipo_pregunta: 'abierta' },
-                { id: 75, pregunta: '¿Los sensores ambientales están calibrados?', tipo_pregunta: 'abierta' },
-                { id: 76, pregunta: '¿Los sistemas de medición están operativos?', tipo_pregunta: 'abierta' }
-              ]
-            }
-          ]
-        },
-        {
-          id: 'gestion_administracion',
-          nombre: 'Gestión y administración',
-          ponderacion: 14.00,
-          subsecciones: [
-            {
-              id: 'sistemas_informaticos',
-              nombre: 'Sistemas Informáticos',
-              ponderacion_subseccion: 3.50,
-              preguntas: [
-                { id: 77, pregunta: '¿Los sistemas informáticos funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 78, pregunta: '¿El software está actualizado?', tipo_pregunta: 'abierta' },
-                { id: 79, pregunta: '¿Los sistemas de respaldo funcionan?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_comunicacion',
-              nombre: 'Equipos de Comunicación',
-              ponderacion_subseccion: 3.50,
-              preguntas: [
-                { id: 80, pregunta: '¿Los equipos de comunicación funcionan?', tipo_pregunta: 'abierta' },
-                { id: 81, pregunta: '¿Los sistemas de telecomunicaciones están operativos?', tipo_pregunta: 'abierta' },
-                { id: 82, pregunta: '¿Los radios y teléfonos funcionan correctamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistemas_pesaje',
-              nombre: 'Sistemas de Pesaje',
-              ponderacion_subseccion: 3.50,
-              preguntas: [
-                { id: 83, pregunta: '¿Las básculas de camiones están calibradas?', tipo_pregunta: 'abierta' },
-                { id: 84, pregunta: '¿Los sistemas de pesaje funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 85, pregunta: '¿Los indicadores de peso están operativos?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_oficina',
-              nombre: 'Equipos de Oficina',
-              ponderacion_subseccion: 3.50,
-              preguntas: [
-                { id: 86, pregunta: '¿Los equipos de oficina están en buen estado?', tipo_pregunta: 'abierta' },
-                { id: 87, pregunta: '¿Las computadoras funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 88, pregunta: '¿Los equipos de impresión están operativos?', tipo_pregunta: 'abierta' }
               ]
             }
           ]
@@ -454,6 +174,79 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     } catch (error) {
       console.error('Error loading saved progress:', error);
     }
+  };
+
+  // Función para calcular resultados de una subsección
+  const calculateSubsectionResults = (subsection, sectionId, subsectionIndex) => {
+    let correctAnswers = 0;
+    let totalQuestions = 0;
+
+    subsection.preguntas?.forEach((pregunta, qIndex) => {
+      const key = `${selectedPlantType}-${sectionId}-${subsectionIndex}-${qIndex}`;
+      const answer = answers[key];
+      
+      if (answer) {
+        totalQuestions++;
+        if (answer === 'si') {
+          correctAnswers++;
+        }
+      }
+    });
+
+    const percentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+
+    // Generar recomendaciones basadas en el porcentaje
+    const recommendations = [];
+    if (percentage < 60) {
+      recommendations.push(`Revisar y mejorar los equipos de ${subsection.nombre.toLowerCase()}`);
+      recommendations.push('Implementar plan de mantenimiento preventivo');
+    } else if (percentage < 80) {
+      recommendations.push('Mantener el buen estado actual');
+      recommendations.push('Considerar mejoras menores para optimización');
+    } else {
+      recommendations.push('Excelente estado de los equipos');
+      recommendations.push('Continuar con el programa de mantenimiento actual');
+    }
+
+    return {
+      percentage,
+      correctAnswers,
+      totalQuestions,
+      recommendations
+    };
+  };
+
+  // Función para calcular resultados generales de la evaluación
+  const calculateOverallResults = () => {
+    const sectionResults = [];
+    let totalCorrect = 0;
+    let totalQuestions = 0;
+
+    evaluationData?.secciones?.forEach((seccion, sectionIndex) => {
+      seccion.subsecciones?.forEach((subseccion, subsectionIndex) => {
+        const results = calculateSubsectionResults(subseccion, seccion.id, subsectionIndex);
+        
+        sectionResults.push({
+          name: subseccion.nombre,
+          percentage: results.percentage,
+          correctAnswers: results.correctAnswers,
+          totalQuestions: results.totalQuestions,
+          ponderacion: subseccion.ponderacion_subseccion
+        });
+
+        totalCorrect += results.correctAnswers;
+        totalQuestions += results.totalQuestions;
+      });
+    });
+
+    const overallScore = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+
+    return {
+      sectionResults,
+      overallScore,
+      totalQuestions,
+      correctAnswers: totalCorrect
+    };
   };
 
   const generateSimulatedEquipmentEvaluation = () => {
@@ -608,10 +401,23 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
-  // Continuar a siguiente subsección o completar evaluación
+  // Continuar a siguiente subsección o mostrar resultados
   const handleNextSubsection = async () => {
     await saveCurrentSubsectionProgress();
 
+    const currentSubsection = selectedSection.subsecciones[currentSubsectionIndex];
+    
+    // Calcular y mostrar resultados de la subsección actual
+    const sectionResults = calculateSubsectionResults(currentSubsection, selectedSection.id, currentSubsectionIndex);
+    
+    setCurrentSectionResults(sectionResults);
+    setShowSectionResults(true);
+  };
+
+  // Continuar después de ver resultados de sección
+  const handleContinueAfterSectionResults = () => {
+    setShowSectionResults(false);
+    
     if (currentSubsectionIndex < selectedSection.subsecciones.length - 1) {
       setCurrentSubsectionIndex(prev => prev + 1);
     } else {
@@ -624,7 +430,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       );
 
       if (allSectionsCompleted) {
-        await completeEvaluation();
+        // Mostrar resumen general
+        const summaryData = calculateOverallResults();
+        setEvaluationSummaryData(summaryData);
+        setShowEvaluationSummary(true);
       } else {
         // Volver a selección de secciones
         setCurrentStep('sectionSelection');
@@ -634,8 +443,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
-  // Completar evaluación completa
-  const completeEvaluation = async () => {
+  // Finalizar evaluación completa
+  const handleFinishEvaluation = async () => {
     try {
       setLoading(true);
 
@@ -700,6 +509,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       });
     } finally {
       setLoading(false);
+      setShowEvaluationSummary(false);
     }
   };
 
@@ -1100,16 +910,38 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  // Fallback
+  // Modales de resultados
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
-      <Settings size={64} className="mb-4 text-blue-600" />
-      <h1 className="text-3xl font-bold mb-2">Estado no válido</h1>
-      <p className="text-lg mb-6 text-center">Ha ocurrido un error en el flujo de evaluación.</p>
-      <Button onClick={onBack} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Menú
-      </Button>
-    </div>
+    <>
+      {/* Modal de resultados de sección */}
+      <SectionResultsModal
+        isOpen={showSectionResults}
+        onClose={() => setShowSectionResults(false)}
+        onContinue={handleContinueAfterSectionResults}
+        sectionData={selectedSection?.subsecciones?.[currentSubsectionIndex]}
+        sectionResults={currentSectionResults}
+        isLastSection={currentSubsectionIndex === selectedSection?.subsecciones?.length - 1}
+      />
+
+      {/* Modal de resumen de evaluación */}
+      <EvaluationSummaryModal
+        isOpen={showEvaluationSummary}
+        onClose={() => setShowEvaluationSummary(false)}
+        onFinish={handleFinishEvaluation}
+        evaluationData={evaluationSummaryData}
+        plantType={selectedPlantType}
+      />
+
+      {/* Fallback */}
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
+        <Settings size={64} className="mb-4 text-blue-600" />
+        <h1 className="text-3xl font-bold mb-2">Estado no válido</h1>
+        <p className="text-lg mb-6 text-center">Ha ocurrido un error en el flujo de evaluación.</p>
+        <Button onClick={onBack} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Menú
+        </Button>
+      </div>
+    </>
   );
 };
 
