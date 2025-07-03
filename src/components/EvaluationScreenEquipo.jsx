@@ -401,33 +401,32 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
-  // Continuar a siguiente subsección o mostrar resultados
+  // Continuar a siguiente subsección o mostrar resultados - CORREGIDO
   const handleNextSubsection = async () => {
+    // Primero guardar el progreso
     await saveCurrentSubsectionProgress();
 
     const currentSubsection = selectedSection.subsecciones[currentSubsectionIndex];
     
-    // Calcular y mostrar resultados de la subsección actual
+    // Calcular resultados de la subsección actual
     const sectionResults = calculateSubsectionResults(currentSubsection, selectedSection.id, currentSubsectionIndex);
     
+    // Mostrar modal de resultados
     setCurrentSectionResults(sectionResults);
     setShowSectionResults(true);
   };
 
-  // Continuar después de ver resultados de sección
+  // Continuar después de ver resultados de sección - CORREGIDO
   const handleContinueAfterSectionResults = () => {
     setShowSectionResults(false);
     
+    // Verificar si hay más subsecciones en la sección actual
     if (currentSubsectionIndex < selectedSection.subsecciones.length - 1) {
+      // Ir a la siguiente subsección
       setCurrentSubsectionIndex(prev => prev + 1);
     } else {
       // Verificar si todas las secciones están completas
-      const allSectionsCompleted = evaluationData?.secciones?.every(section => 
-        section.subsecciones?.every((_, subIndex) => {
-          const progressKey = `${section.id}-${subIndex}`;
-          return subsectionProgress[progressKey]?.completed;
-        })
-      );
+      const allSectionsCompleted = checkIfAllSectionsCompleted();
 
       if (allSectionsCompleted) {
         // Mostrar resumen general
@@ -441,6 +440,18 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         setCurrentSubsectionIndex(0);
       }
     }
+  };
+
+  // Función para verificar si todas las secciones están completas
+  const checkIfAllSectionsCompleted = () => {
+    if (!evaluationData?.secciones) return false;
+
+    return evaluationData.secciones.every(section => 
+      section.subsecciones?.every((_, subIndex) => {
+        const progressKey = `${section.id}-${subIndex}`;
+        return subsectionProgress[progressKey]?.completed;
+      })
+    );
   };
 
   // Finalizar evaluación completa
@@ -901,6 +912,24 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
           </div>
         </div>
 
+        {/* Modales de resultados */}
+        <SectionResultsModal
+          isOpen={showSectionResults}
+          onClose={() => setShowSectionResults(false)}
+          onContinue={handleContinueAfterSectionResults}
+          sectionData={currentSubsection}
+          sectionResults={currentSectionResults}
+          isLastSection={currentSubsectionIndex === selectedSection?.subsecciones?.length - 1}
+        />
+
+        <EvaluationSummaryModal
+          isOpen={showEvaluationSummary}
+          onClose={() => setShowEvaluationSummary(false)}
+          onFinish={handleFinishEvaluation}
+          evaluationData={evaluationSummaryData}
+          plantType={selectedPlantType}
+        />
+
         <img
           src="public/Concreton.png"
           alt="Mascota Concreton"
@@ -910,38 +939,16 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  // Modales de resultados
+  // Fallback
   return (
-    <>
-      {/* Modal de resultados de sección */}
-      <SectionResultsModal
-        isOpen={showSectionResults}
-        onClose={() => setShowSectionResults(false)}
-        onContinue={handleContinueAfterSectionResults}
-        sectionData={selectedSection?.subsecciones?.[currentSubsectionIndex]}
-        sectionResults={currentSectionResults}
-        isLastSection={currentSubsectionIndex === selectedSection?.subsecciones?.length - 1}
-      />
-
-      {/* Modal de resumen de evaluación */}
-      <EvaluationSummaryModal
-        isOpen={showEvaluationSummary}
-        onClose={() => setShowEvaluationSummary(false)}
-        onFinish={handleFinishEvaluation}
-        evaluationData={evaluationSummaryData}
-        plantType={selectedPlantType}
-      />
-
-      {/* Fallback */}
-      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
-        <Settings size={64} className="mb-4 text-blue-600" />
-        <h1 className="text-3xl font-bold mb-2">Estado no válido</h1>
-        <p className="text-lg mb-6 text-center">Ha ocurrido un error en el flujo de evaluación.</p>
-        <Button onClick={onBack} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Menú
-        </Button>
-      </div>
-    </>
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
+      <Settings size={64} className="mb-4 text-blue-600" />
+      <h1 className="text-3xl font-bold mb-2">Estado no válido</h1>
+      <p className="text-lg mb-6 text-center">Ha ocurrido un error en el flujo de evaluación.</p>
+      <Button onClick={onBack} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Menú
+      </Button>
+    </div>
   );
 };
 
