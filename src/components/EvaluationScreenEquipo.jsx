@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, Save, ChevronRight, Building2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
+import equipmentProgressService from '@/services/equipmentProgressService';
 import SectionCompletionModal from '@/components/SectionCompletionModal';
 import EvaluationSummaryModal from '@/components/EvaluationSummaryModal';
 
@@ -23,6 +24,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [subsectionProgress, setSubsectionProgress] = useState({});
   const [sectionProgress, setSectionProgress] = useState({});
   const [showStats, setShowStats] = useState(false);
+
+  // Estados para progreso guardado en BD
+  const [savedProgress, setSavedProgress] = useState(null);
+  const [progressLoading, setProgressLoading] = useState(false);
 
   // Estados para modales de resultados
   const [showSectionCompletion, setShowSectionCompletion] = useState(false);
@@ -44,6 +49,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     // Cargar datos de evaluación cuando se selecciona tipo de planta
     if (selectedPlantType && currentStep === 'sectionSelection') {
       loadEvaluationData();
+      loadSavedProgress();
     }
   }, [selectedPlantType, currentStep]);
 
@@ -56,13 +62,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       });
     }
   }, [currentStep, selectedSection, currentSubsectionIndex]);
-
-  // Cargar progreso guardado
-  useEffect(() => {
-    if (selectedPlantType && evaluationData) {
-      loadSavedProgress();
-    }
-  }, [selectedPlantType, evaluationData]);
 
   const loadEvaluationData = async () => {
     try {
@@ -87,6 +86,95 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       setEvaluationData(generateFallbackData());
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Cargar progreso guardado desde la base de datos
+  const loadSavedProgress = async () => {
+    try {
+      setProgressLoading(true);
+      const user = apiService.getCurrentUser();
+      
+      if (!user) {
+        console.log('No hay usuario autenticado');
+        return;
+      }
+
+      console.log('Cargando progreso guardado para:', user.id, selectedPlantType);
+      
+      const progressData = await equipmentProgressService.getProgress(user.id, selectedPlantType);
+      
+      console.log('Progreso cargado desde BD:', progressData);
+      
+      if (progressData && progressData.secciones && progressData.secciones.length > 0) {
+        setSavedProgress(progressData);
+        
+        // Formatear progreso para el componente
+        const formattedProgress = equipmentProgressService.formatProgressForComponent(progressData);
+        setSubsectionProgress(formattedProgress);
+        
+        // Marcar secciones como completadas
+        const sectionProgressData = {};
+        progressData.secciones.forEach(section => {
+          if (section.completada) {
+            sectionProgressData[section.seccion_id] = {
+              completed: true,
+              results: {
+                sectionName: section.seccion_nombre,
+                overallPercentage: section.puntaje_porcentaje,
+                totalCorrect: section.respuestas_correctas,
+                totalQuestions: section.total_preguntas,
+                subsectionResults: section.subsecciones || [],
+                recommendations: generateRecommendationsFromScore(section.puntaje_porcentaje),
+                ponderacion: 0 // Se puede obtener de evaluationData después
+              }
+            };
+          }
+        });
+        setSectionProgress(sectionProgressData);
+        
+        const stats = equipmentProgressService.getProgressStats(progressData);
+        
+        toast({
+          title: "📊 Progreso cargado",
+          description: `${stats.completedSections}/${stats.totalSections} secciones completadas para ${selectedPlantType}`
+        });
+      } else {
+        console.log('No se encontró progreso previo');
+        setSavedProgress(null);
+      }
+      
+    } catch (error) {
+      console.error('Error loading saved progress:', error);
+      toast({
+        title: "⚠️ Advertencia",
+        description: "No se pudo cargar el progreso previo"
+      });
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  // Función para generar recomendaciones basadas en puntuación
+  const generateRecommendationsFromScore = (score) => {
+    if (score >= 80) {
+      return [
+        'Excelente estado del equipo',
+        'Mantener el programa de mantenimiento actual',
+        'Considerar como referencia para otras plantas'
+      ];
+    } else if (score >= 60) {
+      return [
+        'Buen estado general del equipo',
+        'Implementar mejoras menores identificadas',
+        'Revisar subsecciones con menor puntuación'
+      ];
+    } else {
+      return [
+        'Requiere atención inmediata',
+        'Desarrollar plan de mejora integral',
+        'Priorizar mantenimiento correctivo'
+      ];
     }
   };
 
@@ -213,43 +301,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     };
   };
 
-  const loadSavedProgress = async () => {
-    try {
-      const user = apiService.getCurrentUser();
-      if (!user) return;
-
-      const progressData = await apiService.getProgresoSecciones({
-        usuario_id: user.id,
-        tipo_evaluacion: 'equipo',
-        tipo_planta: selectedPlantType
-      });
-
-      if (progressData.progreso_secciones && progressData.progreso_secciones.length > 0) {
-        const savedProgress = {};
-        const savedSectionProgress = {};
-        
-        progressData.progreso_secciones.forEach(progress => {
-          const key = `${progress.seccion_orden - 1}`;
-          savedProgress[key] = {
-            completed: true,
-            score: progress.puntaje_porcentaje,
-            correctAnswers: progress.respuestas_correctas,
-            totalQuestions: progress.total_preguntas
-          };
-        });
-        
-        setSubsectionProgress(savedProgress);
-
-        toast({
-          title: "📊 Progreso cargado",
-          description: `Se encontró progreso previo para ${selectedPlantType}`
-        });
-      }
-    } catch (error) {
-      console.error('Error loading saved progress:', error);
-    }
-  };
-
   // Función para calcular resultados de una subsección
   const calculateSubsectionResults = (subsection, sectionId, subsectionIndex) => {
     let correctAnswers = 0;
@@ -300,20 +351,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     const overallPercentage = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
 
     // Generar recomendaciones para la sección
-    const recommendations = [];
-    if (overallPercentage >= 80) {
-      recommendations.push(`Excelente estado de ${section.nombre.toLowerCase()}`);
-      recommendations.push('Mantener el programa de mantenimiento actual');
-      recommendations.push('Considerar como referencia para otras plantas');
-    } else if (overallPercentage >= 60) {
-      recommendations.push(`Buen estado general de ${section.nombre.toLowerCase()}`);
-      recommendations.push('Implementar mejoras menores identificadas');
-      recommendations.push('Revisar subsecciones con menor puntuación');
-    } else {
-      recommendations.push(`Requiere atención inmediata en ${section.nombre.toLowerCase()}`);
-      recommendations.push('Desarrollar plan de mejora integral');
-      recommendations.push('Priorizar mantenimiento correctivo');
-    }
+    const recommendations = generateRecommendationsFromScore(overallPercentage);
 
     return {
       sectionName: section.nombre,
@@ -429,6 +467,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     setAnswers({});
     setSubsectionProgress({});
     setSectionProgress({});
+    setSavedProgress(null);
   };
 
   // Manejar selección de sección
@@ -444,7 +483,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     setAnswers(prev => ({ ...prev, [key]: selectedOption }));
   };
 
-  // Guardar progreso de subsección actual
+  // Guardar progreso de subsección actual en la base de datos
   const saveCurrentSubsectionProgress = async () => {
     try {
       const user = apiService.getCurrentUser();
@@ -472,18 +511,20 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const subsectionPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
-      await apiService.guardarProgresoSeccion({
+      // Guardar en la base de datos usando el nuevo servicio
+      await equipmentProgressService.saveSubsectionProgress({
         usuario_id: user.id,
-        tipo_evaluacion: 'equipo',
-        seccion_nombre: currentSubsection.nombre,
-        seccion_orden: currentSubsectionIndex + 1,
-        puntaje_seccion: subsectionScore,
+        tipo_planta: selectedPlantType,
+        seccion_id: parseInt(selectedSection.id) || 0, // Convertir a número o usar 0 como fallback
+        subseccion_id: parseInt(currentSubsection.id) || currentSubsectionIndex + 1,
+        subseccion_nombre: currentSubsection.nombre,
+        puntaje_obtenido: subsectionScore,
         puntaje_porcentaje: subsectionPercentage,
         respuestas_correctas: correctAnswers,
-        total_preguntas: totalQuestions,
-        tipo_planta: selectedPlantType
+        total_preguntas: totalQuestions
       });
 
+      // Actualizar estado local
       const progressKey = `${selectedSection.id}-${currentSubsectionIndex}`;
       setSubsectionProgress(prev => ({
         ...prev,
@@ -494,6 +535,9 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
           totalQuestions: totalQuestions
         }
       }));
+
+      // Recargar progreso desde la BD para mantener sincronización
+      await loadSavedProgress();
 
       toast({
         title: "💾 Progreso guardado",
@@ -522,7 +566,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       // Se completó toda la sección - mostrar resultados de la sección completa
       const sectionResults = calculateSectionResults(selectedSection);
       
-      // Marcar la sección como completada
+      // Marcar la sección como completada en estado local
       setSectionProgress(prev => ({
         ...prev,
         [selectedSection.id]: {
@@ -562,7 +606,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     if (!evaluationData?.secciones) return false;
 
     return evaluationData.secciones.every(section => 
-      sectionProgress[section.id]?.completed
+      sectionProgress[section.id]?.completed || 
+      (savedProgress && equipmentProgressService.isSectionCompleted(savedProgress, parseInt(section.id)))
     );
   };
 
@@ -636,14 +681,43 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
+  // Función para limpiar progreso (útil para testing)
+  const handleClearProgress = async () => {
+    try {
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+
+      await equipmentProgressService.clearProgress(user.id, selectedPlantType);
+      
+      // Limpiar estados locales
+      setSubsectionProgress({});
+      setSectionProgress({});
+      setSavedProgress(null);
+      setAnswers({});
+      
+      toast({
+        title: "🗑️ Progreso limpiado",
+        description: "Se ha eliminado todo el progreso guardado"
+      });
+      
+    } catch (error) {
+      console.error('Error clearing progress:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo limpiar el progreso"
+      });
+    }
+  };
+
   // Pantalla de carga
-  if (loading) {
+  if (loading || progressLoading) {
     return (
       <div className="min-h-screen relative bg-gray-100 overflow-hidden flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-lg text-gray-600">
-            {currentStep === 'subsectionEvaluation' ? 'Guardando evaluación de equipo...' : 'Cargando datos de evaluación...'}
+            {progressLoading ? 'Cargando progreso guardado...' : 
+             currentStep === 'subsectionEvaluation' ? 'Guardando evaluación de equipo...' : 'Cargando datos de evaluación...'}
           </p>
         </div>
       </div>
@@ -737,10 +811,19 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo - {selectedPlantType}</h2>
               <p className="text-white/80">Selecciona la sección a evaluar</p>
+              
+              {/* Mostrar estadísticas de progreso si hay progreso guardado */}
+              {savedProgress && (
+                <div className="mt-4 bg-white/90 backdrop-blur-sm rounded-lg p-4">
+                  <div className="text-sm text-gray-700">
+                    <strong>Progreso guardado:</strong> {equipmentProgressService.getProgressStats(savedProgress).completedSections}/{equipmentProgressService.getProgressStats(savedProgress).totalSections} secciones completadas
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Botón para saltar a resultados simulados */}
-            <div className="mb-6 flex justify-center">
+            <div className="mb-6 flex justify-center space-x-4">
               <Button
                 onClick={handleSkipToResults}
                 variant="outline"
@@ -750,13 +833,32 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 <Zap className="w-5 h-5" />
                 <span>Ver Evaluación Simulada</span>
               </Button>
+              
+              {/* Botón para limpiar progreso (solo en desarrollo) */}
+              {savedProgress && (
+                <Button
+                  onClick={handleClearProgress}
+                  variant="outline"
+                  size="sm"
+                  className="bg-red-100 border-red-400 text-red-800 hover:bg-red-200 flex items-center space-x-2"
+                >
+                  <span>Limpiar Progreso</span>
+                </Button>
+              )}
             </div>
 
             {/* Lista de secciones */}
             <div className="space-y-4">
               {evaluationData?.secciones?.map((section, index) => {
-                const isCompleted = sectionProgress[section.id]?.completed;
+                const isCompleted = sectionProgress[section.id]?.completed || 
+                                   (savedProgress && equipmentProgressService.isSectionCompleted(savedProgress, parseInt(section.id)));
                 const sectionResults = sectionProgress[section.id]?.results;
+
+                // Obtener información de progreso desde savedProgress si está disponible
+                let savedSectionData = null;
+                if (savedProgress && savedProgress.secciones) {
+                  savedSectionData = savedProgress.secciones.find(s => s.seccion_id === parseInt(section.id));
+                }
 
                 return (
                   <motion.div
@@ -784,9 +886,14 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                             <span className="text-gray-800 font-bold text-lg block">{section.nombre}</span>
                             <span className="text-gray-600 text-sm">
                               {section.subsecciones?.length || 0} subsecciones
-                              {isCompleted && sectionResults && (
+                              {isCompleted && (
                                 <span className="ml-2 text-green-600 font-medium">
-                                  - {Math.round(sectionResults.overallPercentage)}% completado
+                                  - {Math.round(savedSectionData?.puntaje_porcentaje || sectionResults?.overallPercentage || 0)}% completado
+                                </span>
+                              )}
+                              {savedSectionData && savedSectionData.fecha_completada && (
+                                <span className="block text-xs text-gray-500">
+                                  Completado: {new Date(savedSectionData.fecha_completada).toLocaleDateString()}
                                 </span>
                               )}
                             </span>
@@ -827,7 +934,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   if (currentStep === 'subsectionEvaluation' && selectedSection) {
     const currentSubsection = selectedSection.subsecciones[currentSubsectionIndex];
     const progressKey = `${selectedSection.id}-${currentSubsectionIndex}`;
-    const isSubsectionCompleted = subsectionProgress[progressKey]?.completed;
+    const isSubsectionCompleted = subsectionProgress[progressKey]?.completed ||
+                                  (savedProgress && equipmentProgressService.isSubsectionCompleted(
+                                    savedProgress, 
+                                    parseInt(selectedSection.id), 
+                                    parseInt(currentSubsection?.id) || currentSubsectionIndex + 1
+                                  ));
 
     if (!currentSubsection) {
       return (
@@ -879,16 +991,26 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             </div>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <div className="flex h-full">
-                {Array.from({ length: selectedSection.subsecciones.length }, (_, i) => (
-                  <div
-                    key={i}
-                    className={`flex-1 ${
-                      subsectionProgress[`${selectedSection.id}-${i}`]?.completed ? 'bg-green-600' :
-                      i < currentSubsectionIndex ? 'bg-blue-600' :
-                      i === currentSubsectionIndex ? 'bg-blue-400' : 'bg-gray-300'
-                    } ${i < selectedSection.subsecciones.length - 1 ? 'mr-1' : ''}`}
-                  />
-                ))}
+                {Array.from({ length: selectedSection.subsecciones.length }, (_, i) => {
+                  const subProgressKey = `${selectedSection.id}-${i}`;
+                  const isSubCompleted = subsectionProgress[subProgressKey]?.completed ||
+                                        (savedProgress && equipmentProgressService.isSubsectionCompleted(
+                                          savedProgress, 
+                                          parseInt(selectedSection.id), 
+                                          parseInt(selectedSection.subsecciones[i]?.id) || i + 1
+                                        ));
+                  
+                  return (
+                    <div
+                      key={i}
+                      className={`flex-1 ${
+                        isSubCompleted ? 'bg-green-600' :
+                        i < currentSubsectionIndex ? 'bg-blue-600' :
+                        i === currentSubsectionIndex ? 'bg-blue-400' : 'bg-gray-300'
+                      } ${i < selectedSection.subsecciones.length - 1 ? 'mr-1' : ''}`}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>
