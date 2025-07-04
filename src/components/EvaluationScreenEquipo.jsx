@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, Save, ChevronRight, Building2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, Save, ChevronRight, Building2, TrendingUp } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
@@ -34,6 +34,9 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [currentSectionCompletionData, setCurrentSectionCompletionData] = useState(null);
   const [showEvaluationSummary, setShowEvaluationSummary] = useState(false);
   const [evaluationSummaryData, setEvaluationSummaryData] = useState(null);
+
+  // Nuevo estado para modal de progreso general
+  const [showProgressModal, setShowProgressModal] = useState(false);
 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
@@ -364,6 +367,60 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     };
   };
 
+  // Función mejorada para calcular resultados generales incluyendo progreso guardado
+  const calculateOverallResultsWithSavedProgress = () => {
+    const sectionResults = [];
+    let totalCorrect = 0;
+    let totalQuestions = 0;
+
+    // Usar datos de evaluación o fallback
+    const sectionsToUse = evaluationData?.secciones || generateFallbackData().secciones;
+
+    sectionsToUse.forEach((seccion) => {
+      // Verificar si hay progreso guardado para esta sección
+      const savedSectionData = savedProgress?.secciones?.find(s => 
+        s.seccion_id === parseInt(seccion.id) || 
+        s.seccion_nombre === seccion.nombre
+      );
+
+      if (savedSectionData && savedSectionData.completada) {
+        // Usar datos guardados
+        sectionResults.push({
+          name: seccion.nombre,
+          percentage: savedSectionData.puntaje_porcentaje,
+          correctAnswers: savedSectionData.respuestas_correctas,
+          totalQuestions: savedSectionData.total_preguntas,
+          ponderacion: seccion.ponderacion
+        });
+
+        totalCorrect += savedSectionData.respuestas_correctas;
+        totalQuestions += savedSectionData.total_preguntas;
+      } else {
+        // Calcular desde respuestas actuales
+        const sectionData = calculateSectionResults(seccion);
+        sectionResults.push({
+          name: seccion.nombre,
+          percentage: sectionData.overallPercentage,
+          correctAnswers: sectionData.totalCorrect,
+          totalQuestions: sectionData.totalQuestions,
+          ponderacion: seccion.ponderacion
+        });
+
+        totalCorrect += sectionData.totalCorrect;
+        totalQuestions += sectionData.totalQuestions;
+      }
+    });
+
+    const overallScore = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+
+    return {
+      sectionResults,
+      overallScore,
+      totalQuestions,
+      correctAnswers: totalCorrect
+    };
+  };
+
   // Función para calcular resultados generales de la evaluación
   const calculateOverallResults = () => {
     const sectionResults = [];
@@ -589,8 +646,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     const allSectionsCompleted = checkIfAllSectionsCompleted();
 
     if (allSectionsCompleted) {
-      // Mostrar resumen general
-      const summaryData = calculateOverallResults();
+      // Mostrar resumen general con progreso guardado
+      const summaryData = calculateOverallResultsWithSavedProgress();
       setEvaluationSummaryData(summaryData);
       setShowEvaluationSummary(true);
     } else {
@@ -609,6 +666,22 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       sectionProgress[section.id]?.completed || 
       (savedProgress && equipmentProgressService.isSectionCompleted(savedProgress, parseInt(section.id)))
     );
+  };
+
+  // Función para mostrar progreso general
+  const handleShowProgress = () => {
+    if (!savedProgress || !savedProgress.secciones || savedProgress.secciones.length === 0) {
+      toast({
+        title: "📊 Sin progreso",
+        description: "No hay progreso guardado para mostrar"
+      });
+      return;
+    }
+
+    // Calcular resultados con progreso guardado
+    const summaryData = calculateOverallResultsWithSavedProgress();
+    setEvaluationSummaryData(summaryData);
+    setShowProgressModal(true);
   };
 
   // Finalizar evaluación completa
@@ -678,6 +751,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     } finally {
       setLoading(false);
       setShowEvaluationSummary(false);
+      setShowProgressModal(false);
     }
   };
 
@@ -822,7 +896,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               )}
             </div>
 
-            {/* Botón para saltar a resultados simulados */}
+            {/* Botones de acción */}
             <div className="mb-6 flex justify-center space-x-4">
               <Button
                 onClick={handleSkipToResults}
@@ -833,6 +907,19 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 <Zap className="w-5 h-5" />
                 <span>Ver Evaluación Simulada</span>
               </Button>
+              
+              {/* Botón para ver progreso */}
+              {savedProgress && savedProgress.secciones && savedProgress.secciones.length > 0 && (
+                <Button
+                  onClick={handleShowProgress}
+                  variant="outline"
+                  size="lg"
+                  className="bg-blue-100 border-blue-400 text-blue-800 hover:bg-blue-200 flex items-center space-x-2 px-6 py-3"
+                >
+                  <TrendingUp className="w-5 h-5" />
+                  <span>Ver Progreso</span>
+                </Button>
+              )}
               
               {/* Botón para limpiar progreso (solo en desarrollo) */}
               {savedProgress && (
@@ -1153,6 +1240,15 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         <EvaluationSummaryModal
           isOpen={showEvaluationSummary}
           onClose={() => setShowEvaluationSummary(false)}
+          onFinish={handleFinishEvaluation}
+          evaluationData={evaluationSummaryData}
+          plantType={selectedPlantType}
+        />
+
+        {/* Modal de progreso general */}
+        <EvaluationSummaryModal
+          isOpen={showProgressModal}
+          onClose={() => setShowProgressModal(false)}
           onFinish={handleFinishEvaluation}
           evaluationData={evaluationSummaryData}
           plantType={selectedPlantType}
