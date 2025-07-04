@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { CircularChart, BarChart, QualityIndicator } from '@/components/ui/chart';
 import { X, CheckCircle, AlertTriangle, XCircle, Award, TrendingUp } from 'lucide-react';
 
 const SectionCompletionModal = ({ 
@@ -49,11 +48,222 @@ const SectionCompletionModal = ({
 
   const StatusIcon = statusIcon;
 
-  // Preparar datos para la gráfica de barras de subsecciones
-  const chartData = subsectionResults.map(subsection => ({
-    name: subsection.name,
-    value: subsection.percentage
-  }));
+  // Generar gráfica radar para subsecciones
+  const generateSubsectionRadarChart = () => {
+    if (!subsectionResults || subsectionResults.length === 0) {
+      return null;
+    }
+
+    const centerX = 300;
+    const centerY = 300;
+    const maxRadius = 140;
+    const minRadius = 30;
+    
+    // Calcular puntos del polígono para subsecciones
+    const radarPoints = subsectionResults.map((subsection, index) => {
+      const angle = (index * 360) / subsectionResults.length - 90; // -90 para empezar arriba
+      const angleRad = (angle * Math.PI) / 180;
+      const radius = minRadius + (subsection.percentage / 100) * (maxRadius - minRadius);
+      const x = centerX + radius * Math.cos(angleRad);
+      const y = centerY + radius * Math.sin(angleRad);
+      return { x, y, ...subsection, angle };
+    });
+
+    // Crear path del polígono
+    const pathData = radarPoints.map((point, index) => 
+      `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
+    ).join(' ') + ' Z';
+
+    return (
+      <div className="relative flex items-center justify-center mb-6">
+        <svg width="600" height="600" className="drop-shadow-lg">
+          {/* Definir gradientes para los anillos */}
+          <defs>
+            <radialGradient id="redGradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#dc2626" stopOpacity="0.9" />
+            </radialGradient>
+            <radialGradient id="yellowGradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#eab308" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#ca8a04" stopOpacity="0.9" />
+            </radialGradient>
+            <radialGradient id="greenGradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#16a34a" stopOpacity="0.9" />
+            </radialGradient>
+          </defs>
+
+          {/* Anillos de fondo con colores */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={maxRadius + 20}
+            fill="url(#greenGradient)"
+            stroke="#16a34a"
+            strokeWidth="2"
+          />
+          
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={maxRadius - 20}
+            fill="url(#yellowGradient)"
+            stroke="#ca8a04"
+            strokeWidth="2"
+          />
+          
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={maxRadius - 60}
+            fill="url(#redGradient)"
+            stroke="#dc2626"
+            strokeWidth="2"
+          />
+
+          {/* Líneas de la cuadrícula radial */}
+          {[20, 40, 60, 80, 100].map(percent => {
+            const radius = minRadius + (percent / 100) * (maxRadius - minRadius);
+            return (
+              <circle
+                key={percent}
+                cx={centerX}
+                cy={centerY}
+                r={radius}
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.6)"
+                strokeWidth="1"
+                strokeDasharray="5,5"
+              />
+            );
+          })}
+
+          {/* Líneas radiales desde el centro */}
+          {radarPoints.map((point, index) => {
+            const angle = (point.angle - 90) * (Math.PI / 180);
+            const endX = centerX + (maxRadius + 15) * Math.cos(angle);
+            const endY = centerY + (maxRadius + 15) * Math.sin(angle);
+            
+            return (
+              <line
+                key={index}
+                x1={centerX}
+                y1={centerY}
+                x2={endX}
+                y2={endY}
+                stroke="rgba(255, 255, 255, 0.7)"
+                strokeWidth="1"
+              />
+            );
+          })}
+
+          {/* Polígono de datos */}
+          <path
+            d={pathData}
+            fill="rgba(59, 130, 246, 0.4)"
+            stroke="#3b82f6"
+            strokeWidth="4"
+            strokeLinejoin="round"
+            style={{
+              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
+            }}
+          />
+
+          {/* Puntos de datos */}
+          {radarPoints.map((point, index) => (
+            <circle
+              key={index}
+              cx={point.x}
+              cy={point.y}
+              r="6"
+              fill="#3b82f6"
+              stroke="white"
+              strokeWidth="3"
+              style={{
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))'
+              }}
+            />
+          ))}
+
+          {/* Etiquetas de las subsecciones */}
+          {radarPoints.map((point, index) => {
+            const angle = (point.angle - 90) * (Math.PI / 180);
+            const labelRadius = maxRadius + 60;
+            const labelX = centerX + labelRadius * Math.cos(angle);
+            const labelY = centerY + labelRadius * Math.sin(angle);
+            
+            let textAnchor = 'middle';
+            let dominantBaseline = 'middle';
+            
+            if (labelX > centerX + 10) textAnchor = 'start';
+            else if (labelX < centerX - 10) textAnchor = 'end';
+            
+            if (labelY > centerY + 10) dominantBaseline = 'hanging';
+            else if (labelY < centerY - 10) dominantBaseline = 'baseline';
+
+            const truncatedName = point.name.length > 20 ? point.name.substring(0, 20) + '...' : point.name;
+
+            return (
+              <g key={index}>
+                <rect
+                  x={labelX - (textAnchor === 'start' ? 5 : textAnchor === 'end' ? 115 : 60)}
+                  y={labelY - 20}
+                  width="120"
+                  height="40"
+                  fill="rgba(255, 255, 255, 0.95)"
+                  rx="6"
+                  stroke="rgba(0, 0, 0, 0.2)"
+                  strokeWidth="1"
+                  style={{
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                  }}
+                />
+                <text
+                  x={labelX}
+                  y={labelY - 5}
+                  textAnchor={textAnchor}
+                  dominantBaseline={dominantBaseline}
+                  className="text-xs font-medium fill-gray-800"
+                >
+                  {truncatedName}
+                </text>
+                <text
+                  x={labelX}
+                  y={labelY + 10}
+                  textAnchor={textAnchor}
+                  dominantBaseline={dominantBaseline}
+                  className="text-sm font-bold fill-blue-600"
+                >
+                  {Math.round(point.percentage)}%
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Etiquetas de porcentajes en los anillos */}
+          <g className="opacity-80">
+            <text x={centerX} y={centerY - minRadius - 0.2 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">20%</text>
+            <text x={centerX} y={centerY - minRadius - 0.4 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">40%</text>
+            <text x={centerX} y={centerY - minRadius - 0.6 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">60%</text>
+            <text x={centerX} y={centerY - minRadius - 0.8 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">80%</text>
+            <text x={centerX} y={centerY - maxRadius - 5} className="text-xs fill-white font-bold" textAnchor="middle">100%</text>
+          </g>
+
+          {/* Etiquetas de los rangos de colores */}
+          <g className="opacity-90">
+            <rect x={centerX + maxRadius + 30} y={centerY - maxRadius - 10} width="100" height="25" fill="rgba(34, 197, 94, 0.9)" rx="4" />
+            <text x={centerX + maxRadius + 80} y={centerY - maxRadius + 7} className="text-xs fill-white font-bold" textAnchor="middle">86-100%</text>
+            
+            <rect x={centerX + maxRadius + 30} y={centerY - 10} width="100" height="25" fill="rgba(234, 179, 8, 0.9)" rx="4" />
+            <text x={centerX + maxRadius + 80} y={centerY + 7} className="text-xs fill-white font-bold" textAnchor="middle">61-85%</text>
+            
+            <rect x={centerX + maxRadius + 30} y={centerY + maxRadius - 15} width="100" height="25" fill="rgba(239, 68, 68, 0.9)" rx="4" />
+            <text x={centerX + maxRadius + 80} y={centerY + maxRadius + 2} className="text-xs fill-white font-bold" textAnchor="middle">0-60%</text>
+          </g>
+        </svg>
+      </div>
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -63,7 +273,7 @@ const SectionCompletionModal = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ duration: 0.3 }}
-          className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
@@ -83,24 +293,13 @@ const SectionCompletionModal = ({
 
           {/* Content */}
           <div className="p-6">
-            {/* Puntuación general de la sección */}
+            {/* Estado de la sección */}
             <div className="text-center mb-8">
-              <div className="flex justify-center mb-6">
-                <CircularChart
-                  percentage={overallPercentage}
-                  size={180}
-                  strokeWidth={14}
-                  title="Calificación General de la Sección"
-                  subtitle={`${totalCorrect}/${totalQuestions} respuestas correctas`}
-                />
-              </div>
-
-              {/* Estado de la sección */}
-              <div className={`${statusBg} rounded-lg p-4 inline-block`}>
-                <div className="flex items-center justify-center space-x-3">
+              <div className={`${statusBg} rounded-lg p-6 inline-block`}>
+                <div className="flex items-center justify-center space-x-3 mb-4">
                   <StatusIcon className={`w-8 h-8 ${statusColor}`} />
                   <div>
-                    <div className={`text-2xl font-bold ${statusColor}`}>
+                    <div className={`text-3xl font-bold ${statusColor}`}>
                       {sectionStatus}
                     </div>
                     <div className="text-sm text-gray-600">
@@ -108,8 +307,53 @@ const SectionCompletionModal = ({
                     </div>
                   </div>
                 </div>
+                <div className={`text-4xl font-bold ${statusColor} mb-2`}>
+                  {Math.round(overallPercentage)}%
+                </div>
+                <div className="text-sm text-gray-600">
+                  {totalCorrect}/{totalQuestions} respuestas correctas
+                </div>
               </div>
             </div>
+
+            {/* Escala de colores */}
+            <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3 text-center">Escala de Evaluación por Anillos</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                  <div>
+                    <div className="font-medium text-red-800">Rojo (0-60%)</div>
+                    <div className="text-sm text-red-600">Nivel deficiente</div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
+                  <div>
+                    <div className="font-medium text-yellow-800">Amarillo (61-85%)</div>
+                    <div className="text-sm text-yellow-600">Nivel regular</div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                  <div>
+                    <div className="font-medium text-green-800">Verde (86-100%)</div>
+                    <div className="text-sm text-green-600">Nivel excelente</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Gráfica radar de subsecciones */}
+            {subsectionResults && subsectionResults.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center space-x-2 mb-4">
+                  <TrendingUp className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-800">Resultados por Subsección</h3>
+                </div>
+                {generateSubsectionRadarChart()}
+              </div>
+            )}
 
             {/* Estadísticas generales */}
             <div className="grid grid-cols-4 gap-4 mb-8">
@@ -129,55 +373,48 @@ const SectionCompletionModal = ({
               </div>
               
               <div className="bg-orange-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-orange-600">{subsectionResults.length}</div>
+                <div className="text-2xl font-bold text-orange-600">{subsectionResults?.length || 0}</div>
                 <div className="text-sm text-gray-600">Subsecciones</div>
               </div>
             </div>
 
-            {/* Gráfica de resultados por subsección */}
-            <div className="bg-gray-50 rounded-lg p-6 mb-8">
-              <div className="flex items-center space-x-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-800">Resultados por Subsección</h3>
-              </div>
-              <BarChart data={chartData} />
-            </div>
-
             {/* Detalles por subsección */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Detalle por Subsección</h3>
-              <div className="space-y-3">
-                {subsectionResults.map((subsection, index) => {
-                  let statusColor;
-                  if (subsection.percentage >= 80) statusColor = 'border-green-500 bg-green-50';
-                  else if (subsection.percentage >= 60) statusColor = 'border-yellow-500 bg-yellow-50';
-                  else statusColor = 'border-red-500 bg-red-50';
+            {subsectionResults && subsectionResults.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Detalle por Subsección</h3>
+                <div className="space-y-3">
+                  {subsectionResults.map((subsection, index) => {
+                    let statusColor;
+                    if (subsection.percentage >= 86) statusColor = 'border-green-500 bg-green-50';
+                    else if (subsection.percentage >= 61) statusColor = 'border-yellow-500 bg-yellow-50';
+                    else statusColor = 'border-red-500 bg-red-50';
 
-                  return (
-                    <div key={index} className={`border-l-4 ${statusColor} p-4 rounded-r-lg`}>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium text-gray-800">{subsection.name}</div>
-                          <div className="text-sm text-gray-600">
-                            {subsection.correctAnswers}/{subsection.totalQuestions} correctas
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-gray-800">
-                            {Math.round(subsection.percentage)}%
-                          </div>
-                          {subsection.ponderacion && (
-                            <div className="text-xs text-gray-500">
-                              Peso: {subsection.ponderacion}%
+                    return (
+                      <div key={index} className={`border-l-4 ${statusColor} p-4 rounded-r-lg`}>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium text-gray-800">{subsection.name}</div>
+                            <div className="text-sm text-gray-600">
+                              {subsection.correctAnswers}/{subsection.totalQuestions} correctas
                             </div>
-                          )}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-gray-800">
+                              {Math.round(subsection.percentage)}%
+                            </div>
+                            {subsection.ponderacion && (
+                              <div className="text-xs text-gray-500">
+                                Peso: {subsection.ponderacion}%
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Información de ponderación */}
             {ponderacion && (
