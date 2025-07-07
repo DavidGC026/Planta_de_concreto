@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck, CheckCircle, Clock, BarChart3, Award, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck, CheckCircle, Clock, BarChart3, Award, TrendingUp, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
@@ -71,6 +71,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [progressData, setProgressData] = useState(null);
   const [completedSections, setCompletedSections] = useState(new Set());
   const [finalResults, setFinalResults] = useState(null);
+  const [showClearProgressModal, setShowClearProgressModal] = useState(false);
 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
@@ -310,6 +311,127 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         description: "No se pudo generar la evaluación simulada"
       });
     }
+  };
+
+  const handleClearProgress = async () => {
+    try {
+      setLoading(true);
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+
+      await equipmentProgressService.clearProgress(user.id, selectedPlantType);
+      
+      // Limpiar estados locales
+      setProgressData(null);
+      setCompletedSections(new Set());
+      setAnswers({});
+      setCurrentSection(0);
+      setCurrentSubsection(0);
+      setFinalResults(null);
+      setShowClearProgressModal(false);
+      
+      // Recargar datos
+      await loadProgressData();
+      
+      toast({
+        title: "🗑️ Progreso Limpiado",
+        description: "El progreso de la evaluación ha sido eliminado. Puedes comenzar una nueva evaluación."
+      });
+    } catch (error) {
+      console.error('Error clearing progress:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo limpiar el progreso. Intenta nuevamente."
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestartEvaluation = () => {
+    setCurrentScreen('plantSelection');
+    setSelectedPlantType(null);
+    setEvaluationData(null);
+    setProgressData(null);
+    setCompletedSections(new Set());
+    setAnswers({});
+    setCurrentSection(0);
+    setCurrentSubsection(0);
+    setFinalResults(null);
+    setShowClearProgressModal(false);
+  };
+
+  const handleRedoSection = async (sectionId) => {
+    try {
+      setLoading(true);
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+
+      // Aquí podrías implementar una función específica para limpiar solo una sección
+      // Por ahora, simplemente permitimos volver a evaluar la sección
+      const sectionIndex = evaluationData?.secciones?.findIndex(s => s.id === sectionId);
+      if (sectionIndex !== -1) {
+        setCurrentSection(sectionIndex);
+        setCurrentSubsection(0);
+        setCurrentScreen('evaluation');
+        
+        toast({
+          title: "🔄 Sección Reiniciada",
+          description: "Puedes volver a evaluar esta sección."
+        });
+      }
+    } catch (error) {
+      console.error('Error redoing section:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo reiniciar la sección."
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Modal de confirmación para limpiar progreso
+  const ClearProgressModal = () => {
+    if (!showClearProgressModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+        >
+          <div className="flex items-center space-x-3 mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-600" />
+            <h3 className="text-xl font-bold text-gray-800">Confirmar Limpieza</h3>
+          </div>
+          
+          <p className="text-gray-600 mb-6">
+            ¿Estás seguro de que quieres eliminar todo el progreso guardado para la planta <strong>{selectedPlantType}</strong>? 
+            Esta acción no se puede deshacer.
+          </p>
+          
+          <div className="flex space-x-3">
+            <Button
+              onClick={() => setShowClearProgressModal(false)}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleClearProgress}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              Limpiar Progreso
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    );
   };
 
   const saveSubsectionProgress = async (subsectionData) => {
@@ -593,7 +715,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                   </Button>
                   
                   <Button
-                    onClick={handleBackToPlantSelection}
+                    onClick={handleRestartEvaluation}
                     variant="outline"
                     className="px-8 py-3"
                   >
@@ -678,6 +800,18 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               <span>Ver Evaluación Simulada</span>
             </Button>
 
+            {/* Botón para limpiar progreso - solo si hay progreso guardado */}
+            {progressStats && progressStats.completedSections > 0 && (
+              <Button
+                onClick={() => setShowClearProgressModal(true)}
+                variant="outline"
+                size="sm"
+                className="bg-red-100 border-red-400 text-red-800 hover:bg-red-200 flex items-center space-x-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Limpiar Progreso</span>
+              </Button>
+            )}
             <Button
               onClick={handleBackToPlantSelection}
               variant="outline"
@@ -746,6 +880,19 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                             </div>
                           )}
                           
+                          {/* Botón para rehacer sección completada */}
+                          {isCompleted && (
+                            <Button
+                              onClick={() => handleRedoSection(section.id)}
+                              variant="outline"
+                              size="sm"
+                              className="border-orange-400 text-orange-600 hover:bg-orange-50 flex items-center space-x-1"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                              <span>Rehacer</span>
+                            </Button>
+                          )}
+                          
                           <Button
                             onClick={() => handleSectionSelect(index)}
                             variant={isCompleted ? "outline" : "default"}
@@ -776,6 +923,9 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               );
             })}
           </div>
+
+          {/* Modal de confirmación */}
+          <ClearProgressModal />
         </div>
 
         <img
