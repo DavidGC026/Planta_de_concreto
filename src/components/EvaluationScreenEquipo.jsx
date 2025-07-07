@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck, CheckCircle, XCircle, Clock, BarChart3, Award, TrendingUp, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck, CheckCircle, Clock, BarChart3, Award, TrendingUp, RotateCcw, Trash2, AlertTriangle, XCircle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
@@ -503,7 +503,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       currentSubsectionData.preguntas.forEach((_, index) => {
         const key = `${currentSection}-${currentSubsection}-${index}`;
         const answer = answers[key];
-        if (answer === 'si' || answer === 'bueno') {
+        // En evaluación de equipo, tanto 'si' como 'na' se consideran correctas
+        if (answer === 'si' || answer === 'na') {
           correctAnswers++;
         }
       });
@@ -1042,8 +1043,21 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                             onChange={() => handleAnswer(index, 'no')}
                             className="mr-3 text-red-600 focus:ring-red-500"
                           />
-                          <Clock className="w-5 h-5 text-red-600 mr-2" />
+                          <XCircle className="w-5 h-5 text-red-600 mr-2" />
                           <span className="text-gray-700">No</span>
+                        </label>
+
+                        <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                          <input
+                            type="radio"
+                            name={`question-${index}`}
+                            value="na"
+                            checked={selectedAnswer === 'na'}
+                            onChange={() => handleAnswer(index, 'na')}
+                            className="mr-3 text-gray-600 focus:ring-gray-500"
+                          />
+                          <Clock className="w-5 h-5 text-gray-600 mr-2" />
+                          <span className="text-gray-700">No Aplica</span>
                         </label>
                       </div>
                     </div>
