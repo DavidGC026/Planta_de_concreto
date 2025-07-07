@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck, CheckCircle, Clock, BarChart3, Award, TrendingUp, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck, CheckCircle, XCircle, Clock, BarChart3, Award, TrendingUp, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
