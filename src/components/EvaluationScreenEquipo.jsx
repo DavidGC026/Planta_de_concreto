@@ -2,505 +2,300 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, Save, ChevronRight, Building2, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck, CheckCircle, Clock, BarChart3, Award, TrendingUp } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
-import SectionCompletionModal from '@/components/SectionCompletionModal';
-import EvaluationSummaryModal from '@/components/EvaluationSummaryModal';
+
+// Evaluación de estado de planta (Operación)
+const plantStatusEvaluation = {
+  title: 'Evaluación del Estado de la Planta',
+  icon: ClipboardCheck,
+  sections: [
+    {
+      title: 'Estado de Equipos Principales',
+      items: [
+        { name: 'Mezcladora principal', status: null },
+        { name: 'Básculas de cemento', status: null },
+        { name: 'Básculas de agregados', status: null },
+        { name: 'Sistema de agua', status: null },
+        { name: 'Bandas transportadoras', status: null },
+        { name: 'Silos de cemento', status: null },
+        { name: 'Compresor de aire', status: null },
+        { name: 'Sistema eléctrico', status: null },
+        { name: 'Tolvas de agregados', status: null },
+        { name: 'Sistema de control', status: null }
+      ]
+    },
+    {
+      title: 'Infraestructura y Seguridad',
+      items: [
+        { name: 'Señalización de seguridad', status: null },
+        { name: 'Extintores', status: null },
+        { name: 'Botiquín de primeros auxilios', status: null },
+        { name: 'Iluminación general', status: null },
+        { name: 'Drenajes y desagües', status: null },
+        { name: 'Accesos y vialidades', status: null },
+        { name: 'Área de laboratorio', status: null },
+        { name: 'Oficinas administrativas', status: null },
+        { name: 'Almacén de materiales', status: null },
+        { name: 'Cerca perimetral', status: null }
+      ]
+    },
+    {
+      title: 'Documentación y Certificaciones',
+      items: [
+        { name: 'Licencias de operación', status: null },
+        { name: 'Certificados de calidad', status: null },
+        { name: 'Manuales de operación', status: null },
+        { name: 'Registros de mantenimiento', status: null },
+        { name: 'Bitácoras de producción', status: null },
+        { name: 'Certificados de calibración', status: null },
+        { name: 'Pólizas de seguro', status: null },
+        { name: 'Permisos ambientales', status: null },
+        { name: 'Capacitación del personal', status: null },
+        { name: 'Procedimientos de emergencia', status: null }
+      ]
+    }
+  ]
+};
 
 const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username }) => {
-  // Estados principales del flujo
-  const [currentStep, setCurrentStep] = useState('plantType'); // 'plantType' -> 'sectionSelection' -> 'subsectionEvaluation'
+  const [currentScreen, setCurrentScreen] = useState('plantSelection'); // plantSelection, sectionsList, evaluation, results
   const [selectedPlantType, setSelectedPlantType] = useState(null);
-  const [selectedSection, setSelectedSection] = useState(null);
-  const [selectedSubsection, setSelectedSubsection] = useState(null);
-  const [currentSubsectionIndex, setCurrentSubsectionIndex] = useState(0);
-  
-  // Estados de datos
+  const [currentSection, setCurrentSection] = useState(0);
+  const [currentSubsection, setCurrentSubsection] = useState(0);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
-  const [subsectionProgress, setSubsectionProgress] = useState({});
-  const [sectionProgress, setSectionProgress] = useState({});
-  const [showStats, setShowStats] = useState(false);
-
-  // Estados para progreso guardado en BD
-  const [savedProgress, setSavedProgress] = useState(null);
-  const [progressLoading, setProgressLoading] = useState(false);
-
-  // Estados para modales de resultados
-  const [showSectionCompletion, setShowSectionCompletion] = useState(false);
-  const [currentSectionCompletionData, setCurrentSectionCompletionData] = useState(null);
-  const [showEvaluationSummary, setShowEvaluationSummary] = useState(false);
-  const [evaluationSummaryData, setEvaluationSummaryData] = useState(null);
-
-  // Nuevo estado para modal de progreso general
-  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressData, setProgressData] = useState(null);
+  const [completedSections, setCompletedSections] = useState(new Set());
+  const [finalResults, setFinalResults] = useState(null);
 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
 
-  // Configuración de tipos de planta
+  // Tipos de planta disponibles
   const plantTypes = [
-    { id: 'pequena', name: 'Planta Pequeña', description: 'Hasta 30 m³/h' },
-    { id: 'mediana', name: 'Planta Mediana', description: '30-60 m³/h' },
-    { id: 'grande', name: 'Planta Grande', description: 'Más de 60 m³/h' }
+    { id: 'pequena', name: 'Planta Pequeña', description: 'Capacidad hasta 30 m³/h' },
+    { id: 'mediana', name: 'Planta Mediana', description: 'Capacidad 30-60 m³/h' },
+    { id: 'grande', name: 'Planta Grande', description: 'Capacidad mayor a 60 m³/h' }
   ];
 
   useEffect(() => {
-    // Cargar datos de evaluación cuando se selecciona tipo de planta
-    if (selectedPlantType && currentStep === 'sectionSelection') {
+    if (selectedPlantType && currentScreen === 'sectionsList') {
       loadEvaluationData();
-      loadSavedProgress();
+      loadProgressData();
     }
-  }, [selectedPlantType, currentStep]);
+  }, [selectedPlantType, currentScreen]);
 
-  // Scroll al inicio cuando cambia el paso
+  // Scroll al inicio cuando cambia la sección
   useEffect(() => {
     if (evaluationContentRef.current) {
-      evaluationContentRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
+      evaluationContentRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
       });
     }
-  }, [currentStep, selectedSection, currentSubsectionIndex]);
+  }, [currentSection, currentSubsection]);
+
+  // Verificar si todas las secciones están completadas
+  useEffect(() => {
+    if (progressData && evaluationData) {
+      checkAllSectionsCompleted();
+    }
+  }, [progressData, evaluationData]);
+
+  const checkAllSectionsCompleted = () => {
+    if (!progressData?.secciones || !evaluationData?.secciones) return;
+
+    const totalSections = evaluationData.secciones.length;
+    const completedSectionsCount = progressData.secciones.filter(s => s.completada).length;
+
+    if (totalSections > 0 && completedSectionsCount === totalSections) {
+      // Todas las secciones están completadas, generar resultados finales
+      generateFinalResults();
+    }
+  };
+
+  const generateFinalResults = () => {
+    if (!progressData?.secciones) return;
+
+    // Calcular estadísticas generales
+    let totalQuestions = 0;
+    let totalCorrectAnswers = 0;
+    let totalScore = 0;
+    const sectionResults = [];
+
+    progressData.secciones.forEach(section => {
+      totalQuestions += section.total_preguntas || 0;
+      totalCorrectAnswers += section.respuestas_correctas || 0;
+      totalScore += section.puntaje_porcentaje || 0;
+
+      // Preparar datos de subsecciones para la sección
+      const subsectionResults = section.subsecciones?.map(sub => ({
+        name: sub.nombre,
+        percentage: sub.puntaje_porcentaje || 0,
+        correctAnswers: sub.respuestas_correctas || 0,
+        totalQuestions: sub.total_preguntas || 0
+      })) || [];
+
+      sectionResults.push({
+        name: section.seccion_nombre,
+        percentage: section.puntaje_porcentaje || 0,
+        correctAnswers: section.respuestas_correctas || 0,
+        totalQuestions: section.total_preguntas || 0,
+        ponderacion: section.ponderacion || 0,
+        subsections: subsectionResults
+      });
+    });
+
+    const overallScore = sectionResults.length > 0 ? totalScore / sectionResults.length : 0;
+
+    const results = {
+      evaluationTitle: `Evaluación de Equipo - Planta ${selectedPlantType}`,
+      score: Math.round(overallScore),
+      totalAnswers: totalQuestions,
+      correctAnswers: totalCorrectAnswers,
+      sections: sectionResults,
+      sectionResults: sectionResults,
+      overallScore: overallScore,
+      plantType: selectedPlantType,
+      isEquipmentEvaluation: true,
+      completedDate: new Date().toISOString()
+    };
+
+    setFinalResults(results);
+    setCurrentScreen('results');
+
+    toast({
+      title: "🎉 Evaluación Completada",
+      description: "Todas las secciones han sido completadas. Mostrando resultados finales."
+    });
+  };
 
   const loadEvaluationData = async () => {
     try {
       setLoading(true);
-      
-      const data = await apiService.getPreguntas({
+      const params = {
         tipo: 'equipo',
         tipoPlanta: selectedPlantType
-      });
-      
-      console.log('Datos de evaluación cargados:', data);
+      };
+
+      const data = await apiService.getPreguntas(params);
       setEvaluationData(data);
-      
     } catch (error) {
       console.error('Error loading evaluation data:', error);
       toast({
         title: "❌ Error",
-        description: "No se pudieron cargar los datos de evaluación"
+        description: "No se pudieron cargar las preguntas de evaluación"
       });
-      
-      // Fallback a datos predefinidos
-      setEvaluationData(generateFallbackData());
     } finally {
       setLoading(false);
     }
   };
 
-  // Cargar progreso guardado desde la base de datos
-  const loadSavedProgress = async () => {
+  const loadProgressData = async () => {
     try {
-      setProgressLoading(true);
       const user = apiService.getCurrentUser();
-      
-      if (!user) {
-        console.log('No hay usuario autenticado');
-        return;
-      }
+      if (!user) return;
 
-      console.log('Cargando progreso guardado para:', user.id, selectedPlantType);
-      
-      const progressData = await equipmentProgressService.getProgress(user.id, selectedPlantType);
-      
-      console.log('Progreso cargado desde BD:', progressData);
-      
-      if (progressData && progressData.secciones && progressData.secciones.length > 0) {
-        setSavedProgress(progressData);
-        
-        // Formatear progreso para el componente
-        const formattedProgress = equipmentProgressService.formatProgressForComponent(progressData);
-        setSubsectionProgress(formattedProgress);
-        
-        // Marcar secciones como completadas
-        const sectionProgressData = {};
-        progressData.secciones.forEach(section => {
-          if (section.completada) {
-            sectionProgressData[section.seccion_id] = {
-              completed: true,
-              results: {
-                sectionName: section.seccion_nombre,
-                overallPercentage: section.puntaje_porcentaje,
-                totalCorrect: section.respuestas_correctas,
-                totalQuestions: section.total_preguntas,
-                subsectionResults: section.subsecciones || [],
-                recommendations: generateRecommendationsFromScore(section.puntaje_porcentaje),
-                ponderacion: 0 // Se puede obtener de evaluationData después
-              }
-            };
-          }
-        });
-        setSectionProgress(sectionProgressData);
-        
-        const stats = equipmentProgressService.getProgressStats(progressData);
-        
-        toast({
-          title: "📊 Progreso cargado",
-          description: `${stats.completedSections}/${stats.totalSections} secciones completadas para ${selectedPlantType}`
-        });
-      } else {
-        console.log('No se encontró progreso previo');
-        setSavedProgress(null);
+      const progress = await equipmentProgressService.getProgress(user.id, selectedPlantType);
+      setProgressData(progress);
+
+      // Actualizar conjunto de secciones completadas
+      if (progress?.secciones) {
+        const completed = new Set(
+          progress.secciones
+            .filter(s => s.completada)
+            .map(s => s.seccion_id)
+        );
+        setCompletedSections(completed);
       }
-      
     } catch (error) {
-      console.error('Error loading saved progress:', error);
-      toast({
-        title: "⚠️ Advertencia",
-        description: "No se pudo cargar el progreso previo"
-      });
-    } finally {
-      setProgressLoading(false);
+      console.error('Error loading progress:', error);
     }
   };
 
-  // Función para generar recomendaciones basadas en puntuación
-  const generateRecommendationsFromScore = (score) => {
-    if (score >= 80) {
-      return [
-        'Excelente estado del equipo',
-        'Mantener el programa de mantenimiento actual',
-        'Considerar como referencia para otras plantas'
-      ];
-    } else if (score >= 60) {
-      return [
-        'Buen estado general del equipo',
-        'Implementar mejoras menores identificadas',
-        'Revisar subsecciones con menor puntuación'
-      ];
-    } else {
-      return [
-        'Requiere atención inmediata',
-        'Desarrollar plan de mejora integral',
-        'Priorizar mantenimiento correctivo'
-      ];
-    }
+  const handlePlantTypeSelect = (plantType) => {
+    setSelectedPlantType(plantType);
+    setCurrentScreen('sectionsList');
+    setCurrentSection(0);
+    setCurrentSubsection(0);
+    setAnswers({});
   };
 
-  const generateFallbackData = () => {
-    return {
-      title: 'Evaluación de Equipo',
-      secciones: [
-        {
-          id: 'produccion_mezclado',
-          nombre: 'Producción y mezclado',
-          ponderacion: 19.90,
-          subsecciones: [
-            {
-              id: 'mezcladora_principal',
-              nombre: 'Mezcladora Principal',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 1, pregunta: '¿La mezcladora principal se encuentra estructuralmente íntegra, sin fugas, grietas visibles ni desgaste severo en las paletas?', tipo_pregunta: 'abierta' },
-                { id: 2, pregunta: '¿Los motores de la mezcladora operan sin vibraciones anormales, sobrecalentamiento o ruidos extraños?', tipo_pregunta: 'abierta' },
-                { id: 3, pregunta: '¿El sistema de transmisión (reductores, acoplamientos) funciona correctamente sin fugas de aceite?', tipo_pregunta: 'abierta' },
-                { id: 4, pregunta: '¿Las paletas mezcladoras mantienen la geometría adecuada y están firmemente sujetas?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistema_dosificacion',
-              nombre: 'Sistema de Dosificación',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 5, pregunta: '¿Las básculas de cemento están calibradas y funcionan con precisión?', tipo_pregunta: 'abierta' },
-                { id: 6, pregunta: '¿Las básculas de agregados pesan correctamente y están libres de obstrucciones?', tipo_pregunta: 'abierta' },
-                { id: 7, pregunta: '¿El sistema de dosificación de agua funciona con precisión y sin fugas?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'bandas_transportadoras',
-              nombre: 'Bandas Transportadoras',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 8, pregunta: '¿Las bandas transportadoras están en buen estado, sin roturas ni desgaste excesivo?', tipo_pregunta: 'abierta' },
-                { id: 9, pregunta: '¿Los motores y reductores de las bandas operan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 10, pregunta: '¿Los sistemas de limpieza de bandas funcionan adecuadamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'tolvas_silos',
-              nombre: 'Tolvas y Silos',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 11, pregunta: '¿Las tolvas de agregados están estructuralmente íntegras y libres de obstrucciones?', tipo_pregunta: 'abierta' },
-                { id: 12, pregunta: '¿Los silos de cemento mantienen su integridad estructural y sistemas de descarga?', tipo_pregunta: 'abierta' },
-                { id: 13, pregunta: '¿Los sistemas de vibración y fluidización funcionan correctamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistema_agua',
-              nombre: 'Sistema de Agua',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 14, pregunta: '¿El sistema de suministro de agua mantiene presión y caudal adecuados?', tipo_pregunta: 'abierta' },
-                { id: 15, pregunta: '¿Los tanques de agua están limpios y en buen estado?', tipo_pregunta: 'abierta' },
-                { id: 16, pregunta: '¿El sistema de dosificación de aditivos funciona correctamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistema_control',
-              nombre: 'Sistema de Control',
-              ponderacion_subseccion: 3.32,
-              preguntas: [
-                { id: 17, pregunta: '¿El sistema de control automatizado responde correctamente a los comandos?', tipo_pregunta: 'abierta' },
-                { id: 18, pregunta: '¿Los sensores y dispositivos de medición están calibrados y funcionando?', tipo_pregunta: 'abierta' },
-                { id: 19, pregunta: '¿El software de control está actualizado y libre de errores?', tipo_pregunta: 'abierta' }
-              ]
-            }
-          ]
-        },
-        {
-          id: 'transporte_entrega',
-          nombre: 'Transporte y entrega',
-          ponderacion: 12.04,
-          subsecciones: [
-            {
-              id: 'camiones_revolvedores',
-              nombre: 'Camiones Revolvedores',
-              ponderacion_subseccion: 3.01,
-              preguntas: [
-                { id: 20, pregunta: '¿Los tambores de los camiones están en buen estado estructural?', tipo_pregunta: 'abierta' },
-                { id: 21, pregunta: '¿Los sistemas hidráulicos de los camiones funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 22, pregunta: '¿Las paletas internas del tambor están completas y bien fijadas?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'bombas_concreto',
-              nombre: 'Bombas de Concreto',
-              ponderacion_subseccion: 3.01,
-              preguntas: [
-                { id: 23, pregunta: '¿Las bombas de concreto operan sin fugas ni obstrucciones?', tipo_pregunta: 'abierta' },
-                { id: 24, pregunta: '¿Los sistemas de limpieza de bombas funcionan adecuadamente?', tipo_pregunta: 'abierta' },
-                { id: 25, pregunta: '¿Las mangueras y tuberías están en buen estado?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'sistemas_carga',
-              nombre: 'Sistemas de Carga',
-              ponderacion_subseccion: 3.01,
-              preguntas: [
-                { id: 26, pregunta: '¿Los sistemas de carga de camiones funcionan eficientemente?', tipo_pregunta: 'abierta' },
-                { id: 27, pregunta: '¿Las tolvas de descarga están libres de obstrucciones?', tipo_pregunta: 'abierta' },
-                { id: 28, pregunta: '¿Los controles de carga responden correctamente?', tipo_pregunta: 'abierta' }
-              ]
-            },
-            {
-              id: 'equipos_limpieza',
-              nombre: 'Equipos de Limpieza',
-              ponderacion_subseccion: 3.01,
-              preguntas: [
-                { id: 29, pregunta: '¿Los equipos de lavado de camiones funcionan correctamente?', tipo_pregunta: 'abierta' },
-                { id: 30, pregunta: '¿Los sistemas de reciclaje de agua operan adecuadamente?', tipo_pregunta: 'abierta' },
-                { id: 31, pregunta: '¿Las instalaciones de limpieza están en buen estado?', tipo_pregunta: 'abierta' }
-              ]
-            }
-          ]
-        }
-      ]
-    };
+  const handleSectionSelect = (sectionIndex) => {
+    setCurrentSection(sectionIndex);
+    setCurrentSubsection(0);
+    setCurrentScreen('evaluation');
   };
 
-  // Función para calcular resultados de una subsección
-  const calculateSubsectionResults = (subsection, sectionId, subsectionIndex) => {
-    let correctAnswers = 0;
-    let totalQuestions = 0;
-
-    subsection.preguntas?.forEach((pregunta, qIndex) => {
-      const key = `${selectedPlantType}-${sectionId}-${subsectionIndex}-${qIndex}`;
-      const answer = answers[key];
-      
-      if (answer) {
-        totalQuestions++;
-        if (answer === 'si') {
-          correctAnswers++;
-        }
-      }
-    });
-
-    const percentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
-
-    return {
-      percentage,
-      correctAnswers,
-      totalQuestions
-    };
+  const handleBackToSections = () => {
+    setCurrentScreen('sectionsList');
+    setCurrentSection(0);
+    setCurrentSubsection(0);
   };
 
-  // Función para calcular resultados completos de una sección
-  const calculateSectionResults = (section) => {
-    let totalCorrect = 0;
-    let totalQuestions = 0;
-    const subsectionResults = [];
-
-    section.subsecciones?.forEach((subseccion, subsectionIndex) => {
-      const results = calculateSubsectionResults(subseccion, section.id, subsectionIndex);
-      
-      subsectionResults.push({
-        name: subseccion.nombre,
-        percentage: results.percentage,
-        correctAnswers: results.correctAnswers,
-        totalQuestions: results.totalQuestions,
-        ponderacion: subseccion.ponderacion_subseccion
-      });
-
-      totalCorrect += results.correctAnswers;
-      totalQuestions += results.totalQuestions;
-    });
-
-    const overallPercentage = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
-
-    // Generar recomendaciones para la sección
-    const recommendations = generateRecommendationsFromScore(overallPercentage);
-
-    return {
-      sectionName: section.nombre,
-      overallPercentage,
-      totalCorrect,
-      totalQuestions,
-      subsectionResults,
-      recommendations,
-      ponderacion: section.ponderacion
-    };
+  const handleBackToPlantSelection = () => {
+    setCurrentScreen('plantSelection');
+    setSelectedPlantType(null);
+    setEvaluationData(null);
+    setProgressData(null);
+    setCompletedSections(new Set());
   };
 
-  // Función mejorada para calcular resultados generales incluyendo progreso guardado
-  const calculateOverallResultsWithSavedProgress = () => {
-    const sectionResults = [];
-    let totalCorrect = 0;
-    let totalQuestions = 0;
-
-    // Usar datos de evaluación o fallback
-    const sectionsToUse = evaluationData?.secciones || generateFallbackData().secciones;
-
-    sectionsToUse.forEach((seccion) => {
-      // Verificar si hay progreso guardado para esta sección
-      const savedSectionData = savedProgress?.secciones?.find(s => 
-        s.seccion_id === parseInt(seccion.id) || 
-        s.seccion_nombre === seccion.nombre
-      );
-
-      if (savedSectionData && savedSectionData.completada) {
-        // Usar datos guardados
-        sectionResults.push({
-          name: seccion.nombre,
-          percentage: savedSectionData.puntaje_porcentaje,
-          correctAnswers: savedSectionData.respuestas_correctas,
-          totalQuestions: savedSectionData.total_preguntas,
-          ponderacion: seccion.ponderacion
-        });
-
-        totalCorrect += savedSectionData.respuestas_correctas;
-        totalQuestions += savedSectionData.total_preguntas;
-      } else {
-        // Calcular desde respuestas actuales
-        const sectionData = calculateSectionResults(seccion);
-        sectionResults.push({
-          name: seccion.nombre,
-          percentage: sectionData.overallPercentage,
-          correctAnswers: sectionData.totalCorrect,
-          totalQuestions: sectionData.totalQuestions,
-          ponderacion: seccion.ponderacion
-        });
-
-        totalCorrect += sectionData.totalCorrect;
-        totalQuestions += sectionData.totalQuestions;
-      }
-    });
-
-    const overallScore = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
-
-    return {
-      sectionResults,
-      overallScore,
-      totalQuestions,
-      correctAnswers: totalCorrect
-    };
-  };
-
-  // Función para calcular resultados generales de la evaluación
-  const calculateOverallResults = () => {
-    const sectionResults = [];
-    let totalCorrect = 0;
-    let totalQuestions = 0;
-
-    evaluationData?.secciones?.forEach((seccion) => {
-      const sectionData = calculateSectionResults(seccion);
-      sectionResults.push({
-        name: seccion.nombre,
-        percentage: sectionData.overallPercentage,
-        correctAnswers: sectionData.totalCorrect,
-        totalQuestions: sectionData.totalQuestions,
-        ponderacion: seccion.ponderacion
-      });
-
-      totalCorrect += sectionData.totalCorrect;
-      totalQuestions += sectionData.totalQuestions;
-    });
-
-    const overallScore = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
-
-    return {
-      sectionResults,
-      overallScore,
-      totalQuestions,
-      correctAnswers: totalCorrect
-    };
-  };
-
-  const generateSimulatedEquipmentEvaluation = () => {
+  // Función para generar evaluación simulada
+  const generateSimulatedEvaluation = () => {
     const simulatedAnswers = {};
-    let totalQuestions = 0;
-    let correctAnswers = 0;
+    let totalItems = 0;
+    let goodItems = 0;
 
-    const sectionsToUse = evaluationData?.secciones || generateFallbackData().secciones;
-
-    sectionsToUse.forEach((seccion, sectionIndex) => {
-      if (seccion.subsecciones && seccion.subsecciones.length > 0) {
-        seccion.subsecciones.forEach((subseccion, subsectionIndex) => {
-          subseccion.preguntas?.forEach((pregunta, questionIndex) => {
-            const key = `${selectedPlantType}-${sectionIndex}-${subsectionIndex}-${questionIndex}`;
-            
-            const randomValue = Math.random();
-            let answer;
-            
-            if (randomValue < 0.75) {
-              answer = 'si';
-              correctAnswers++;
-            } else if (randomValue < 0.95) {
-              answer = 'no';
-            } else {
-              answer = 'na';
-            }
-            
-            simulatedAnswers[key] = answer;
-            totalQuestions++;
-          });
-        });
-      }
+    plantStatusEvaluation.sections.forEach((section, sectionIndex) => {
+      section.items.forEach((item, itemIndex) => {
+        const key = `${sectionIndex}-${itemIndex}`;
+        
+        const randomValue = Math.random();
+        let status;
+        
+        if (randomValue < 0.7) {
+          status = 'bueno';
+          goodItems++;
+        } else if (randomValue < 0.9) {
+          status = 'regular';
+        } else {
+          status = 'malo';
+        }
+        
+        simulatedAnswers[key] = status;
+        totalItems++;
+      });
     });
 
-    const finalScore = Math.round((correctAnswers / totalQuestions) * 100);
+    let score = 0;
+    Object.values(simulatedAnswers).forEach(status => {
+      if (status === 'bueno') score += 10;
+      else if (status === 'regular') score += 5;
+    });
 
-    return {
+    const finalScore = Math.round((score / (totalItems * 10)) * 100);
+
+    const simulatedResults = {
       answers: simulatedAnswers,
       score: finalScore,
-      totalAnswers: totalQuestions,
-      correctAnswers: correctAnswers,
-      evaluationTitle: `Evaluación de Equipo Simulada - ${selectedPlantType}`,
-      sections: sectionsToUse,
-      isEquipmentEvaluation: true,
-      isSimulated: true,
-      plantType: selectedPlantType
+      totalAnswers: totalItems,
+      evaluationTitle: 'Evaluación de Equipo Simulada',
+      sections: plantStatusEvaluation.sections,
+      isPlantStatus: true,
+      isSimulated: true
     };
+
+    return simulatedResults;
   };
 
   const handleSkipToResults = () => {
     try {
-      const simulatedResults = generateSimulatedEquipmentEvaluation();
+      const simulatedResults = generateSimulatedEvaluation();
       
       toast({
         title: "🎯 Evaluación de Equipo Simulada",
@@ -509,7 +304,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       onComplete(simulatedResults);
     } catch (error) {
-      console.error('Error generating simulated equipment evaluation:', error);
+      console.error('Error generating simulated evaluation:', error);
       toast({
         title: "❌ Error",
         description: "No se pudo generar la evaluación simulada"
@@ -517,289 +312,99 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
-  // Manejar selección de tipo de planta
-  const handlePlantTypeSelect = (plantType) => {
-    setSelectedPlantType(plantType);
-    setCurrentStep('sectionSelection');
-    setAnswers({});
-    setSubsectionProgress({});
-    setSectionProgress({});
-    setSavedProgress(null);
-  };
-
-  // Manejar selección de sección
-  const handleSectionSelect = (section) => {
-    setSelectedSection(section);
-    setCurrentSubsectionIndex(0);
-    setCurrentStep('subsectionEvaluation');
-  };
-
-  // Manejar respuesta a pregunta
-  const handleAnswer = (questionIndex, selectedOption) => {
-    const key = `${selectedPlantType}-${selectedSection.id}-${currentSubsectionIndex}-${questionIndex}`;
-    setAnswers(prev => ({ ...prev, [key]: selectedOption }));
-  };
-
-  // Guardar progreso de subsección actual en la base de datos
-  const saveCurrentSubsectionProgress = async () => {
+  const saveSubsectionProgress = async (subsectionData) => {
     try {
       const user = apiService.getCurrentUser();
       if (!user) return;
 
-      const currentSubsection = selectedSection.subsecciones[currentSubsectionIndex];
-      if (!currentSubsection) return;
-      
-      let subsectionScore = 0;
-      let correctAnswers = 0;
-      let totalQuestions = 0;
-
-      currentSubsection.preguntas?.forEach((question, qIndex) => {
-        const key = `${selectedPlantType}-${selectedSection.id}-${currentSubsectionIndex}-${qIndex}`;
-        const answer = answers[key];
-        
-        if (answer) {
-          totalQuestions++;
-          if (answer === 'si') {
-            subsectionScore += 10;
-            correctAnswers++;
-          }
-        }
-      });
-
-      const subsectionPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
-
-      // Guardar en la base de datos usando el nuevo servicio
       await equipmentProgressService.saveSubsectionProgress({
         usuario_id: user.id,
         tipo_planta: selectedPlantType,
-        seccion_id: parseInt(selectedSection.id) || 0, // Convertir a número o usar 0 como fallback
-        subseccion_id: parseInt(currentSubsection.id) || currentSubsectionIndex + 1,
-        subseccion_nombre: currentSubsection.nombre,
-        puntaje_obtenido: subsectionScore,
-        puntaje_porcentaje: subsectionPercentage,
-        respuestas_correctas: correctAnswers,
-        total_preguntas: totalQuestions
+        seccion_id: subsectionData.sectionId,
+        subseccion_id: subsectionData.subsectionId,
+        subseccion_nombre: subsectionData.name,
+        puntaje_obtenido: subsectionData.score,
+        puntaje_porcentaje: subsectionData.percentage,
+        respuestas_correctas: subsectionData.correctAnswers,
+        total_preguntas: subsectionData.totalQuestions
       });
 
-      // Actualizar estado local
-      const progressKey = `${selectedSection.id}-${currentSubsectionIndex}`;
-      setSubsectionProgress(prev => ({
-        ...prev,
-        [progressKey]: {
-          completed: true,
-          score: subsectionPercentage,
-          correctAnswers: correctAnswers,
-          totalQuestions: totalQuestions
-        }
-      }));
-
-      // Recargar progreso desde la BD para mantener sincronización
-      await loadSavedProgress();
-
-      toast({
-        title: "💾 Progreso guardado",
-        description: `Subsección "${currentSubsection.nombre}" guardada exitosamente`
-      });
-
+      // Recargar datos de progreso
+      await loadProgressData();
     } catch (error) {
       console.error('Error saving subsection progress:', error);
-      toast({
-        title: "❌ Error",
-        description: "No se pudo guardar el progreso de la subsección"
-      });
     }
   };
 
-  // Continuar a siguiente subsección o mostrar resultados de sección completa
-  const handleNextSubsection = async () => {
-    // Primero guardar el progreso
-    await saveCurrentSubsectionProgress();
-
-    // Verificar si hay más subsecciones en la sección actual
-    if (currentSubsectionIndex < selectedSection.subsecciones.length - 1) {
-      // Ir a la siguiente subsección
-      setCurrentSubsectionIndex(prev => prev + 1);
-    } else {
-      // Se completó toda la sección - mostrar resultados de la sección completa
-      const sectionResults = calculateSectionResults(selectedSection);
-      
-      // Marcar la sección como completada en estado local
-      setSectionProgress(prev => ({
-        ...prev,
-        [selectedSection.id]: {
-          completed: true,
-          results: sectionResults
-        }
-      }));
-
-      // Mostrar modal de resultados de sección completa
-      setCurrentSectionCompletionData(sectionResults);
-      setShowSectionCompletion(true);
-    }
-  };
-
-  // Continuar después de ver resultados de sección completa
-  const handleContinueAfterSectionCompletion = () => {
-    setShowSectionCompletion(false);
+  const handleSubsectionComplete = async (subsectionResults) => {
+    await saveSubsectionProgress(subsectionResults);
     
-    // Verificar si todas las secciones están completas
-    const allSectionsCompleted = checkIfAllSectionsCompleted();
-
-    if (allSectionsCompleted) {
-      // Mostrar resumen general con progreso guardado
-      const summaryData = calculateOverallResultsWithSavedProgress();
-      setEvaluationSummaryData(summaryData);
-      setShowEvaluationSummary(true);
-    } else {
-      // Volver a selección de secciones
-      setCurrentStep('sectionSelection');
-      setSelectedSection(null);
-      setCurrentSubsectionIndex(0);
-    }
-  };
-
-  // Función para verificar si todas las secciones están completas
-  const checkIfAllSectionsCompleted = () => {
-    if (!evaluationData?.secciones) return false;
-
-    return evaluationData.secciones.every(section => 
-      sectionProgress[section.id]?.completed || 
-      (savedProgress && equipmentProgressService.isSectionCompleted(savedProgress, parseInt(section.id)))
-    );
-  };
-
-  // Función para mostrar progreso general
-  const handleShowProgress = () => {
-    if (!savedProgress || !savedProgress.secciones || savedProgress.secciones.length === 0) {
-      toast({
-        title: "📊 Sin progreso",
-        description: "No hay progreso guardado para mostrar"
-      });
-      return;
-    }
-
-    // Calcular resultados con progreso guardado
-    const summaryData = calculateOverallResultsWithSavedProgress();
-    setEvaluationSummaryData(summaryData);
-    setShowProgressModal(true);
-  };
-
-  // Finalizar evaluación completa
-  const handleFinishEvaluation = async () => {
-    try {
-      setLoading(true);
-
-      const user = apiService.getCurrentUser();
-      if (!user) {
-        throw new Error('Usuario no autenticado');
+    // Verificar si la sección está completa
+    const currentSectionData = evaluationData?.secciones?.[currentSection];
+    if (currentSectionData?.subsecciones) {
+      const totalSubsections = currentSectionData.subsecciones.length;
+      const nextSubsection = currentSubsection + 1;
+      
+      if (nextSubsection < totalSubsections) {
+        setCurrentSubsection(nextSubsection);
+      } else {
+        // Sección completada, volver a la lista
+        handleBackToSections();
+        toast({
+          title: "✅ Sección Completada",
+          description: `${currentSectionData.nombre} ha sido completada exitosamente`
+        });
       }
+    }
+  };
 
-      let totalScore = 0;
-      let totalQuestions = 0;
+  const handleAnswer = (questionIndex, selectedOption) => {
+    const key = `${currentSection}-${currentSubsection}-${questionIndex}`;
+    setAnswers(prev => ({ ...prev, [key]: selectedOption }));
+  };
+
+  const handleNextQuestion = () => {
+    const currentSectionData = evaluationData?.secciones?.[currentSection];
+    const currentSubsectionData = currentSectionData?.subsecciones?.[currentSubsection];
+    
+    if (!currentSubsectionData?.preguntas) return;
+
+    const totalQuestions = currentSubsectionData.preguntas.length;
+    const answeredQuestions = currentSubsectionData.preguntas.filter((_, index) => {
+      const key = `${currentSection}-${currentSubsection}-${index}`;
+      return answers[key] !== undefined;
+    }).length;
+
+    if (answeredQuestions === totalQuestions) {
+      // Calcular resultados de la subsección
       let correctAnswers = 0;
-
-      Object.entries(answers).forEach(([key, selectedAnswer]) => {
-        if (selectedAnswer) {
-          totalQuestions++;
-          if (selectedAnswer === 'si') {
-            totalScore += 10;
-            correctAnswers++;
-          }
+      currentSubsectionData.preguntas.forEach((_, index) => {
+        const key = `${currentSection}-${currentSubsection}-${index}`;
+        const answer = answers[key];
+        if (answer === 'si' || answer === 'bueno') {
+          correctAnswers++;
         }
       });
 
-      const finalPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+      const percentage = (correctAnswers / totalQuestions) * 100;
+      const score = correctAnswers * 10;
 
-      const evaluacionData = {
-        usuario_id: user.id,
-        tipo_evaluacion: 'equipo',
-        rol_personal: null,
-        respuestas: Object.entries(answers).map(([key, selectedAnswer]) => {
-          return {
-            pregunta_id: null,
-            respuesta: selectedAnswer,
-            observacion: `Equipo: ${selectedPlantType} - Pregunta: ${key}`
-          };
-        }),
-        observaciones: `Evaluación de equipo completada - Tipo: ${selectedPlantType}`
+      const subsectionResults = {
+        sectionId: currentSectionData.id,
+        subsectionId: currentSubsectionData.id,
+        name: currentSubsectionData.nombre,
+        score: score,
+        percentage: percentage,
+        correctAnswers: correctAnswers,
+        totalQuestions: totalQuestions
       };
 
-      const result = await apiService.guardarEvaluacion(evaluacionData);
-
-      onComplete({
-        answers,
-        score: Math.round(result.puntuacion_ponderada || finalPercentage),
-        totalAnswers: totalQuestions,
-        correctAnswers: correctAnswers,
-        evaluationTitle: `Evaluación de Equipo - ${selectedPlantType}`,
-        sections: evaluationData?.secciones || [],
-        isEquipmentEvaluation: true,
-        plantType: selectedPlantType
-      });
-
-      toast({
-        title: "✅ Evaluación completada",
-        description: "Los resultados han sido guardados exitosamente"
-      });
-
-    } catch (error) {
-      console.error('Error completing evaluation:', error);
-      toast({
-        title: "❌ Error",
-        description: `No se pudo guardar la evaluación: ${error.message}`
-      });
-    } finally {
-      setLoading(false);
-      setShowEvaluationSummary(false);
-      setShowProgressModal(false);
+      handleSubsectionComplete(subsectionResults);
     }
   };
 
-  // Función para limpiar progreso (útil para testing)
-  const handleClearProgress = async () => {
-    try {
-      const user = apiService.getCurrentUser();
-      if (!user) return;
-
-      await equipmentProgressService.clearProgress(user.id, selectedPlantType);
-      
-      // Limpiar estados locales
-      setSubsectionProgress({});
-      setSectionProgress({});
-      setSavedProgress(null);
-      setAnswers({});
-      
-      toast({
-        title: "🗑️ Progreso limpiado",
-        description: "Se ha eliminado todo el progreso guardado"
-      });
-      
-    } catch (error) {
-      console.error('Error clearing progress:', error);
-      toast({
-        title: "❌ Error",
-        description: "No se pudo limpiar el progreso"
-      });
-    }
-  };
-
-  // Pantalla de carga
-  if (loading || progressLoading) {
-    return (
-      <div className="min-h-screen relative bg-gray-100 overflow-hidden flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-lg text-gray-600">
-            {progressLoading ? 'Cargando progreso guardado...' : 
-             currentStep === 'subsectionEvaluation' ? 'Guardando evaluación de equipo...' : 'Cargando datos de evaluación...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // PASO 1: Selección de tipo de planta
-  if (currentStep === 'plantType') {
+  // Pantalla de selección de tipo de planta
+  if (currentScreen === 'plantSelection') {
     return (
       <div className="min-h-screen relative bg-gray-100 overflow-hidden">
         <div
@@ -811,7 +416,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         <div className="absolute inset-0 bg-black/20" />
 
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
-          <div className="w-full max-w-2xl space-y-6">
+          <div className="w-full max-w-lg space-y-4">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo</h2>
               <p className="text-white/80">Selecciona el tipo de planta a evaluar</p>
@@ -830,32 +435,29 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               </Button>
             </div>
 
-            {/* Selección de tipo de planta */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {plantTypes.map((type, index) => (
-                <motion.div
-                  key={type.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
+            {plantTypes.map((plantType, index) => (
+              <motion.div
+                key={plantType.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <button
+                  onClick={() => handlePlantTypeSelect(plantType.id)}
+                  className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-4 text-left border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
                 >
-                  <button
-                    onClick={() => handlePlantTypeSelect(type.id)}
-                    className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-6 text-center border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
-                  >
-                    <div className="flex flex-col items-center space-y-3">
-                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Building2 className="w-8 h-8 text-blue-600" />
-                      </div>
-                      <div>
-                        <span className="text-gray-800 font-bold text-lg block">{type.name}</span>
-                        <span className="text-gray-600 text-sm">{type.description}</span>
-                      </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Settings className="w-5 h-5 text-blue-600" />
                     </div>
-                  </button>
-                </motion.div>
-              ))}
-            </div>
+                    <div>
+                      <span className="text-gray-800 font-medium block">{plantType.name}</span>
+                      <span className="text-gray-600 text-sm">{plantType.description}</span>
+                    </div>
+                  </div>
+                </button>
+              </motion.div>
+            ))}
           </div>
         </div>
 
@@ -868,8 +470,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  // PASO 2: Selección de sección
-  if (currentStep === 'sectionSelection') {
+  // Pantalla de resultados finales
+  if (currentScreen === 'results' && finalResults) {
     return (
       <div className="min-h-screen relative bg-gray-100 overflow-hidden">
         <div
@@ -880,131 +482,299 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         />
         <div className="absolute inset-0 bg-black/20" />
 
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8" ref={evaluationContentRef}>
-          <div className="w-full max-w-2xl space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo - {selectedPlantType}</h2>
-              <p className="text-white/80">Selecciona la sección a evaluar</p>
-              
-              {/* Mostrar estadísticas de progreso si hay progreso guardado */}
-              {savedProgress && (
-                <div className="mt-4 bg-white/90 backdrop-blur-sm rounded-lg p-4">
-                  <div className="text-sm text-gray-700">
-                    <strong>Progreso guardado:</strong> {equipmentProgressService.getProgressStats(savedProgress).completedSections}/{equipmentProgressService.getProgressStats(savedProgress).totalSections} secciones completadas
+        <div className="relative z-10 max-w-6xl mx-auto px-4 py-8" ref={evaluationContentRef}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <Card className="bg-white/95 backdrop-blur-sm border-0 rounded-2xl shadow-xl">
+              <CardHeader className="text-center pb-6 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-2xl">
+                <div className="flex items-center justify-center space-x-3 mb-4">
+                  <Award className="w-8 h-8" />
+                  <CardTitle className="text-3xl font-bold">
+                    Evaluación Completada
+                  </CardTitle>
+                </div>
+                <p className="text-green-100">
+                  {finalResults.evaluationTitle}
+                </p>
+              </CardHeader>
+
+              <CardContent className="px-8 pb-8">
+                {/* Estadísticas generales */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 mt-6">
+                  <div className="bg-blue-50 rounded-lg p-4 text-center">
+                    <div className="text-3xl font-bold text-blue-600">{finalResults.score}%</div>
+                    <div className="text-sm text-gray-600">Puntuación General</div>
+                  </div>
+                  
+                  <div className="bg-green-50 rounded-lg p-4 text-center">
+                    <div className="text-3xl font-bold text-green-600">{finalResults.correctAnswers}</div>
+                    <div className="text-sm text-gray-600">Respuestas Correctas</div>
+                  </div>
+                  
+                  <div className="bg-purple-50 rounded-lg p-4 text-center">
+                    <div className="text-3xl font-bold text-purple-600">{finalResults.totalAnswers}</div>
+                    <div className="text-sm text-gray-600">Total Evaluado</div>
+                  </div>
+                  
+                  <div className="bg-orange-50 rounded-lg p-4 text-center">
+                    <div className="text-3xl font-bold text-orange-600">{finalResults.sectionResults.length}</div>
+                    <div className="text-sm text-gray-600">Secciones</div>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Botones de acción */}
-            <div className="mb-6 flex justify-center space-x-4">
-              <Button
-                onClick={handleSkipToResults}
-                variant="outline"
-                size="lg"
-                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
-              >
-                <Zap className="w-5 h-5" />
-                <span>Ver Evaluación Simulada</span>
-              </Button>
-              
-              {/* Botón para ver progreso */}
-              {savedProgress && savedProgress.secciones && savedProgress.secciones.length > 0 && (
-                <Button
-                  onClick={handleShowProgress}
-                  variant="outline"
-                  size="lg"
-                  className="bg-blue-100 border-blue-400 text-blue-800 hover:bg-blue-200 flex items-center space-x-2 px-6 py-3"
-                >
-                  <TrendingUp className="w-5 h-5" />
-                  <span>Ver Progreso</span>
-                </Button>
-              )}
-              
-              {/* Botón para limpiar progreso (solo en desarrollo) */}
-              {savedProgress && (
-                <Button
-                  onClick={handleClearProgress}
-                  variant="outline"
-                  size="sm"
-                  className="bg-red-100 border-red-400 text-red-800 hover:bg-red-200 flex items-center space-x-2"
-                >
-                  <span>Limpiar Progreso</span>
-                </Button>
-              )}
-            </div>
+                {/* Resultados por sección */}
+                <div className="mb-8">
+                  <div className="flex items-center space-x-2 mb-6">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-xl font-semibold text-gray-800">Resultados por Sección</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {finalResults.sectionResults.map((section, index) => {
+                      let statusColor;
+                      if (section.percentage >= 80) statusColor = 'border-green-500 bg-green-50';
+                      else if (section.percentage >= 60) statusColor = 'border-yellow-500 bg-yellow-50';
+                      else statusColor = 'border-red-500 bg-red-50';
 
-            {/* Lista de secciones */}
-            <div className="space-y-4">
-              {evaluationData?.secciones?.map((section, index) => {
-                const isCompleted = sectionProgress[section.id]?.completed || 
-                                   (savedProgress && equipmentProgressService.isSectionCompleted(savedProgress, parseInt(section.id)));
-                const sectionResults = sectionProgress[section.id]?.results;
+                      return (
+                        <div key={index} className={`border-l-4 ${statusColor} p-4 rounded-r-lg`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <div>
+                              <div className="font-medium text-gray-800">{section.name}</div>
+                              <div className="text-sm text-gray-600">
+                                {section.correctAnswers}/{section.totalQuestions} correctas
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-gray-800">
+                                {Math.round(section.percentage)}%
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Barra de progreso */}
+                          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${section.percentage}%` }}
+                            />
+                          </div>
 
-                // Obtener información de progreso desde savedProgress si está disponible
-                let savedSectionData = null;
-                if (savedProgress && savedProgress.secciones) {
-                  savedSectionData = savedProgress.secciones.find(s => s.seccion_id === parseInt(section.id));
-                }
+                          {/* Subsecciones */}
+                          {section.subsections && section.subsections.length > 0 && (
+                            <div className="mt-3 pl-4 border-l-2 border-gray-200">
+                              <div className="text-xs text-gray-500 mb-2">Subsecciones:</div>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                {section.subsections.map((subsection, subIndex) => (
+                                  <div key={subIndex} className="text-xs bg-white rounded px-2 py-1 border">
+                                    <div className="font-medium">{subsection.name}</div>
+                                    <div className="text-gray-500">{Math.round(subsection.percentage)}%</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                return (
-                  <motion.div
-                    key={section.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                {/* Botones de acción */}
+                <div className="flex justify-center space-x-4">
+                  <Button
+                    onClick={() => onComplete(finalResults)}
+                    className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
                   >
-                    <button
-                      onClick={() => handleSectionSelect(section)}
-                      className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-6 text-left border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
-                    >
+                    Ver Reporte Completo
+                  </Button>
+                  
+                  <Button
+                    onClick={handleBackToPlantSelection}
+                    variant="outline"
+                    className="px-8 py-3"
+                  >
+                    Nueva Evaluación
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        <img
+          src="public/Concreton.png"
+          alt="Mascota Concreton"
+          className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+        />
+      </div>
+    );
+  }
+
+  // Pantalla de lista de secciones
+  if (currentScreen === 'sectionsList') {
+    if (loading) {
+      return (
+        <div className="min-h-screen relative bg-gray-100 overflow-hidden flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-lg text-gray-600">Cargando evaluación de equipo...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const progressStats = progressData ? equipmentProgressService.getProgressStats(progressData) : null;
+
+    return (
+      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("public/Fondo.png")`,
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-8" ref={evaluationContentRef}>
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Evaluación de Equipo - {selectedPlantType}
+            </h1>
+            <p className="text-white/80">Selecciona la sección a evaluar</p>
+          </div>
+
+          {/* Progreso general */}
+          {progressStats && (
+            <div className="bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-800">Progreso guardado</h3>
+                <span className="text-sm text-gray-600">
+                  {progressStats.completedSections}/{progressStats.totalSections} secciones completadas
+                </span>
+              </div>
+              <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-600 transition-all duration-300"
+                  style={{ width: `${progressStats.progressPercentage}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          <div className="flex justify-center space-x-4 mb-6">
+            <Button
+              onClick={handleSkipToResults}
+              variant="outline"
+              size="sm"
+              className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
+            >
+              <Zap className="w-4 h-4" />
+              <span>Ver Evaluación Simulada</span>
+            </Button>
+
+            <Button
+              onClick={handleBackToPlantSelection}
+              variant="outline"
+              size="sm"
+              className="bg-gray-100 border-gray-400 text-gray-800 hover:bg-gray-200 flex items-center space-x-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Cambiar Tipo de Planta</span>
+            </Button>
+          </div>
+
+          {/* Lista de secciones */}
+          <div className="space-y-4">
+            {evaluationData?.secciones?.map((section, index) => {
+              const isCompleted = completedSections.has(section.id);
+              const sectionProgress = progressData?.secciones?.find(s => s.seccion_id === section.id);
+              
+              return (
+                <motion.div
+                  key={section.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="bg-white/95 backdrop-blur-sm border border-gray-200 hover:shadow-lg transition-all duration-200">
+                    <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
                             isCompleted ? 'bg-green-100' : 'bg-blue-100'
                           }`}>
                             {isCompleted ? (
                               <CheckCircle className="w-6 h-6 text-green-600" />
                             ) : (
-                              <Settings className="w-6 h-6 text-blue-600" />
+                              <Clock className="w-6 h-6 text-blue-600" />
                             )}
                           </div>
+                          
                           <div>
-                            <span className="text-gray-800 font-bold text-lg block">{section.nombre}</span>
-                            <span className="text-gray-600 text-sm">
+                            <h3 className="text-lg font-semibold text-gray-800">
+                              {section.nombre}
+                            </h3>
+                            <div className="text-sm text-gray-600">
                               {section.subsecciones?.length || 0} subsecciones
-                              {isCompleted && (
+                              {isCompleted && sectionProgress && (
                                 <span className="ml-2 text-green-600 font-medium">
-                                  - {Math.round(savedSectionData?.puntaje_porcentaje || sectionResults?.overallPercentage || 0)}% completado
+                                  - {Math.round(sectionProgress.puntaje_porcentaje)}% completado
                                 </span>
                               )}
-                              {savedSectionData && savedSectionData.fecha_completada && (
-                                <span className="block text-xs text-gray-500">
-                                  Completado: {new Date(savedSectionData.fecha_completada).toLocaleDateString()}
-                                </span>
-                              )}
-                            </span>
+                            </div>
+                            {isCompleted && sectionProgress?.fecha_completada && (
+                              <div className="text-xs text-gray-500">
+                                Completado: {new Date(sectionProgress.fecha_completada).toLocaleDateString()}
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <ChevronRight className="w-6 h-6 text-gray-400" />
-                      </div>
-                    </button>
-                  </motion.div>
-                );
-              })}
-            </div>
 
-            {/* Botón para volver */}
-            <div className="flex justify-center mt-8">
-              <Button
-                onClick={() => setCurrentStep('plantType')}
-                variant="outline"
-                className="bg-white/90 border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Cambiar Tipo de Planta
-              </Button>
-            </div>
+                        <div className="flex items-center space-x-3">
+                          {isCompleted && sectionProgress && (
+                            <div className="text-right">
+                              <div className="text-sm font-medium text-gray-700">
+                                {sectionProgress.subsecciones_completadas}/{sectionProgress.total_subsecciones}
+                              </div>
+                              <div className="text-xs text-gray-500">subsecciones</div>
+                            </div>
+                          )}
+                          
+                          <Button
+                            onClick={() => handleSectionSelect(index)}
+                            variant={isCompleted ? "outline" : "default"}
+                            className={isCompleted ? 
+                              "border-green-600 text-green-600 hover:bg-green-50" : 
+                              "bg-blue-600 hover:bg-blue-700 text-white"
+                            }
+                          >
+                            {isCompleted ? 'Revisar' : 'Evaluar'}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Barra de progreso para secciones completadas */}
+                      {isCompleted && sectionProgress && (
+                        <div className="mt-4">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${sectionProgress.puntaje_porcentaje}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 
@@ -1017,24 +787,18 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  // PASO 3: Evaluación de subsección
-  if (currentStep === 'subsectionEvaluation' && selectedSection) {
-    const currentSubsection = selectedSection.subsecciones[currentSubsectionIndex];
-    const progressKey = `${selectedSection.id}-${currentSubsectionIndex}`;
-    const isSubsectionCompleted = subsectionProgress[progressKey]?.completed ||
-                                  (savedProgress && equipmentProgressService.isSubsectionCompleted(
-                                    savedProgress, 
-                                    parseInt(selectedSection.id), 
-                                    parseInt(currentSubsection?.id) || currentSubsectionIndex + 1
-                                  ));
+  // Pantalla de evaluación
+  if (currentScreen === 'evaluation') {
+    const currentSectionData = evaluationData?.secciones?.[currentSection];
+    const currentSubsectionData = currentSectionData?.subsecciones?.[currentSubsection];
 
-    if (!currentSubsection) {
+    if (!currentSectionData || !currentSubsectionData) {
       return (
         <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
-          <Settings size={64} className="mb-4 text-blue-600" />
-          <h1 className="text-3xl font-bold mb-2">Subsección no encontrada</h1>
-          <p className="text-lg mb-6 text-center">No se encontró la subsección solicitada.</p>
-          <Button onClick={() => setCurrentStep('sectionSelection')} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+          <ClipboardCheck size={64} className="mb-4 text-blue-600" />
+          <h1 className="text-3xl font-bold mb-2">Sección no disponible</h1>
+          <p className="text-lg mb-6 text-center">No se encontraron datos para esta sección.</p>
+          <Button onClick={handleBackToSections} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
             <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Secciones
           </Button>
         </div>
@@ -1042,8 +806,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
 
     // Verificar si todas las preguntas de la subsección actual han sido respondidas
-    const allQuestionsAnswered = currentSubsection?.preguntas?.every((_, index) => {
-      const key = `${selectedPlantType}-${selectedSection.id}-${currentSubsectionIndex}-${index}`;
+    const allQuestionsAnswered = currentSubsectionData.preguntas?.every((_, index) => {
+      const key = `${currentSection}-${currentSubsection}-${index}`;
       return answers[key] !== undefined;
     });
 
@@ -1057,202 +821,92 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         />
         <div className="absolute inset-0 bg-black/20" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
-          {/* Barra de progreso */}
-          <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-8" ref={evaluationContentRef}>
+          {/* Header */}
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm mb-6">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-semibold text-gray-800">
-                {selectedSection.nombre} - {currentSubsection.nombre}
+                {currentSectionData.nombre} - {currentSubsectionData.nombre}
               </h2>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">
-                  Subsección {currentSubsectionIndex + 1} de {selectedSection.subsecciones.length}
-                </span>
-                {isSubsectionCompleted && (
-                  <div className="flex items-center space-x-2 text-green-600">
-                    <CheckCircle className="w-5 h-5" />
-                    <span className="text-sm font-medium">Guardado ({Math.round(subsectionProgress[progressKey]?.score || 0)}%)</span>
-                  </div>
-                )}
-              </div>
+              <Button
+                onClick={handleBackToSections}
+                variant="outline"
+                size="sm"
+                className="flex items-center space-x-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Volver</span>
+              </Button>
             </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className="flex h-full">
-                {Array.from({ length: selectedSection.subsecciones.length }, (_, i) => {
-                  const subProgressKey = `${selectedSection.id}-${i}`;
-                  const isSubCompleted = subsectionProgress[subProgressKey]?.completed ||
-                                        (savedProgress && equipmentProgressService.isSubsectionCompleted(
-                                          savedProgress, 
-                                          parseInt(selectedSection.id), 
-                                          parseInt(selectedSection.subsecciones[i]?.id) || i + 1
-                                        ));
-                  
+            <div className="text-sm text-gray-600">
+              Subsección {currentSubsection + 1} de {currentSectionData.subsecciones?.length || 0}
+            </div>
+          </div>
+
+          {/* Preguntas */}
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
+            <div className="p-6">
+              <div className="space-y-6">
+                {currentSubsectionData.preguntas?.map((question, index) => {
+                  const key = `${currentSection}-${currentSubsection}-${index}`;
+                  const selectedAnswer = answers[key];
+
                   return (
-                    <div
-                      key={i}
-                      className={`flex-1 ${
-                        isSubCompleted ? 'bg-green-600' :
-                        i < currentSubsectionIndex ? 'bg-blue-600' :
-                        i === currentSubsectionIndex ? 'bg-blue-400' : 'bg-gray-300'
-                      } ${i < selectedSection.subsecciones.length - 1 ? 'mr-1' : ''}`}
-                    />
+                    <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
+                      <h3 className="text-lg font-medium text-gray-800 mb-4">
+                        {index + 1}. {question.pregunta}
+                      </h3>
+                      
+                      <div className="space-y-2">
+                        <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                          <input
+                            type="radio"
+                            name={`question-${index}`}
+                            value="si"
+                            checked={selectedAnswer === 'si'}
+                            onChange={() => handleAnswer(index, 'si')}
+                            className="mr-3 text-green-600 focus:ring-green-500"
+                          />
+                          <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                          <span className="text-gray-700">Sí</span>
+                        </label>
+
+                        <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                          <input
+                            type="radio"
+                            name={`question-${index}`}
+                            value="no"
+                            checked={selectedAnswer === 'no'}
+                            onChange={() => handleAnswer(index, 'no')}
+                            className="mr-3 text-red-600 focus:ring-red-500"
+                          />
+                          <Clock className="w-5 h-5 text-red-600 mr-2" />
+                          <span className="text-gray-700">No</span>
+                        </label>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
+
+              {/* Botón para continuar */}
+              <div className="mt-8 flex justify-center">
+                <Button
+                  onClick={handleNextQuestion}
+                  disabled={!allQuestionsAnswered || loading}
+                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>
+                    {currentSubsection < (currentSectionData.subsecciones?.length || 0) - 1 
+                      ? 'Siguiente Subsección' 
+                      : 'Completar Sección'}
+                  </span>
+                </Button>
+              </div>
             </div>
           </div>
-
-          {/* Panel principal de evaluación */}
-          <div className="w-full">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentSubsectionIndex}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
-                  {/* Header de la subsección */}
-                  <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-800 text-center">
-                      {currentSubsection.nombre}
-                    </h2>
-                    {currentSubsection.ponderacion_subseccion && (
-                      <div className="text-center text-sm text-gray-600 mt-1">
-                        Ponderación: {currentSubsection.ponderacion_subseccion}%
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Contenido */}
-                  <div className="p-6">
-                    <div className="space-y-6">
-                      {currentSubsection?.preguntas?.map((question, index) => {
-                        const key = `${selectedPlantType}-${selectedSection.id}-${currentSubsectionIndex}-${index}`;
-                        const selectedAnswer = answers[key];
-
-                        return (
-                          <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
-                            <h3 className="text-lg font-medium text-gray-800 mb-4">
-                              {index + 1}. {question.pregunta}
-                            </h3>
-
-                            <div className="space-y-2">
-                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                                <input
-                                  type="radio"
-                                  name={`question-${index}`}
-                                  value="si"
-                                  checked={selectedAnswer === 'si'}
-                                  onChange={() => handleAnswer(index, 'si')}
-                                  className="mr-3 text-green-600 focus:ring-green-500"
-                                />
-                                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                                <span className="text-gray-700">Sí</span>
-                              </label>
-
-                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                                <input
-                                  type="radio"
-                                  name={`question-${index}`}
-                                  value="no"
-                                  checked={selectedAnswer === 'no'}
-                                  onChange={() => handleAnswer(index, 'no')}
-                                  className="mr-3 text-red-600 focus:ring-red-500"
-                                />
-                                <XCircle className="w-5 h-5 text-red-600 mr-2" />
-                                <span className="text-gray-700">No</span>
-                              </label>
-
-                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                                <input
-                                  type="radio"
-                                  name={`question-${index}`}
-                                  value="na"
-                                  checked={selectedAnswer === 'na'}
-                                  onChange={() => handleAnswer(index, 'na')}
-                                  className="mr-3 text-gray-600 focus:ring-gray-500"
-                                />
-                                <MinusCircle className="w-5 h-5 text-gray-600 mr-2" />
-                                <span className="text-gray-700">No Aplica</span>
-                              </label>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Botones de acción */}
-                    <div className="mt-8 flex justify-center space-x-4">
-                      {/* Botón para guardar progreso */}
-                      <Button
-                        onClick={saveCurrentSubsectionProgress}
-                        disabled={!allQuestionsAnswered}
-                        variant="outline"
-                        className="px-6 py-3 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Save className="w-4 h-4" />
-                        <span>Guardar Progreso</span>
-                      </Button>
-
-                      {/* Botón para continuar */}
-                      <Button
-                        onClick={handleNextSubsection}
-                        disabled={!allQuestionsAnswered || loading}
-                        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                      >
-                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span>
-                          {currentSubsectionIndex < selectedSection.subsecciones.length - 1 ? 'Siguiente Subsección' : 'Finalizar Sección'}
-                        </span>
-                      </Button>
-                    </div>
-
-                    {/* Botón para volver a secciones */}
-                    <div className="mt-6 flex justify-center">
-                      <Button
-                        onClick={() => setCurrentStep('sectionSelection')}
-                        variant="outline"
-                        size="sm"
-                        className="text-gray-600 border-gray-300 hover:bg-gray-50"
-                      >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Volver a Secciones
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
         </div>
-
-        {/* Modales de resultados */}
-        <SectionCompletionModal
-          isOpen={showSectionCompletion}
-          onClose={() => setShowSectionCompletion(false)}
-          onContinue={handleContinueAfterSectionCompletion}
-          sectionData={currentSectionCompletionData}
-          plantType={selectedPlantType}
-        />
-
-        <EvaluationSummaryModal
-          isOpen={showEvaluationSummary}
-          onClose={() => setShowEvaluationSummary(false)}
-          onFinish={handleFinishEvaluation}
-          evaluationData={evaluationSummaryData}
-          plantType={selectedPlantType}
-        />
-
-        {/* Modal de progreso general */}
-        <EvaluationSummaryModal
-          isOpen={showProgressModal}
-          onClose={() => setShowProgressModal(false)}
-          onFinish={handleFinishEvaluation}
-          evaluationData={evaluationSummaryData}
-          plantType={selectedPlantType}
-        />
 
         <img
           src="public/Concreton.png"
@@ -1263,17 +917,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
-  // Fallback
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
-      <Settings size={64} className="mb-4 text-blue-600" />
-      <h1 className="text-3xl font-bold mb-2">Estado no válido</h1>
-      <p className="text-lg mb-6 text-center">Ha ocurrido un error en el flujo de evaluación.</p>
-      <Button onClick={onBack} variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Menú
-      </Button>
-    </div>
-  );
+  return null;
 };
 
 export default EvaluationScreenEquipo;
