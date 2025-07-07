@@ -706,10 +706,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 </div>
 
                 {/* Botones de acción */}
-                <div className="flex justify-center space-x-4">
+                <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4">
                   <Button
                     onClick={() => onComplete(finalResults)}
-                    className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
+                    className="w-full sm:w-auto px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg"
                   >
                     Ver Reporte Completo
                   </Button>
@@ -717,15 +717,27 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                   <Button
                     onClick={handleRestartEvaluation}
                     variant="outline"
-                    className="px-8 py-3"
+                    className="w-full sm:w-auto px-8 py-3"
                   >
                     Nueva Evaluación
+                  </Button>
+
+                  {/* Botón para limpiar progreso */}
+                  <Button
+                    onClick={() => setShowClearProgressModal(true)}
+                    className="w-full sm:w-auto px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg flex items-center justify-center space-x-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Limpiar Progreso</span>
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
         </div>
+
+        {/* Modal de confirmación */}
+        <ClearProgressModal />
 
         <img
           src="public/Concreton.png"
