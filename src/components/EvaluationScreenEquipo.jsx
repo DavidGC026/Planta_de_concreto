@@ -259,13 +259,14 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         const randomValue = Math.random();
         let status;
         
-        if (randomValue < 0.7) {
-          status = 'bueno';
+        if (randomValue < 0.6) {
+          status = 'si';
           goodItems++;
         } else if (randomValue < 0.9) {
-          status = 'regular';
+          status = 'na';
+          goodItems++; // 'na' también cuenta como correcta
         } else {
-          status = 'malo';
+          status = 'no';
         }
         
         simulatedAnswers[key] = status;
@@ -275,8 +276,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
     let score = 0;
     Object.values(simulatedAnswers).forEach(status => {
-      if (status === 'bueno') score += 10;
-      else if (status === 'regular') score += 5;
+      if (status === 'si' || status === 'na') score += 10;
+      // 'no' = 0 puntos
     });
 
     const finalScore = Math.round((score / (totalItems * 10)) * 100);
@@ -503,7 +504,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       currentSubsectionData.preguntas.forEach((_, index) => {
         const key = `${currentSection}-${currentSubsection}-${index}`;
         const answer = answers[key];
-        // En evaluación de equipo, tanto 'si' como 'na' se consideran correctas
+        // En evaluación de equipo, tanto 'si' como 'na' se consideran correctas, solo 'no' es incorrecta
         if (answer === 'si' || answer === 'na') {
           correctAnswers++;
         }

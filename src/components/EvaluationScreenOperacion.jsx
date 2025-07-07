@@ -97,13 +97,14 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
         const randomValue = Math.random();
         let status;
         
-        if (randomValue < 0.7) { // 70% probabilidad de "bueno"
-          status = 'bueno';
+        if (randomValue < 0.6) { // 60% probabilidad de "si"
+          status = 'si';
           goodItems++;
-        } else if (randomValue < 0.9) { // 20% probabilidad de "regular"
-          status = 'regular';
-        } else { // 10% probabilidad de "malo"
-          status = 'malo';
+        } else if (randomValue < 0.9) { // 30% probabilidad de "na"
+          status = 'na';
+          goodItems++; // 'na' también cuenta como correcta
+        } else { // 10% probabilidad de "no"
+          status = 'no';
         }
         
         simulatedAnswers[key] = status;
@@ -114,9 +115,8 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
     // Calcular puntuación simulada
     let score = 0;
     Object.values(simulatedAnswers).forEach(status => {
-      if (status === 'bueno') score += 10;
-      else if (status === 'regular') score += 5;
-      // 'malo' = 0 puntos
+      if (status === 'si' || status === 'na') score += 10;
+      // 'no' = 0 puntos
     });
 
     const finalScore = Math.round((score / (totalItems * 10)) * 100);
@@ -180,12 +180,14 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
       const totalQuestions = sectionAnswers.length;
       
       sectionAnswers.forEach(([, status]) => {
-        if (status === 'bueno') {
+        if (status === 'si') {
           sectionScore += 10;
           correctAnswers++;
-        } else if (status === 'regular') {
-          sectionScore += 5;
+        } else if (status === 'na') {
+          sectionScore += 10;
+          correctAnswers++;
         }
+        // 'no' = 0 puntos y no cuenta como correcta
       });
 
       const sectionPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
@@ -246,7 +248,7 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
         respuestas: Object.entries(plantStatusAnswers).map(([key, status]) => {
           return {
             pregunta_id: null, // Para evaluación de operación no hay pregunta_id real
-            respuesta: status === 'bueno' ? 'si' : status === 'regular' ? 'na' : 'no',
+            respuesta: status, // Ya viene como 'si', 'no', o 'na'
             observacion: `Item: ${key} - Estado: ${status}`
           };
         }),
@@ -371,9 +373,9 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
                           
                           <div className="flex space-x-4">
                             {[
-                              { value: 'bueno', label: 'Bueno', color: 'bg-green-500 hover:bg-green-600' },
-                              { value: 'regular', label: 'Regular', color: 'bg-yellow-500 hover:bg-yellow-600' },
-                              { value: 'malo', label: 'Malo', color: 'bg-red-500 hover:bg-red-600' }
+                              { value: 'si', label: 'Sí', color: 'bg-green-500 hover:bg-green-600' },
+                              { value: 'no', label: 'No', color: 'bg-red-500 hover:bg-red-600' },
+                              { value: 'na', label: 'No Aplica', color: 'bg-gray-500 hover:bg-gray-600' }
                             ].map((option) => (
                               <button
                                 key={option.value}

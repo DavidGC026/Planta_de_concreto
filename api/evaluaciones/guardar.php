@@ -336,10 +336,13 @@ try {
         $subseccion_id = null;
         
         // Calcular ponderación obtenida
-        if ($respuesta_valor === 'si' || $respuesta_valor === 'bueno') {
+        if ($respuesta_valor === 'si') {
             $ponderacion_obtenida = 10;
-        } elseif ($respuesta_valor === 'regular') {
-            $ponderacion_obtenida = 5;
+        } elseif ($respuesta_valor === 'na') {
+            // Para evaluación de equipo, 'na' también vale 10 puntos
+            $ponderacion_obtenida = ($tipo_evaluacion === 'equipo') ? 10 : 0;
+        } else {
+            $ponderacion_obtenida = 0; // 'no' vale 0 puntos
         }
         
         $stmt->execute([
