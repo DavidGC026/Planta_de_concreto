@@ -527,6 +527,136 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     }
   };
 
+  // Función para calcular estadísticas mejoradas con información de la base de datos
+  const calculateEnhancedStats = () => {
+    if (!evaluationData?.secciones) {
+      return null;
+    }
+
+    // Calcular totales generales
+    const totalQuestions = evaluationData.secciones.reduce((total, seccion) => {
+      return total + (seccion.subsecciones?.reduce((subTotal, subseccion) => {
+        return subTotal + (subseccion.preguntas?.length || 0);
+      }, 0) || 0);
+    }, 0);
+
+    const answeredQuestions = Object.entries(answers).filter(([key, answer]) => {
+      return answer !== undefined;
+    }).length;
+
+    const progressPercentage = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
+
+    // Calcular respuestas por tipo
+    const responseStats = {
+      si: 0,
+      no: 0,
+      na: 0
+    };
+
+    let correctAnswers = 0;
+
+    Object.entries(answers).forEach(([key, answer]) => {
+      if (responseStats.hasOwnProperty(answer)) {
+        responseStats[answer]++;
+
+        if (answer === 'si' || answer === 'na') {
+          correctAnswers++;
+        }
+      }
+    });
+
+    // Calcular información detallada por sección
+    const sectionsInfo = evaluationData.secciones.map((seccion, sectionIndex) => {
+      const totalSectionQuestions = seccion.subsecciones?.reduce((total, subseccion) => {
+        return total + (subseccion.preguntas?.length || 0);
+      }, 0) || 0;
+
+      // Contar respuestas de esta sección
+      let sectionAnswered = 0;
+      let sectionCorrect = 0;
+
+      seccion.subsecciones?.forEach((subseccion, subseccionIndex) => {
+        subseccion.preguntas?.forEach((question, qIndex) => {
+          const key = `${sectionIndex}-${subseccionIndex}-${qIndex}`;
+          const answer = answers[key];
+
+          if (answer) {
+            sectionAnswered++;
+            if (answer === 'si' || answer === 'na') {
+              sectionCorrect++;
+            }
+          }
+        });
+      });
+
+      const sectionProgress = totalSectionQuestions > 0 ? (sectionAnswered / totalSectionQuestions) * 100 : 0;
+      const sectionScore = sectionAnswered > 0 ? (sectionCorrect / sectionAnswered) * 100 : 0;
+
+      return {
+        nombre: seccion.nombre,
+        ponderacion: seccion.ponderacion || 0,
+        totalPreguntas: totalSectionQuestions,
+        preguntasRespondidas: sectionAnswered,
+        respuestasCorrectas: sectionCorrect,
+        progreso: sectionProgress,
+        puntuacion: sectionScore,
+        isCurrentSection: sectionIndex === currentSection,
+        isCompleted: sectionProgress === 100,
+        subsecciones: seccion.subsecciones?.map((subseccion, subseccionIndex) => {
+          const subseccionQuestions = subseccion.preguntas?.length || 0;
+          let subseccionAnswered = 0;
+          let subseccionCorrect = 0;
+
+          subseccion.preguntas?.forEach((question, qIndex) => {
+            const key = `${sectionIndex}-${subseccionIndex}-${qIndex}`;
+            const answer = answers[key];
+
+            if (answer) {
+              subseccionAnswered++;
+              if (answer === 'si' || answer === 'na') {
+                subseccionCorrect++;
+              }
+            }
+          });
+
+          const subseccionProgress = subseccionQuestions > 0 ? (subseccionAnswered / subseccionQuestions) * 100 : 0;
+          const subseccionScore = subseccionAnswered > 0 ? (subseccionCorrect / subseccionAnswered) * 100 : 0;
+
+          return {
+            nombre: subseccion.nombre,
+            ponderacion: subseccion.ponderacion_subseccion || 0,
+            totalPreguntas: subseccionQuestions,
+            preguntasRespondidas: subseccionAnswered,
+            respuestasCorrectas: subseccionCorrect,
+            progreso: subseccionProgress,
+            puntuacion: subseccionScore,
+            isCurrentSubsection: sectionIndex === currentSection && subseccionIndex === currentSubsection,
+            isCompleted: subseccionProgress === 100
+          };
+        }) || []
+      };
+    });
+
+    // Calcular ponderación total
+    const totalPonderacion = evaluationData.secciones.reduce((total, seccion) => {
+      return total + (seccion.ponderacion || 0);
+    }, 0);
+
+    return {
+      totalQuestions,
+      answeredQuestions,
+      progressPercentage,
+      responseStats,
+      correctAnswers,
+      currentScore: answeredQuestions > 0 ? Math.round((correctAnswers / answeredQuestions) * 100) : 0,
+      sectionsInfo,
+      totalPonderacion,
+      configuracion: evaluationData.configuracion
+    };
+  };
+
+  const enhancedStats = calculateEnhancedStats();
+
   // Pantalla de selección de tipo de planta
   if (currentScreen === 'plantSelection') {
     return (
@@ -975,80 +1105,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       return answers[key] !== undefined;
     });
 
-    // Calcular estadísticas para el panel lateral
-    const calculateSidebarStats = () => {
-      if (!evaluationData?.secciones) return null;
-
-      const sectionStats = evaluationData.secciones.map((section, sectionIndex) => {
-        const subsectionStats = section.subsecciones?.map((subsection, subsectionIndex) => {
-          // Contar preguntas respondidas en esta subsección
-          let answeredQuestions = 0;
-          let totalQuestions = subsection.preguntas?.length || 0;
-          let correctAnswers = 0;
-
-          subsection.preguntas?.forEach((_, questionIndex) => {
-            const key = `${sectionIndex}-${subsectionIndex}-${questionIndex}`;
-            const answer = answers[key];
-            if (answer !== undefined) {
-              answeredQuestions++;
-              if (answer === 'si' || answer === 'na') {
-                correctAnswers++;
-              }
-            }
-          });
-
-          const progress = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
-          const score = answeredQuestions > 0 ? (correctAnswers / answeredQuestions) * 100 : 0;
-
-          return {
-            nombre: subsection.nombre,
-            progreso: progress,
-            puntuacion: score,
-            preguntasRespondidas: answeredQuestions,
-            totalPreguntas: totalQuestions,
-            isCurrentSubsection: sectionIndex === currentSection && subsectionIndex === currentSubsection,
-            isCompleted: progress === 100
-          };
-        }) || [];
-
-        // Calcular estadísticas de la sección
-        const totalSubsectionQuestions = subsectionStats.reduce((sum, sub) => sum + sub.totalPreguntas, 0);
-        const totalAnsweredQuestions = subsectionStats.reduce((sum, sub) => sum + sub.preguntasRespondidas, 0);
-        const sectionProgress = totalSubsectionQuestions > 0 ? (totalAnsweredQuestions / totalSubsectionQuestions) * 100 : 0;
-        const avgScore = subsectionStats.length > 0 ? 
-          subsectionStats.reduce((sum, sub) => sum + sub.puntuacion, 0) / subsectionStats.length : 0;
-
-        return {
-          nombre: section.nombre,
-          ponderacion: section.ponderacion || 0,
-          progreso: sectionProgress,
-          puntuacion: avgScore,
-          subsecciones: subsectionStats,
-          isCurrentSection: sectionIndex === currentSection,
-          isCompleted: sectionProgress === 100
-        };
-      });
-
-      // Calcular progreso general
-      const totalQuestions = sectionStats.reduce((sum, section) => 
-        sum + section.subsecciones.reduce((subSum, sub) => subSum + sub.totalPreguntas, 0), 0);
-      const totalAnswered = sectionStats.reduce((sum, section) => 
-        sum + section.subsecciones.reduce((subSum, sub) => subSum + sub.preguntasRespondidas, 0), 0);
-      const overallProgress = totalQuestions > 0 ? (totalAnswered / totalQuestions) * 100 : 0;
-      const overallScore = sectionStats.length > 0 ? 
-        sectionStats.reduce((sum, section) => sum + section.puntuacion, 0) / sectionStats.length : 0;
-
-      return {
-        secciones: sectionStats,
-        progresoGeneral: overallProgress,
-        puntuacionGeneral: overallScore,
-        totalPreguntas: totalQuestions,
-        preguntasRespondidas: totalAnswered
-      };
-    };
-
-    const sidebarStats = calculateSidebarStats();
-
     return (
       <div className="min-h-screen relative bg-gray-100 overflow-hidden">
         <div
@@ -1059,7 +1115,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         />
         <div className="absolute inset-0 bg-black/20" />
 
-        <div className="relative z-10 max-w-4xl mx-auto px-4 py-8" ref={evaluationContentRef}>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
           {/* Header */}
           <div className="bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm mb-6">
             <div className="flex items-center justify-between mb-2">
@@ -1083,7 +1139,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
           <div className="flex gap-6">
             {/* Panel principal de evaluación */}
-            <div className="w-3/5">
+            <div className={`${enhancedStats ? 'w-3/5' : 'w-full'}`}>
+              {/* Preguntas */}
               <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
                 <div className="p-6">
                   <div className="space-y-6">
@@ -1161,14 +1218,14 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               </div>
             </div>
 
-            {/* Panel lateral de ponderación */}
-            {sidebarStats && (
+            {/* Panel de estadísticas mejorado */}
+            {enhancedStats && (
               <div className="w-2/5">
                 <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 sticky top-8">
                   <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                       <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-                      Criterios de Evaluación
+                      Criterios de evaluación
                     </h3>
                   </div>
 
@@ -1179,13 +1236,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="bg-gray-50">
-                              <th className="text-left p-2 font-medium text-gray-700">Sección</th>
-                              <th className="text-center p-2 font-medium text-gray-700">Ponderación</th>
-                              <th className="text-center p-2 font-medium text-gray-700">Progreso</th>
+                              <th className="text-left p-2 font-medium text-gray-700">Criterios de evaluación</th>
+                              <th className="text-center p-2 font-medium text-gray-700">Porcentaje</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {sidebarStats.secciones.map((section, index) => (
+                            {enhancedStats.sectionsInfo.map((section, index) => (
                               <React.Fragment key={index}>
                                 <tr
                                   className={`border-b border-gray-100 ${
@@ -1208,53 +1264,51 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                                         <CheckCircle className="w-3 h-3 text-green-500 ml-1 flex-shrink-0" />
                                       )}
                                     </div>
+                                    {/* Barra de progreso de la sección */}
+                                    <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+                                      <div
+                                        className={`h-1 rounded-full transition-all duration-300 ${
+                                          section.isCurrentSection ? 'bg-blue-500' : 
+                                          section.isCompleted ? 'bg-green-500' : 'bg-gray-300'
+                                        }`}
+                                        style={{ width: `${section.progreso}%` }}
+                                      />
+                                    </div>
                                   </td>
                                   <td className="text-center p-2 text-xs font-medium">
-                                    {section.ponderacion}%
-                                  </td>
-                                  <td className="text-center p-2 text-xs">
-                                    <div className="flex items-center justify-center">
-                                      <div className="w-8 bg-gray-200 rounded-full h-1 mr-1">
-                                        <div
-                                          className="bg-blue-600 h-1 rounded-full transition-all duration-300"
-                                          style={{ width: `${section.progreso}%` }}
-                                        />
-                                      </div>
-                                      <span className="text-xs">{Math.round(section.progreso)}%</span>
-                                    </div>
+                                    {section.ponderacion}
                                   </td>
                                 </tr>
                                 
                                 {/* Mostrar subsecciones de la sección actual */}
-                                {section.isCurrentSection && section.subsecciones.map((subsection, subIndex) => (
-                                  <tr key={`sub-${subIndex}`} className="bg-blue-25">
+                                {section.isCurrentSection && section.subsecciones && section.subsecciones.map((subsection, subIndex) => (
+                                  <tr key={`${index}-${subIndex}`} className="bg-blue-25">
                                     <td className="p-2 pl-6">
-                                      <div className="flex items-center">
-                                        <span className="text-xs text-gray-500 mr-1">└</span>
-                                        <span className="text-xs text-gray-700 truncate" title={subsection.nombre}>
+                                      <div className="flex items-center text-xs">
+                                        <span className="text-gray-400 mr-1">└</span>
+                                        <span className="text-gray-700 truncate" title={subsection.nombre}>
                                           {subsection.nombre.length > 15 ? subsection.nombre.substring(0, 15) + '...' : subsection.nombre}
                                         </span>
                                         {subsection.isCurrentSubsection && (
-                                          <div className="w-1.5 h-1.5 bg-orange-500 rounded-full ml-1 flex-shrink-0" />
+                                          <div className="w-2 h-2 bg-orange-500 rounded-full ml-1 flex-shrink-0" />
                                         )}
                                         {subsection.isCompleted && (
-                                          <CheckCircle className="w-2.5 h-2.5 text-green-500 ml-1 flex-shrink-0" />
+                                          <CheckCircle className="w-3 h-3 text-green-500 ml-1 flex-shrink-0" />
                                         )}
                                       </div>
-                                    </td>
-                                    <td className="text-center p-2 text-xs text-gray-500">
-                                      {(section.ponderacion / section.subsecciones.length).toFixed(1)}%
+                                      {/* Barra de progreso de la subsección */}
+                                      <div className="w-full bg-gray-200 rounded-full h-1 mt-1 ml-3">
+                                        <div
+                                          className={`h-1 rounded-full transition-all duration-300 ${
+                                            subsection.isCurrentSubsection ? 'bg-orange-500' : 
+                                            subsection.isCompleted ? 'bg-green-500' : 'bg-gray-300'
+                                          }`}
+                                          style={{ width: `${subsection.progreso}%` }}
+                                        />
+                                      </div>
                                     </td>
                                     <td className="text-center p-2 text-xs">
-                                      <div className="flex items-center justify-center">
-                                        <div className="w-6 bg-gray-200 rounded-full h-1 mr-1">
-                                          <div
-                                            className="bg-orange-500 h-1 rounded-full transition-all duration-300"
-                                            style={{ width: `${subsection.progreso}%` }}
-                                          />
-                                        </div>
-                                        <span className="text-xs">{Math.round(subsection.progreso)}%</span>
-                                      </div>
+                                      {(subsection.ponderacion || (section.ponderacion / section.subsecciones.length)).toFixed(1)}
                                     </td>
                                   </tr>
                                 ))}
@@ -1262,8 +1316,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                             ))}
                             <tr className="bg-gray-100 font-bold">
                               <td className="p-2 text-xs">TOTAL</td>
-                              <td className="text-center p-2 text-xs">100%</td>
-                              <td className="text-center p-2 text-xs">{Math.round(sidebarStats.progresoGeneral)}%</td>
+                              <td className="text-center p-2 text-xs">100</td>
                             </tr>
                           </tbody>
                         </table>
@@ -1271,56 +1324,89 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
                       {/* Progreso general */}
                       <div className="border-t pt-3">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Progreso General</h4>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Progreso general</h4>
                         <div className="flex justify-between text-sm text-gray-600 mb-1">
                           <span>Progreso</span>
-                          <span>{Math.round(sidebarStats.progresoGeneral)}%</span>
+                          <span>{Math.round(enhancedStats.progressPercentage)}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
                             className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${sidebarStats.progresoGeneral}%` }}
+                            style={{ width: `${enhancedStats.progressPercentage}%` }}
                           />
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          {sidebarStats.preguntasRespondidas} de {sidebarStats.totalPreguntas} preguntas
+                          {enhancedStats.answeredQuestions} de {enhancedStats.totalQuestions} preguntas
                         </div>
                       </div>
 
                       {/* Puntuación estimada */}
                       <div className="border-t pt-3">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación Estimada</h4>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
                         <div className="text-center">
                           <div className="text-2xl font-bold text-blue-600">
-                            {Math.round(sidebarStats.puntuacionGeneral)}%
+                            {enhancedStats.currentScore}%
                           </div>
                           <div className="text-xs text-gray-500">
-                            puntuación promedio
+                            puntos acumulados
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {enhancedStats.correctAnswers} correctas de {enhancedStats.answeredQuestions} respondidas
                           </div>
                         </div>
                       </div>
 
-                      {/* Información de la subsección actual */}
+                      {/* Subsección actual */}
                       <div className="border-t pt-3">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Subsección Actual</h4>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Subsección actual</h4>
                         <div className="bg-orange-50 rounded-lg p-3">
-                          <div className="text-sm font-medium text-orange-800">
+                          <div className="text-sm font-medium text-orange-800 mb-1">
                             {currentSubsectionData.nombre}
                           </div>
-                          <div className="text-xs text-orange-600 mt-1">
-                            Pregunta {Object.keys(answers).filter(key => 
-                              key.startsWith(`${currentSection}-${currentSubsection}-`)
-                            ).length + 1} de {currentSubsectionData.preguntas?.length || 0}
+                          <div className="text-xs text-orange-600 mb-2">
+                            Pregunta {(currentSubsectionData.preguntas?.filter((_, index) => {
+                              const key = `${currentSection}-${currentSubsection}-${index}`;
+                              return answers[key] !== undefined;
+                            }).length || 0) + 1} de {currentSubsectionData.preguntas?.length || 0}
                           </div>
-                          <div className="w-full bg-orange-200 rounded-full h-1 mt-2">
+                          <div className="w-full bg-orange-200 rounded-full h-2">
                             <div
-                              className="bg-orange-500 h-1 rounded-full transition-all duration-300"
+                              className="bg-orange-500 h-2 rounded-full transition-all duration-300"
                               style={{ 
-                                width: `${((Object.keys(answers).filter(key => 
-                                  key.startsWith(`${currentSection}-${currentSubsection}-`)
-                                ).length) / (currentSubsectionData.preguntas?.length || 1)) * 100}%` 
+                                width: `${((currentSubsectionData.preguntas?.filter((_, index) => {
+                                  const key = `${currentSection}-${currentSubsection}-${index}`;
+                                  return answers[key] !== undefined;
+                                }).length || 0) / (currentSubsectionData.preguntas?.length || 1)) * 100}%` 
                               }}
                             />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Estadísticas de respuestas */}
+                      <div className="border-t pt-3">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Distribución de respuestas</h4>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center">
+                              <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                              <span>Sí</span>
+                            </div>
+                            <span className="font-medium">{enhancedStats.responseStats.si}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center">
+                              <XCircle className="w-4 h-4 text-red-600 mr-2" />
+                              <span>No</span>
+                            </div>
+                            <span className="font-medium">{enhancedStats.responseStats.no}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center">
+                              <Clock className="w-4 h-4 text-gray-600 mr-2" />
+                              <span>No Aplica</span>
+                            </div>
+                            <span className="font-medium">{enhancedStats.responseStats.na}</span>
                           </div>
                         </div>
                       </div>
@@ -1329,95 +1415,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
-        <img
-          src="public/Concreton.png"
-          alt="Mascota Concreton"
-          className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
-        />
-      </div>
-    );
-  }
-
-  return null;
-};
-
-export default EvaluationScreenEquipo;
-            <div className="p-6">
-              <div className="space-y-6">
-                {currentSubsectionData.preguntas?.map((question, index) => {
-                  const key = `${currentSection}-${currentSubsection}-${index}`;
-                  const selectedAnswer = answers[key];
-
-                  return (
-                    <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
-                      <h3 className="text-lg font-medium text-gray-800 mb-4">
-                        {index + 1}. {question.pregunta}
-                      </h3>
-                      
-                      <div className="space-y-2">
-                        <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                          <input
-                            type="radio"
-                            name={`question-${index}`}
-                            value="si"
-                            checked={selectedAnswer === 'si'}
-                            onChange={() => handleAnswer(index, 'si')}
-                            className="mr-3 text-green-600 focus:ring-green-500"
-                          />
-                          <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                          <span className="text-gray-700">Sí</span>
-                        </label>
-
-                        <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                          <input
-                            type="radio"
-                            name={`question-${index}`}
-                            value="no"
-                            checked={selectedAnswer === 'no'}
-                            onChange={() => handleAnswer(index, 'no')}
-                            className="mr-3 text-red-600 focus:ring-red-500"
-                          />
-                          <XCircle className="w-5 h-5 text-red-600 mr-2" />
-                          <span className="text-gray-700">No</span>
-                        </label>
-
-                        <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
-                          <input
-                            type="radio"
-                            name={`question-${index}`}
-                            value="na"
-                            checked={selectedAnswer === 'na'}
-                            onChange={() => handleAnswer(index, 'na')}
-                            className="mr-3 text-gray-600 focus:ring-gray-500"
-                          />
-                          <Clock className="w-5 h-5 text-gray-600 mr-2" />
-                          <span className="text-gray-700">No Aplica</span>
-                        </label>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Botón para continuar */}
-              <div className="mt-8 flex justify-center">
-                <Button
-                  onClick={handleNextQuestion}
-                  disabled={!allQuestionsAnswered || loading}
-                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                >
-                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>
-                    {currentSubsection < (currentSectionData.subsecciones?.length || 0) - 1 
-                      ? 'Siguiente Subsección' 
-                      : 'Completar Sección'}
-                  </span>
-                </Button>
-              </div>
-            </div>
           </div>
         </div>
 
