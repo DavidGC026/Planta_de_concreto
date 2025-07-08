@@ -24,14 +24,7 @@ class EquipmentProgressService {
       return response.data;
     } catch (error) {
       console.error('Error getting equipment progress:', error);
-      // Retornar estructura vacía en caso de error para evitar crashes
-      return {
-        usuario_id: userId,
-        tipo_planta: plantType,
-        secciones: [],
-        total_secciones: 0,
-        secciones_completadas: 0
-      };
+      throw error;
     }
   }
 
@@ -204,21 +197,6 @@ class EquipmentProgressService {
 
     return formattedProgress;
   }
-
-  /**
-   * Obtener resumen de progreso para mostrar al usuario
-   */
-  getProgressSummary(progressData) {
-    const stats = this.getProgressStats(progressData);
-    
-    return {
-      ...stats,
-      message: stats.totalSections === 0 
-        ? 'No hay progreso guardado'
-        : `${stats.completedSections} de ${stats.totalSections} secciones completadas`,
-      canContinue: stats.totalSections > 0 && stats.completedSections < stats.totalSections
-    };
-  }
 }
 
 // Crear instancia singleton
@@ -235,6 +213,5 @@ export const {
   isSectionCompleted,
   isSubsectionCompleted,
   getProgressStats,
-  formatProgressForComponent,
-  getProgressSummary
+  formatProgressForComponent
 } = equipmentProgressService;
