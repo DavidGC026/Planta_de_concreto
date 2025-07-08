@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, MinusCircle, Settings, Zap, Loader2, BarChart3, List, Play } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
@@ -15,6 +15,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [answers, setAnswers] = useState({});
   const [selectedPlantType, setSelectedPlantType] = useState(null);
   const [evaluationStarted, setEvaluationStarted] = useState(false);
+  const [showSectionSelection, setShowSectionSelection] = useState(false);
   const [loading, setLoading] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
   const [completedSections, setCompletedSections] = useState({});
@@ -53,6 +54,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       const data = await apiService.getPreguntas(params);
       setEvaluationData(data);
       setEvaluationStarted(true);
+      setShowSectionSelection(true); // Mostrar selección de secciones
 
       // Cargar progreso previo si existe
       await loadPreviousProgress();
@@ -273,6 +275,18 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     await loadEvaluationData();
   };
 
+  // Nueva función para seleccionar una sección específica
+  const handleSectionSelect = (sectionIndex) => {
+    setCurrentSection(sectionIndex);
+    setCurrentSubsection(0);
+    setShowSectionSelection(false);
+  };
+
+  // Función para volver al menú de selección de secciones
+  const handleBackToSectionSelection = () => {
+    setShowSectionSelection(true);
+  };
+
   const saveSubsectionProgress = async () => {
     try {
       const user = apiService.getCurrentUser();
@@ -473,14 +487,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   const handleSectionModalContinue = () => {
     setShowSectionModal(false);
-    
-    if (currentSection < totalSections - 1) {
-      setCurrentSection(prev => prev + 1);
-      setCurrentSubsection(0);
-    } else {
-      // Mostrar resumen final
-      showFinalSummary();
-    }
+    // Volver al menú de selección de secciones
+    setShowSectionSelection(true);
   };
 
   const showFinalSummary = () => {
@@ -625,6 +633,244 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
+  // Pantalla de selección de secciones
+  if (showSectionSelection) {
+    return (
+      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("public/Fondo.png")`,
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">
+              Evaluación de Equipo - Planta {selectedPlantType?.charAt(0).toUpperCase() + selectedPlantType?.slice(1)}
+            </h2>
+            <p className="text-white/80 text-lg">Selecciona la sección que deseas evaluar</p>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex justify-between items-center mb-6">
+            <Button
+              onClick={onBack}
+              variant="outline"
+              className="bg-white/90 text-gray-800 border-gray-300 hover:bg-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver al Menú
+            </Button>
+
+            <div className="flex space-x-4">
+              <Button
+                onClick={handleSkipToResults}
+                variant="outline"
+                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Ver Simulación
+              </Button>
+
+              <Button
+                onClick={showFinalSummary}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={Object.keys(sectionResults).length === 0}
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Ver Resumen Final
+              </Button>
+            </div>
+          </div>
+
+          {/* Grid de secciones */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {evaluationData?.secciones?.map((section, index) => {
+              const isCompleted = completedSections[section.id]?.completed || false;
+              const sectionResult = sectionResults[section.id];
+              const completionPercentage = sectionResult?.percentage || 0;
+
+              return (
+                <motion.div
+                  key={section.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className={`bg-white/95 backdrop-blur-sm border-2 transition-all duration-200 hover:shadow-xl ${
+                    isCompleted 
+                      ? 'border-green-500 bg-green-50/50' 
+                      : 'border-gray-200 hover:border-blue-300'
+                  }`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg font-semibold text-gray-800 mb-1">
+                            {section.nombre}
+                          </CardTitle>
+                          <p className="text-sm text-gray-600">
+                            {section.subsecciones?.length || 0} subsecciones
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {isCompleted && (
+                            <CheckCircle className="w-6 h-6 text-green-600" />
+                          )}
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-600">
+                              Peso: {parseFloat(section.ponderacion || 0).toFixed(1)}%
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="pt-0">
+                      {/* Barra de progreso */}
+                      {isCompleted && (
+                        <div className="mb-4">
+                          <div className="flex justify-between text-sm text-gray-600 mb-1">
+                            <span>Completado</span>
+                            <span>{Math.round(completionPercentage)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                completionPercentage >= 80 ? 'bg-green-500' :
+                                completionPercentage >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${completionPercentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Subsecciones */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Subsecciones:</h4>
+                        <div className="space-y-1">
+                          {section.subsecciones?.slice(0, 3).map((subsection, subIndex) => (
+                            <div key={subIndex} className="text-xs text-gray-600 flex items-center">
+                              <div className="w-2 h-2 bg-blue-400 rounded-full mr-2 flex-shrink-0" />
+                              <span className="truncate">{subsection.nombre}</span>
+                            </div>
+                          ))}
+                          {section.subsecciones?.length > 3 && (
+                            <div className="text-xs text-gray-500">
+                              +{section.subsecciones.length - 3} más...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Botón de acción */}
+                      <Button
+                        onClick={() => handleSectionSelect(index)}
+                        className={`w-full ${
+                          isCompleted 
+                            ? 'bg-green-600 hover:bg-green-700 text-white' 
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        {isCompleted ? 'Revisar Sección' : 'Iniciar Evaluación'}
+                      </Button>
+
+                      {/* Estadísticas si está completada */}
+                      {isCompleted && sectionResult && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="text-center">
+                              <div className="font-medium text-green-600">
+                                {sectionResult.correctAnswers}
+                              </div>
+                              <div className="text-gray-500">Correctas</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="font-medium text-gray-600">
+                                {sectionResult.totalQuestions}
+                              </div>
+                              <div className="text-gray-500">Total</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Estadísticas generales */}
+          <div className="mt-8 bg-white/95 backdrop-blur-sm rounded-lg p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <List className="w-5 h-5 mr-2 text-blue-600" />
+              Progreso General
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {Object.keys(sectionResults).length}
+                </div>
+                <div className="text-sm text-gray-600">Secciones Completadas</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-600">
+                  {evaluationData?.secciones?.length || 0}
+                </div>
+                <div className="text-sm text-gray-600">Total de Secciones</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {Object.values(sectionResults).reduce((sum, result) => sum + result.correctAnswers, 0)}
+                </div>
+                <div className="text-sm text-gray-600">Respuestas Correctas</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {Object.values(sectionResults).reduce((sum, result) => sum + result.totalQuestions, 0)}
+                </div>
+                <div className="text-sm text-gray-600">Total Evaluado</div>
+              </div>
+            </div>
+
+            {/* Barra de progreso general */}
+            <div className="mt-4">
+              <div className="flex justify-between text-sm text-gray-600 mb-1">
+                <span>Progreso General</span>
+                <span>
+                  {Math.round((Object.keys(sectionResults).length / (evaluationData?.secciones?.length || 1)) * 100)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(Object.keys(sectionResults).length / (evaluationData?.secciones?.length || 1)) * 100}%` 
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <img
+          src="public/Concreton.png"
+          alt="Mascota Concreton"
+          className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+        />
+      </div>
+    );
+  }
+
   if (!evaluationData || !evaluationData.secciones || evaluationData.secciones.length === 0) {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
@@ -699,20 +945,27 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       <div className="absolute inset-0 bg-black/20" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
-        {/* Botón de desarrollo para saltar a resultados - solo en primera sección */}
-        {currentSection === 0 && currentSubsection === 0 && (
-          <div className="mb-4 flex justify-end">
-            <Button
-              onClick={handleSkipToResults}
-              variant="outline"
-              size="sm"
-              className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
-            >
-              <Zap className="w-4 h-4" />
-              <span>Saltar a Resultados (Simulado)</span>
-            </Button>
-          </div>
-        )}
+        {/* Botón para volver a selección de secciones */}
+        <div className="mb-4 flex justify-between items-center">
+          <Button
+            onClick={handleBackToSectionSelection}
+            variant="outline"
+            className="bg-white/90 text-gray-800 border-gray-300 hover:bg-white"
+          >
+            <List className="w-4 h-4 mr-2" />
+            Seleccionar Otra Sección
+          </Button>
+
+          <Button
+            onClick={handleSkipToResults}
+            variant="outline"
+            size="sm"
+            className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
+          >
+            <Zap className="w-4 h-4" />
+            <span>Saltar a Resultados (Simulado)</span>
+          </Button>
+        </div>
 
         {/* Barra de progreso */}
         <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-sm">
@@ -721,17 +974,17 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               Evaluación de Equipo - Planta {selectedPlantType}
             </h2>
             <span className="text-sm text-gray-600">
-              {Math.round(progress)}% completado
+              Subsección {currentSubsection + 1} de {currentSectionData?.subsecciones?.length || 0}
             </span>
           </div>
           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
             <div className="flex h-full">
-              {Array.from({ length: totalSections }, (_, i) => (
+              {Array.from({ length: currentSectionData?.subsecciones?.length || 0 }, (_, i) => (
                 <div
                   key={i}
-                  className={`flex-1 ${i < currentSection ? 'bg-blue-600' :
-                    i === currentSection ? 'bg-blue-400' : 'bg-gray-300'} 
-                    ${i < totalSections - 1 ? 'mr-1' : ''}`}
+                  className={`flex-1 ${i < currentSubsection ? 'bg-blue-600' :
+                    i === currentSubsection ? 'bg-blue-400' : 'bg-gray-300'} 
+                    ${i < (currentSectionData?.subsecciones?.length || 0) - 1 ? 'mr-1' : ''}`}
                 />
               ))}
             </div>
@@ -838,16 +1091,13 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                         <span>
                           {currentSubsection < (currentSectionData?.subsecciones?.length || 0) - 1 
                             ? 'Siguiente Subsección' 
-                            : currentSection < totalSections - 1 
-                              ? 'Completar Sección' 
-                              : 'Finalizar Evaluación'}
+                            : 'Completar Sección'}
                         </span>
                       </Button>
                     </div>
 
                     {/* Contador de progreso */}
                     <div className="mt-6 text-center text-sm text-gray-500">
-                      Sección {currentSection + 1} de {totalSections} | 
                       Subsección {currentSubsection + 1} de {currentSectionData?.subsecciones?.length || 0}
                     </div>
                   </div>
