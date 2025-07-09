@@ -73,7 +73,8 @@ const EquipmentQuestionnaire = ({
       const percentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
       const score = correctAnswers * 10; // Puntuación base
 
-      await equipmentProgressService.saveSubsectionProgress({
+      // Validar datos antes de enviar
+      const progressData = {
         usuario_id: user.id,
         tipo_planta: selectedPlantType,
         seccion_id: sectionId,
@@ -83,7 +84,12 @@ const EquipmentQuestionnaire = ({
         puntaje_porcentaje: percentage,
         respuestas_correctas: Math.round(correctAnswers),
         total_preguntas: totalQuestions
-      });
+      };
+
+      // Log para debugging
+      console.log('Guardando progreso de subsección:', progressData);
+
+      await equipmentProgressService.saveSubsectionProgress(progressData);
 
       // Marcar subsección como completada
       setCompletedSubsections(prev => new Set([...prev, `${sectionId}-${subsectionId}`]));

@@ -29,6 +29,7 @@ try {
     }
 
 } catch (Exception $e) {
+    error_log("Error crítico en progreso-equipo.php: " . $e->getMessage());
     handleError('Error interno del servidor: ' . $e->getMessage());
 }
 
@@ -132,6 +133,7 @@ function obtenerProgreso($db) {
         ]);
 
     } catch (Exception $e) {
+        error_log("Error en obtenerProgreso: " . $e->getMessage());
         handleError('Error al obtener progreso: ' . $e->getMessage());
     }
 }
@@ -194,6 +196,7 @@ function obtenerProgresoFallback($db, $usuario_id, $tipo_planta) {
         ]);
 
     } catch (Exception $e) {
+        error_log("Error en obtenerProgresoFallback: " . $e->getMessage());
         // Si también falla el fallback, devolver estructura vacía
         sendJsonResponse([
             'success' => true,
@@ -215,9 +218,19 @@ function obtenerProgresoFallback($db, $usuario_id, $tipo_planta) {
 function guardarProgreso($db) {
     $input = json_decode(file_get_contents('php://input'), true);
 
+    // Log para debugging
+    error_log("=== DATOS RECIBIDOS EN PROGRESO-EQUIPO ===");
+    error_log("Input completo: " . json_encode($input, JSON_PRETTY_PRINT));
+
+    if (!$input) {
+        handleError('Datos JSON inválidos', 400);
+    }
+
     $required_fields = ['usuario_id', 'tipo_planta', 'tipo_progreso'];
     foreach ($required_fields as $field) {
-        if (!isset($input[$field])) {
+        if (!isset($input[$field]) || $input[$field] === null || $input[$field] === '') {
+            error_log("Campo faltante o vacío: $field");
+            error_log("Valor recibido: " . var_export($input[$field] ?? 'NO_EXISTE', true));
             handleError("Campo requerido: $field", 400);
         }
     }
@@ -225,6 +238,8 @@ function guardarProgreso($db) {
     $usuario_id = $input['usuario_id'];
     $tipo_planta = $input['tipo_planta'];
     $tipo_progreso = $input['tipo_progreso']; // 'seccion' o 'subseccion'
+
+    error_log("Procesando: usuario_id=$usuario_id, tipo_planta=$tipo_planta, tipo_progreso=$tipo_progreso");
 
     try {
         // Verificar si existen las tablas de progreso de equipo
@@ -281,6 +296,8 @@ function guardarProgreso($db) {
         }
 
     } catch (Exception $e) {
+        error_log("Error en guardarProgreso: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
         handleError('Error al guardar progreso: ' . $e->getMessage());
     }
 }
@@ -290,6 +307,8 @@ function guardarProgreso($db) {
  */
 function guardarProgresoFallback($db, $input) {
     try {
+        error_log("Usando sistema fallback para guardar progreso");
+        
         // Usar el sistema de progreso estándar
         if ($input['tipo_progreso'] === 'subseccion') {
             // Para subsecciones, usar progreso_subsecciones
@@ -362,6 +381,7 @@ function guardarProgresoFallback($db, $input) {
         ]);
 
     } catch (Exception $e) {
+        error_log("Error en guardarProgresoFallback: " . $e->getMessage());
         handleError('Error al guardar progreso (fallback): ' . $e->getMessage());
     }
 }
@@ -431,6 +451,7 @@ function limpiarProgreso($db) {
 
     } catch (Exception $e) {
         $db->rollback();
+        error_log("Error en limpiarProgreso: " . $e->getMessage());
         handleError('Error al limpiar progreso: ' . $e->getMessage());
     }
 }
@@ -575,6 +596,7 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
 
     } catch (Exception $e) {
         $db->rollback();
+        error_log("Error en marcarSubseccionCompletada: " . $e->getMessage());
         throw $e;
     }
 }
@@ -627,6 +649,7 @@ function marcarSeccionCompletada($db, $usuario_id, $tipo_planta, $input) {
 
     } catch (Exception $e) {
         $db->rollback();
+        error_log("Error en marcarSeccionCompletada: " . $e->getMessage());
         throw $e;
     }
 }
