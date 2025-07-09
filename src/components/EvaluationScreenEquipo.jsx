@@ -178,23 +178,19 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const loadEvaluationData = async () => {
     try {
       setLoading(true);
-
-      const data = await apiService.getPreguntas({
+      const params = {
         tipo: 'equipo',
         tipoPlanta: selectedPlantType
-      });
+      };
 
-      console.log('Datos de evaluación cargados:', data);
+      const data = await apiService.getPreguntas(params);
       setEvaluationData(data);
     } catch (error) {
       console.error('Error loading evaluation data:', error);
       toast({
         title: "❌ Error",
-        description: "No se pudieron cargar los datos de evaluación"
+        description: "No se pudieron cargar las preguntas de evaluación"
       });
-
-      // Fallback a datos predefinidos
-      setEvaluationData(generateFallbackData());
     } finally {
       setLoading(false);
     }
@@ -202,7 +198,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   const loadProgressData = async () => {
     try {
-      setProgressLoading(true);
       const user = apiService.getCurrentUser();
       if (!user) return;
 
@@ -675,7 +670,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         <div className="absolute inset-0 bg-black/20" />
 
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
-          <div className="w-full max-w-2xl space-y-6">
+          <div className="w-full max-w-lg space-y-4">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo</h2>
               <p className="text-white/80">Selecciona el tipo de planta a evaluar</p>
@@ -1110,15 +1105,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       return answers[key] !== undefined;
     });
 
-    return (
-      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: `url("public/Fondo.png")`,
-          }}
-        />
-        <div className="absolute inset-0 bg-black/20" />
     return (
       <div className="min-h-screen relative bg-gray-100 overflow-hidden">
         <div
