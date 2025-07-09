@@ -14,6 +14,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [currentSubsection, setCurrentSubsection] = useState(0);
   const [answers, setAnswers] = useState({});
   const [selectedPlantType, setSelectedPlantType] = useState(null);
+  const [savedProgress, setSavedProgress] = useState({});
   const [evaluationStarted, setEvaluationStarted] = useState(false);
   const [showSectionSelection, setShowSectionSelection] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -29,9 +30,35 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   useEffect(() => {
     if (!evaluationStarted) {
-      // No cargar datos hasta que se seleccione el tipo de planta
+      // Para evaluación de equipo, no necesitamos cargar roles
+      // Mostrar directamente la selección de tipo de planta
     }
   }, []);
+
+  // Cargar progreso guardado cuando se selecciona tipo de planta
+  useEffect(() => {
+    if (selectedPlantType && evaluationStarted) {
+      loadSavedProgress();
+    }
+  }, [selectedPlantType, evaluationStarted]);
+
+  const loadSavedProgress = async () => {
+    try {
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+
+      const progress = await equipmentProgressService.getProgress(user.id, selectedPlantType);
+      const formattedProgress = equipmentProgressService.formatProgressForComponent(progress);
+      setSavedProgress(formattedProgress);
+      
+      // Log para debugging
+      console.log('Progreso cargado:', formattedProgress);
+      
+    } catch (error) {
+      console.error('Error loading saved progress:', error);
+      // No mostrar error al usuario, solo log
+    }
+  };
 
   // Scroll al inicio cuando cambia la sección o subsección
   useEffect(() => {
@@ -287,27 +314,33 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     setShowSectionSelection(true);
   };
 
-  const saveSubsectionProgress = async () => {
+  const saveSubsectionProgress = async (sectionIndex, subsectionIndex) => {
     try {
       const user = apiService.getCurrentUser();
       if (!user) return;
 
+      const currentSectionData = evaluationData?.secciones?.[sectionIndex];
+      const currentSubsectionData = currentSectionData?.subsecciones?.[subsectionIndex];
+      
+      if (!currentSectionData || !currentSubsectionData) return;
+
       // Calcular progreso de la subsección actual
       const subsectionAnswers = Object.entries(answers)
-        .filter(([key]) => key.startsWith(`${currentSection}-${currentSubsection}-`));
-
+        .filter(([key]) => key.startsWith(`${sectionIndex}-${subsectionIndex}-`));
+      
       let subsectionScore = 0;
       let correctAnswers = 0;
       const totalQuestions = subsectionAnswers.length;
-
+      
       subsectionAnswers.forEach(([, answer]) => {
         if (answer === 'si') {
           subsectionScore += 10;
           correctAnswers++;
         } else if (answer === 'na') {
-          subsectionScore += 10;
+          subsectionScore += 10; // Para evaluación de equipo, 'na' también vale 10 puntos
           correctAnswers++;
         }
+        // 'no' = 0 puntos y no cuenta como correcta
       });
 
       const subsectionPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
@@ -316,41 +349,116 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       await equipmentProgressService.saveSubsectionProgress({
         usuario_id: user.id,
         tipo_planta: selectedPlantType,
-        seccion_id: currentSectionData?.id,
-        subseccion_id: currentSubsectionData?.id,
-        subseccion_nombre: currentSubsectionData?.nombre,
+        seccion_id: currentSectionData.id,
+        subseccion_id: currentSubsectionData.id,
+        subseccion_nombre: currentSubsectionData.nombre,
         puntaje_obtenido: subsectionScore,
         puntaje_porcentaje: subsectionPercentage,
         respuestas_correctas: correctAnswers,
         total_preguntas: totalQuestions
       });
 
-      // Marcar subsección como completada
-      const subsectionKey = `${currentSectionData?.id}-${currentSubsectionData?.id}`;
-      setCompletedSections(prev => ({
+      // Actualizar progreso local
+      const progressKey = `${currentSectionData.id}-${currentSubsectionData.id}`;
+      setSavedProgress(prev => ({
         ...prev,
-        [subsectionKey]: {
+        [progressKey]: {
           completed: true,
           score: subsectionPercentage,
-          subsectionId: currentSubsectionData?.id,
-          sectionId: currentSectionData?.id
+          subsectionId: currentSubsectionData.id,
+          sectionId: currentSectionData.id
         }
       }));
 
+      console.log(`Progreso de subsección guardado: ${currentSubsectionData.nombre} - ${subsectionPercentage}%`);
+
     } catch (error) {
       console.error('Error saving subsection progress:', error);
+      // No mostrar error al usuario para no interrumpir la evaluación
+    }
+  };
+
+  const saveSectionProgress = async (sectionIndex) => {
+    try {
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+
+      const currentSectionData = evaluationData?.secciones?.[sectionIndex];
+      if (!currentSectionData) return;
+
+      // Calcular progreso de toda la sección
+      let sectionScore = 0;
+      let totalQuestions = 0;
+      let correctAnswers = 0;
+      let completedSubsections = 0;
+      const totalSubsections = currentSectionData.subsecciones?.length || 0;
+
+      // Calcular por cada subsección
+      currentSectionData.subsecciones?.forEach((subsection, subIndex) => {
+        const subsectionAnswers = Object.entries(answers)
+          .filter(([key]) => key.startsWith(`${sectionIndex}-${subIndex}-`));
+        
+        if (subsectionAnswers.length > 0) {
+          completedSubsections++;
+          
+          subsectionAnswers.forEach(([, answer]) => {
+            totalQuestions++;
+            if (answer === 'si' || answer === 'na') {
+              sectionScore += 10;
+              correctAnswers++;
+            }
+          });
+        }
+      });
+
+      const sectionPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+
+      // Guardar progreso de sección
+      await equipmentProgressService.saveSectionProgress({
+        usuario_id: user.id,
+        tipo_planta: selectedPlantType,
+        seccion_id: currentSectionData.id,
+        seccion_nombre: currentSectionData.nombre,
+        puntaje_obtenido: sectionScore,
+        puntaje_porcentaje: sectionPercentage,
+        total_subsecciones: totalSubsections,
+        subsecciones_completadas: completedSubsections,
+        respuestas_correctas: correctAnswers,
+        total_preguntas: totalQuestions
+      });
+
+      // Actualizar progreso local
+      setSavedProgress(prev => ({
+        ...prev,
+        [currentSectionData.id]: {
+          completed: true,
+          score: sectionPercentage,
+          correctAnswers: correctAnswers,
+          totalQuestions: totalQuestions,
+          completedDate: new Date().toISOString()
+        }
+      }));
+
+      console.log(`Progreso de sección guardado: ${currentSectionData.nombre} - ${sectionPercentage}%`);
+
+    } catch (error) {
+      console.error('Error saving section progress:', error);
+      // No mostrar error al usuario para no interrumpir la evaluación
     }
   };
 
   const handleNextSubsection = async () => {
     // Guardar progreso de la subsección actual
-    await saveSubsectionProgress();
+    await saveSubsectionProgress(currentSection, currentSubsection);
 
     const totalSubsections = currentSectionData?.subsecciones?.length || 0;
 
     if (currentSubsection < totalSubsections - 1) {
       setCurrentSubsection(prev => prev + 1);
     } else {
+      // Guardar progreso de toda la sección antes de continuar
+      await saveSectionProgress(currentSection);
+      
       // Completar sección y mostrar modal
       await completeSectionAndShowModal();
     }
@@ -1028,11 +1136,18 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                       {currentSubsectionData?.preguntas?.map((question, index) => {
                         const key = `${currentSection}-${currentSubsection}-${index}`;
                         const selectedAnswer = answers[key];
+                        const progressKey = `${currentSectionData.id}-${currentSubsectionData.id}`;
+                        const isSubsectionCompleted = savedProgress[progressKey]?.completed;
 
                         return (
                           <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
-                            <h3 className="text-lg font-medium text-gray-800 mb-4">
+                            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                               {index + 1}. {question.pregunta}
+                              {isSubsectionCompleted && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                  Completada
+                                </span>
+                              )}
                             </h3>
 
                             <div className="space-y-2">
@@ -1043,6 +1158,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                                   value="si"
                                   checked={selectedAnswer === 'si'}
                                   onChange={() => handleAnswer(index, 'si')}
+                                  disabled={isSubsectionCompleted}
                                   className="mr-3 text-green-600 focus:ring-green-500"
                                 />
                                 <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
@@ -1056,6 +1172,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                                   value="no"
                                   checked={selectedAnswer === 'no'}
                                   onChange={() => handleAnswer(index, 'no')}
+                                  disabled={isSubsectionCompleted}
                                   className="mr-3 text-red-600 focus:ring-red-500"
                                 />
                                 <XCircle className="w-5 h-5 text-red-600 mr-2" />
@@ -1069,6 +1186,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                                   value="na"
                                   checked={selectedAnswer === 'na'}
                                   onChange={() => handleAnswer(index, 'na')}
+                                  disabled={isSubsectionCompleted}
                                   className="mr-3 text-gray-600 focus:ring-gray-500"
                                 />
                                 <MinusCircle className="w-5 h-5 text-gray-600 mr-2" />
@@ -1082,18 +1200,41 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
                     {/* Botón para continuar */}
                     <div className="mt-8 flex justify-center">
-                      <Button
-                        onClick={handleNextSubsection}
-                        disabled={!allQuestionsAnswered || loading}
-                        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                      >
-                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                        <span>
-                          {currentSubsection < (currentSectionData?.subsecciones?.length || 0) - 1
-                            ? 'Siguiente Subsección'
-                            : 'Completar Sección'}
-                        </span>
-                      </Button>
+                      {(() => {
+                        const progressKey = `${currentSectionData.id}-${currentSubsectionData.id}`;
+                        const isSubsectionCompleted = savedProgress[progressKey]?.completed;
+                        
+                        if (isSubsectionCompleted) {
+                          return (
+                            <Button
+                              onClick={handleNextSubsection}
+                              className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg flex items-center space-x-2"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              <span>
+                                {currentSubsection < (currentSectionData?.subsecciones?.length || 0) - 1
+                                  ? 'Siguiente Subsección'
+                                  : 'Completar Sección'}
+                              </span>
+                            </Button>
+                          );
+                        }
+                        
+                        return (
+                          <Button
+                            onClick={handleNextSubsection}
+                            disabled={!allQuestionsAnswered || loading}
+                            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                          >
+                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            <span>
+                              {currentSubsection < (currentSectionData?.subsecciones?.length || 0) - 1
+                                ? 'Siguiente Subsección'
+                                : 'Completar Sección'}
+                            </span>
+                          </Button>
+                        );
+                      })()}
                     </div>
 
                     {/* Contador de progreso */}
