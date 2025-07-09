@@ -520,16 +520,16 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
             respuestas_correctas, total_preguntas, fecha_completada
         ) VALUES (
             :progreso_seccion_id, :usuario_id, :tipo_planta, :subseccion_id, :subseccion_nombre,
-            :completada_insert, :puntaje_obtenido, :puntaje_porcentaje,
-            :respuestas_correctas, :total_preguntas, :fecha_completada_insert
+            TRUE, :puntaje_obtenido, :puntaje_porcentaje,
+            :respuestas_correctas, :total_preguntas, NOW()
         )
         ON DUPLICATE KEY UPDATE
-            completada = :completada_update,
+            completada = TRUE,
             puntaje_obtenido = VALUES(puntaje_obtenido),
             puntaje_porcentaje = VALUES(puntaje_porcentaje),
             respuestas_correctas = VALUES(respuestas_correctas),
             total_preguntas = VALUES(total_preguntas),
-            fecha_completada = :fecha_completada_update,
+            fecha_completada = NOW(),
             fecha_actualizacion = NOW()";
 
         $stmt = $db->prepare($upsert_subseccion);
@@ -539,14 +539,10 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
             ':tipo_planta' => $tipo_planta,
             ':subseccion_id' => $input['subseccion_id'],
             ':subseccion_nombre' => $input['subseccion_nombre'],
-            ':completada_insert' => 1, // Valor para TRUE
             ':puntaje_obtenido' => $input['puntaje_obtenido'],
             ':puntaje_porcentaje' => $input['puntaje_porcentaje'],
             ':respuestas_correctas' => $input['respuestas_correctas'],
-            ':total_preguntas' => $input['total_preguntas'],
-            ':fecha_completada_insert' => date('Y-m-d H:i:s'), // Valor para NOW()
-            ':completada_update' => 1, // Valor para TRUE en el UPDATE
-            ':fecha_completada_update' => date('Y-m-d H:i:s') // Valor para NOW() en el UPDATE
+            ':total_preguntas' => $input['total_preguntas']
         ]);
 
         // Actualizar el contador de subsecciones completadas en la sección
