@@ -34,7 +34,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   }, [sectionSelectionMode, selectedPlantType]);
 
   // Scroll al inicio cuando cambia la sección o subsección
-  // Scroll al inicio cuando cambia la sección o subsección
   useEffect(() => {
     if (evaluationContentRef.current) {
       evaluationContentRef.current.scrollIntoView({
@@ -54,7 +53,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const data = await apiService.getPreguntas(params);
       setEvaluationData(data);
-      setEvaluationStarted(true);
     } catch (error) {
       console.error('Error loading evaluation data:', error);
       toast({
@@ -290,15 +288,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       { nombre: 'Gestión y Administración', ponderacion: 14.00 }
     ];
 
-    const simulatedSections = [
-      { nombre: 'Producción y Mezclado', ponderacion: 19.90 },
-      { nombre: 'Transporte y Entrega', ponderacion: 12.04 },
-      { nombre: 'Control de Calidad', ponderacion: 18.50 },
-      { nombre: 'Mantenimiento', ponderacion: 15.20 },
-      { nombre: 'Seguridad y Medio Ambiente', ponderacion: 20.36 },
-      { nombre: 'Gestión y Administración', ponderacion: 14.00 }
-    ];
-
     const simulatedAnswers = {};
     const sectionResults = [];
     let totalQuestions = 0;
@@ -363,7 +352,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     try {
       const simulatedResults = generateSimulatedEvaluation();
 
-
       toast({
         title: "🎯 Evaluación Simulada",
         description: "Se ha generado una evaluación con respuestas aleatorias para demostración"
@@ -371,7 +359,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       onComplete(simulatedResults);
     } catch (error) {
-      console.error('Error generating simulated equipment evaluation:', error);
+      console.error('Error generating simulated evaluation:', error);
       toast({
         title: "❌ Error",
         description: "No se pudo generar la evaluación simulada"
@@ -604,13 +592,21 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   // Pantalla de selección de tipo de planta
   if (!selectedPlantType) {
     return (
-      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 sticky top-8">
-        <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-            <Target className="w-5 h-5 mr-2 text-blue-600" />
-            Criterios de Evaluación
-          </h3>
-        </div>
+      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("public/Fondo.png")`,
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
+
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
+          <div className="w-full max-w-lg space-y-4">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo</h2>
+              <p className="text-white/80">Selecciona el tipo de planta a evaluar</p>
+            </div>
 
             {/* Botón para saltar a resultados simulados */}
             <div className="mb-6 flex justify-center">
@@ -881,16 +877,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         }}
       />
       <div className="absolute inset-0 bg-black/20" />
-  // Pantalla de evaluación
-  return (
-    <div className="min-h-screen relative bg-gray-100 overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url("public/Fondo.png")`,
-        }}
-      />
-      <div className="absolute inset-0 bg-black/20" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
         {/* Botón para volver a selección de secciones */}
@@ -1056,13 +1042,6 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         plantType={selectedPlantType}
       />
 
-      <img
-        src="public/Concreton.png"
-        alt="Mascota Concreton"
-        className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
-      />
-    </div>
-  );
       <img
         src="public/Concreton.png"
         alt="Mascota Concreton"
