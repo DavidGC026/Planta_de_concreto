@@ -93,9 +93,9 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   // Scroll al inicio cuando cambia la sección
   useEffect(() => {
     if (evaluationContentRef.current) {
-      evaluationContentRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
+      evaluationContentRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
       });
     }
   }, [currentSection, currentSubsection]);
@@ -178,19 +178,23 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const loadEvaluationData = async () => {
     try {
       setLoading(true);
-      const params = {
+
+      const data = await apiService.getPreguntas({
         tipo: 'equipo',
         tipoPlanta: selectedPlantType
-      };
+      });
 
-      const data = await apiService.getPreguntas(params);
+      console.log('Datos de evaluación cargados:', data);
       setEvaluationData(data);
     } catch (error) {
       console.error('Error loading evaluation data:', error);
       toast({
         title: "❌ Error",
-        description: "No se pudieron cargar las preguntas de evaluación"
+        description: "No se pudieron cargar los datos de evaluación"
       });
+
+      // Fallback a datos predefinidos
+      setEvaluationData(generateFallbackData());
     } finally {
       setLoading(false);
     }
@@ -198,6 +202,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   const loadProgressData = async () => {
     try {
+      setProgressLoading(true);
       const user = apiService.getCurrentUser();
       if (!user) return;
 
@@ -255,10 +260,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     plantStatusEvaluation.sections.forEach((section, sectionIndex) => {
       section.items.forEach((item, itemIndex) => {
         const key = `${sectionIndex}-${itemIndex}`;
-        
+
         const randomValue = Math.random();
         let status;
-        
+
         if (randomValue < 0.6) {
           status = 'si';
           goodItems++;
@@ -268,7 +273,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         } else {
           status = 'no';
         }
-        
+
         simulatedAnswers[key] = status;
         totalItems++;
       });
@@ -298,7 +303,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const handleSkipToResults = () => {
     try {
       const simulatedResults = generateSimulatedEvaluation();
-      
+
       toast({
         title: "🎯 Evaluación de Equipo Simulada",
         description: "Se ha generado una evaluación con respuestas aleatorias para demostración"
@@ -321,7 +326,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       if (!user) return;
 
       await equipmentProgressService.clearProgress(user.id, selectedPlantType);
-      
+
       // Limpiar estados locales
       setProgressData(null);
       setCompletedSections(new Set());
@@ -330,10 +335,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       setCurrentSubsection(0);
       setFinalResults(null);
       setShowClearProgressModal(false);
-      
+
       // Recargar datos
       await loadProgressData();
-      
+
       toast({
         title: "🗑️ Progreso Limpiado",
         description: "El progreso de la evaluación ha sido eliminado. Puedes comenzar una nueva evaluación."
@@ -375,7 +380,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         setCurrentSection(sectionIndex);
         setCurrentSubsection(0);
         setCurrentScreen('evaluation');
-        
+
         toast({
           title: "🔄 Sección Reiniciada",
           description: "Puedes volver a evaluar esta sección."
@@ -407,12 +412,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             <AlertTriangle className="w-8 h-8 text-red-600" />
             <h3 className="text-xl font-bold text-gray-800">Confirmar Limpieza</h3>
           </div>
-          
+
           <p className="text-gray-600 mb-6">
-            ¿Estás seguro de que quieres eliminar todo el progreso guardado para la planta <strong>{selectedPlantType}</strong>? 
+            ¿Estás seguro de que quieres eliminar todo el progreso guardado para la planta <strong>{selectedPlantType}</strong>?
             Esta acción no se puede deshacer.
           </p>
-          
+
           <div className="flex space-x-3">
             <Button
               onClick={() => setShowClearProgressModal(false)}
@@ -461,13 +466,13 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   const handleSubsectionComplete = async (subsectionResults) => {
     await saveSubsectionProgress(subsectionResults);
-    
+
     // Verificar si la sección está completa
     const currentSectionData = evaluationData?.secciones?.[currentSection];
     if (currentSectionData?.subsecciones) {
       const totalSubsections = currentSectionData.subsecciones.length;
       const nextSubsection = currentSubsection + 1;
-      
+
       if (nextSubsection < totalSubsections) {
         setCurrentSubsection(nextSubsection);
       } else {
@@ -489,7 +494,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const handleNextQuestion = () => {
     const currentSectionData = evaluationData?.secciones?.[currentSection];
     const currentSubsectionData = currentSectionData?.subsecciones?.[currentSubsection];
-    
+
     if (!currentSubsectionData?.preguntas) return;
 
     const totalQuestions = currentSubsectionData.preguntas.length;
@@ -670,7 +675,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         <div className="absolute inset-0 bg-black/20" />
 
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
-          <div className="w-full max-w-lg space-y-4">
+          <div className="w-full max-w-2xl space-y-6">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo</h2>
               <p className="text-white/80">Selecciona el tipo de planta a evaluar</p>
@@ -762,17 +767,17 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                     <div className="text-3xl font-bold text-blue-600">{finalResults.score}%</div>
                     <div className="text-sm text-gray-600">Puntuación General</div>
                   </div>
-                  
+
                   <div className="bg-green-50 rounded-lg p-4 text-center">
                     <div className="text-3xl font-bold text-green-600">{finalResults.correctAnswers}</div>
                     <div className="text-sm text-gray-600">Respuestas Correctas</div>
                   </div>
-                  
+
                   <div className="bg-purple-50 rounded-lg p-4 text-center">
                     <div className="text-3xl font-bold text-purple-600">{finalResults.totalAnswers}</div>
                     <div className="text-sm text-gray-600">Total Evaluado</div>
                   </div>
-                  
+
                   <div className="bg-orange-50 rounded-lg p-4 text-center">
                     <div className="text-3xl font-bold text-orange-600">{finalResults.sectionResults.length}</div>
                     <div className="text-sm text-gray-600">Secciones</div>
@@ -785,7 +790,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                     <BarChart3 className="w-5 h-5 text-blue-600" />
                     <h3 className="text-xl font-semibold text-gray-800">Resultados por Sección</h3>
                   </div>
-                  
+
                   <div className="space-y-4">
                     {finalResults.sectionResults.map((section, index) => {
                       let statusColor;
@@ -808,7 +813,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                               </div>
                             </div>
                           </div>
-                          
+
                           {/* Barra de progreso */}
                           <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                             <div
@@ -845,7 +850,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                   >
                     Ver Reporte Completo
                   </Button>
-                  
+
                   <Button
                     onClick={handleRestartEvaluation}
                     variant="outline"
@@ -924,7 +929,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 </span>
               </div>
               <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-blue-600 transition-all duration-300"
                   style={{ width: `${progressStats.progressPercentage}%` }}
                 />
@@ -972,7 +977,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             {evaluationData?.secciones?.map((section, index) => {
               const isCompleted = completedSections.has(section.id);
               const sectionProgress = progressData?.secciones?.find(s => s.seccion_id === section.id);
-              
+
               return (
                 <motion.div
                   key={section.id}
@@ -993,7 +998,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                               <Clock className="w-6 h-6 text-blue-600" />
                             )}
                           </div>
-                          
+
                           <div>
                             <h3 className="text-lg font-semibold text-gray-800">
                               {section.nombre}
@@ -1023,7 +1028,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                               <div className="text-xs text-gray-500">subsecciones</div>
                             </div>
                           )}
-                          
+
                           {/* Botón para rehacer sección completada */}
                           {isCompleted && (
                             <Button
@@ -1036,12 +1041,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                               <span>Rehacer</span>
                             </Button>
                           )}
-                          
+
                           <Button
                             onClick={() => handleSectionSelect(index)}
                             variant={isCompleted ? "outline" : "default"}
-                            className={isCompleted ? 
-                              "border-green-600 text-green-600 hover:bg-green-50" : 
+                            className={isCompleted ?
+                              "border-green-600 text-green-600 hover:bg-green-50" :
                               "bg-blue-600 hover:bg-blue-700 text-white"
                             }
                           >
@@ -1114,6 +1119,15 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
           }}
         />
         <div className="absolute inset-0 bg-black/20" />
+    return (
+      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("public/Fondo.png")`,
+          }}
+        />
+        <div className="absolute inset-0 bg-black/20" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
           {/* Header */}
@@ -1153,7 +1167,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                           <h3 className="text-lg font-medium text-gray-800 mb-4">
                             {index + 1}. {question.pregunta}
                           </h3>
-                          
+
                           <div className="space-y-2">
                             <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
                               <input
@@ -1208,8 +1222,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                     >
                       {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                       <span>
-                        {currentSubsection < (currentSectionData.subsecciones?.length || 0) - 1 
-                          ? 'Siguiente Subsección' 
+                        {currentSubsection < (currentSectionData.subsecciones?.length || 0) - 1
+                          ? 'Siguiente Subsección'
                           : 'Completar Sección'}
                       </span>
                     </Button>
@@ -1268,7 +1282,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                                     <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
                                       <div
                                         className={`h-1 rounded-full transition-all duration-300 ${
-                                          section.isCurrentSection ? 'bg-blue-500' : 
+                                          section.isCurrentSection ? 'bg-blue-500' :
                                           section.isCompleted ? 'bg-green-500' : 'bg-gray-300'
                                         }`}
                                         style={{ width: `${section.progreso}%` }}
@@ -1279,7 +1293,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                                     {section.ponderacion}
                                   </td>
                                 </tr>
-                                
+
                                 {/* Mostrar subsecciones de la sección actual */}
                                 {section.isCurrentSection && section.subsecciones && section.subsecciones.map((subsection, subIndex) => (
                                   <tr key={`${index}-${subIndex}`} className="bg-blue-25">
@@ -1300,7 +1314,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                                       <div className="w-full bg-gray-200 rounded-full h-1 mt-1 ml-3">
                                         <div
                                           className={`h-1 rounded-full transition-all duration-300 ${
-                                            subsection.isCurrentSubsection ? 'bg-orange-500' : 
+                                            subsection.isCurrentSubsection ? 'bg-orange-500' :
                                             subsection.isCompleted ? 'bg-green-500' : 'bg-gray-300'
                                           }`}
                                           style={{ width: `${subsection.progreso}%` }}
@@ -1372,11 +1386,11 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                           <div className="w-full bg-orange-200 rounded-full h-2">
                             <div
                               className="bg-orange-500 h-2 rounded-full transition-all duration-300"
-                              style={{ 
+                              style={{
                                 width: `${((currentSubsectionData.preguntas?.filter((_, index) => {
                                   const key = `${currentSection}-${currentSubsection}-${index}`;
                                   return answers[key] !== undefined;
-                                }).length || 0) / (currentSubsectionData.preguntas?.length || 1)) * 100}%` 
+                                }).length || 0) / (currentSubsectionData.preguntas?.length || 1)) * 100}%`
                               }}
                             />
                           </div>
