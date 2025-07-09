@@ -620,6 +620,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         <div className="flex gap-6">
           {/* Panel principal de evaluación */}
           <div className="w-3/5">
+          {/* Panel principal de evaluación */}
+          <div className="w-3/5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${currentSection}-${currentSubsection}`}
@@ -729,6 +731,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 </div>
               </motion.div>
             </AnimatePresence>
+          </div>
+
+          {/* Panel de criterios de evaluación */}
+          <div className="w-2/5">
+            {generateEvaluationCriteriaPanel()}
+          </div>
           </div>
 
           {/* Panel de criterios de evaluación */}
