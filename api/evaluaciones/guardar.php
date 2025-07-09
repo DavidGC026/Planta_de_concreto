@@ -256,17 +256,7 @@ try {
                     break;
                 case 'na': 
                     $respuestas_na++; 
-                    break;
-                case 'bueno':
-                    $respuestas_si++; // Contar 'bueno' como 'si'
-                    $puntuacion_total += 10;
-                    break;
-                case 'regular':
-                    $respuestas_na++; // Contar 'regular' como 'na'
-                    $puntuacion_total += 5;
-                    break;
-                case 'malo':
-                    $respuestas_no++; // Contar 'malo' como 'no'
+                    $puntuacion_total += 10; // Para evaluación de equipo, 'na' también vale 10 puntos
                     break;
                 case 'a': $respuestas_a++; break;
                 case 'b': $respuestas_b++; break;
