@@ -30,6 +30,7 @@ try {
 
 } catch (Exception $e) {
     error_log("Error crítico en progreso-equipo.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     handleError('Error interno del servidor: ' . $e->getMessage());
 }
 
@@ -226,6 +227,7 @@ function guardarProgreso($db) {
         handleError('Datos JSON inválidos', 400);
     }
 
+    // Validar campos requeridos básicos
     $required_fields = ['usuario_id', 'tipo_planta', 'tipo_progreso'];
     foreach ($required_fields as $field) {
         if (!isset($input[$field]) || $input[$field] === null || $input[$field] === '') {
@@ -235,7 +237,7 @@ function guardarProgreso($db) {
         }
     }
 
-    $usuario_id = $input['usuario_id'];
+    $usuario_id = (int)$input['usuario_id'];
     $tipo_planta = $input['tipo_planta'];
     $tipo_progreso = $input['tipo_progreso']; // 'seccion' o 'subseccion'
 
