@@ -319,9 +319,9 @@ function guardarProgresoFallback($db, $input) {
                        puntaje_subseccion, puntaje_porcentaje, respuestas_correctas, total_preguntas,
                        tipo_planta, fecha_completada)
                       VALUES 
-                      (:usuario_id, 'equipo', :subseccion_nombre, :subseccion_id,
-                       :puntaje_obtenido, :puntaje_porcentaje, :respuestas_correctas, :total_preguntas,
-                       :tipo_planta, NOW())
+                      (?, 'equipo', ?, ?,
+                       ?, ?, ?, ?,
+                       ?, NOW())
                       ON DUPLICATE KEY UPDATE
                       subseccion_nombre = VALUES(subseccion_nombre),
                       puntaje_subseccion = VALUES(puntaje_subseccion),
@@ -332,14 +332,14 @@ function guardarProgresoFallback($db, $input) {
 
             $stmt = $db->prepare($query);
             $stmt->execute([
-                ':usuario_id' => $input['usuario_id'],
-                ':subseccion_nombre' => $input['subseccion_nombre'],
-                ':subseccion_id' => $input['subseccion_id'],
-                ':puntaje_obtenido' => $input['puntaje_obtenido'],
-                ':puntaje_porcentaje' => $input['puntaje_porcentaje'],
-                ':respuestas_correctas' => $input['respuestas_correctas'],
-                ':total_preguntas' => $input['total_preguntas'],
-                ':tipo_planta' => $input['tipo_planta']
+                $input['usuario_id'],
+                $input['subseccion_nombre'],
+                $input['subseccion_id'],
+                $input['puntaje_obtenido'],
+                $input['puntaje_porcentaje'],
+                $input['respuestas_correctas'],
+                $input['total_preguntas'],
+                $input['tipo_planta']
             ]);
 
         } else {
@@ -349,9 +349,9 @@ function guardarProgresoFallback($db, $input) {
                        puntaje_seccion, puntaje_porcentaje, respuestas_correctas, total_preguntas,
                        tipo_planta, fecha_completada)
                       VALUES 
-                      (:usuario_id, 'equipo', :seccion_nombre, :seccion_id,
-                       :puntaje_obtenido, :puntaje_porcentaje, :respuestas_correctas, :total_preguntas,
-                       :tipo_planta, NOW())
+                      (?, 'equipo', ?, ?,
+                       ?, ?, ?, ?,
+                       ?, NOW())
                       ON DUPLICATE KEY UPDATE
                       seccion_nombre = VALUES(seccion_nombre),
                       puntaje_seccion = VALUES(puntaje_seccion),
@@ -362,14 +362,14 @@ function guardarProgresoFallback($db, $input) {
 
             $stmt = $db->prepare($query);
             $stmt->execute([
-                ':usuario_id' => $input['usuario_id'],
-                ':seccion_nombre' => $input['seccion_nombre'],
-                ':seccion_id' => $input['seccion_id'],
-                ':puntaje_obtenido' => $input['puntaje_obtenido'],
-                ':puntaje_porcentaje' => $input['puntaje_porcentaje'],
-                ':respuestas_correctas' => $input['respuestas_correctas'],
-                ':total_preguntas' => $input['total_preguntas'],
-                ':tipo_planta' => $input['tipo_planta']
+                $input['usuario_id'],
+                $input['seccion_nombre'],
+                $input['seccion_id'],
+                $input['puntaje_obtenido'],
+                $input['puntaje_porcentaje'],
+                $input['respuestas_correctas'],
+                $input['total_preguntas'],
+                $input['tipo_planta']
             ]);
         }
 
@@ -384,6 +384,7 @@ function guardarProgresoFallback($db, $input) {
 
     } catch (Exception $e) {
         error_log("Error en guardarProgresoFallback: " . $e->getMessage());
+        error_log("Stack trace fallback: " . $e->getTraceAsString());
         handleError('Error al guardar progreso (fallback): ' . $e->getMessage());
     }
 }
@@ -408,37 +409,31 @@ function limpiarProgreso($db) {
             // Eliminar progreso de subsecciones
             $delete_subsecciones = "DELETE psse FROM progreso_subsecciones_equipo psse
                                     JOIN progreso_secciones_equipo pse ON psse.progreso_seccion_id = pse.id
-                                    WHERE pse.usuario_id = :usuario_id
-                                      AND pse.tipo_planta = :tipo_planta";
+                                    WHERE pse.usuario_id = ? AND pse.tipo_planta = ?";
 
             $stmt = $db->prepare($delete_subsecciones);
-            $stmt->execute([':usuario_id' => $usuario_id, ':tipo_planta' => $tipo_planta]);
+            $stmt->execute([$usuario_id, $tipo_planta]);
 
             // Eliminar progreso de secciones
             $delete_secciones = "DELETE FROM progreso_secciones_equipo
-                                WHERE usuario_id = :usuario_id
-                                  AND tipo_planta = :tipo_planta";
+                                WHERE usuario_id = ? AND tipo_planta = ?";
 
             $stmt = $db->prepare($delete_secciones);
-            $stmt->execute([':usuario_id' => $usuario_id, ':tipo_planta' => $tipo_planta]);
+            $stmt->execute([$usuario_id, $tipo_planta]);
         }
 
         // También limpiar del sistema estándar
         $delete_standard_subsecciones = "DELETE FROM progreso_subsecciones
-                                        WHERE usuario_id = :usuario_id
-                                          AND tipo_evaluacion = 'equipo'
-                                          AND tipo_planta = :tipo_planta";
+                                        WHERE usuario_id = ? AND tipo_evaluacion = 'equipo' AND tipo_planta = ?";
 
         $stmt = $db->prepare($delete_standard_subsecciones);
-        $stmt->execute([':usuario_id' => $usuario_id, ':tipo_planta' => $tipo_planta]);
+        $stmt->execute([$usuario_id, $tipo_planta]);
 
         $delete_standard_secciones = "DELETE FROM progreso_secciones
-                                     WHERE usuario_id = :usuario_id
-                                       AND tipo_evaluacion = 'equipo'
-                                       AND tipo_planta = :tipo_planta";
+                                     WHERE usuario_id = ? AND tipo_evaluacion = 'equipo' AND tipo_planta = ?";
 
         $stmt = $db->prepare($delete_standard_secciones);
-        $stmt->execute([':usuario_id' => $usuario_id, ':tipo_planta' => $tipo_planta]);
+        $stmt->execute([$usuario_id, $tipo_planta]);
 
         $db->commit();
 
@@ -467,17 +462,10 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
     try {
         // Obtener o crear el registro de progreso de sección
         $seccion_query = "SELECT id FROM progreso_secciones_equipo
-                         WHERE usuario_id = :usuario_id
-                           AND tipo_planta = :tipo_planta
-                           AND seccion_id = :seccion_id";
+                         WHERE usuario_id = ? AND tipo_planta = ? AND seccion_id = ?";
 
         $stmt = $db->prepare($seccion_query);
-        $stmt->execute([
-            ':usuario_id' => $usuario_id,
-            ':tipo_planta' => $tipo_planta,
-            ':seccion_id' => $input['seccion_id']
-        ]);
-
+        $stmt->execute([$usuario_id, $tipo_planta, $input['seccion_id']]);
         $progreso_seccion_id = $stmt->fetchColumn();
 
         // Si no existe el progreso de sección, crearlo
@@ -486,28 +474,25 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
             $seccion_info_query = "SELECT se.nombre, COUNT(sub.id) as total_subsecciones
                                   FROM secciones_evaluacion se
                                   LEFT JOIN subsecciones_evaluacion sub ON se.id = sub.seccion_id AND sub.activo = 1
-                                  WHERE se.id = :seccion_id
+                                  WHERE se.id = ?
                                   GROUP BY se.id, se.nombre";
 
             $stmt = $db->prepare($seccion_info_query);
-            $stmt->execute([':seccion_id' => $input['seccion_id']]);
+            $stmt->execute([$input['seccion_id']]);
             $seccion_info = $stmt->fetch();
 
             $insert_seccion = "INSERT INTO progreso_secciones_equipo (
                 usuario_id, tipo_planta, seccion_id, seccion_nombre,
                 completada, total_subsecciones, subsecciones_completadas
-            ) VALUES (
-                :usuario_id, :tipo_planta, :seccion_id, :seccion_nombre,
-                FALSE, :total_subsecciones, 0
-            )";
+            ) VALUES (?, ?, ?, ?, FALSE, ?, 0)";
 
             $stmt = $db->prepare($insert_seccion);
             $stmt->execute([
-                ':usuario_id' => $usuario_id,
-                ':tipo_planta' => $tipo_planta,
-                ':seccion_id' => $input['seccion_id'],
-                ':seccion_nombre' => $seccion_info['nombre'] ?? 'Sección ' . $input['seccion_id'],
-                ':total_subsecciones' => $seccion_info['total_subsecciones'] ?? 0
+                $usuario_id,
+                $tipo_planta,
+                $input['seccion_id'],
+                $seccion_info['nombre'] ?? 'Sección ' . $input['seccion_id'],
+                $seccion_info['total_subsecciones'] ?? 0
             ]);
 
             $progreso_seccion_id = $db->lastInsertId();
@@ -518,11 +503,7 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
             progreso_seccion_id, usuario_id, tipo_planta, subseccion_id, subseccion_nombre,
             completada, puntaje_obtenido, puntaje_porcentaje,
             respuestas_correctas, total_preguntas, fecha_completada
-        ) VALUES (
-            :progreso_seccion_id, :usuario_id, :tipo_planta, :subseccion_id, :subseccion_nombre,
-            TRUE, :puntaje_obtenido, :puntaje_porcentaje,
-            :respuestas_correctas, :total_preguntas, NOW()
-        )
+        ) VALUES (?, ?, ?, ?, ?, TRUE, ?, ?, ?, ?, NOW())
         ON DUPLICATE KEY UPDATE
             completada = TRUE,
             puntaje_obtenido = VALUES(puntaje_obtenido),
@@ -534,15 +515,15 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
 
         $stmt = $db->prepare($upsert_subseccion);
         $stmt->execute([
-            ':progreso_seccion_id' => $progreso_seccion_id,
-            ':usuario_id' => $usuario_id,
-            ':tipo_planta' => $tipo_planta,
-            ':subseccion_id' => $input['subseccion_id'],
-            ':subseccion_nombre' => $input['subseccion_nombre'],
-            ':puntaje_obtenido' => $input['puntaje_obtenido'],
-            ':puntaje_porcentaje' => $input['puntaje_porcentaje'],
-            ':respuestas_correctas' => $input['respuestas_correctas'],
-            ':total_preguntas' => $input['total_preguntas']
+            $progreso_seccion_id,
+            $usuario_id,
+            $tipo_planta,
+            $input['subseccion_id'],
+            $input['subseccion_nombre'],
+            $input['puntaje_obtenido'],
+            $input['puntaje_porcentaje'],
+            $input['respuestas_correctas'],
+            $input['total_preguntas']
         ]);
 
         // Actualizar el contador de subsecciones completadas en la sección
@@ -550,37 +531,35 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
                           SET subsecciones_completadas = (
                               SELECT COUNT(*)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           ),
                           puntaje_obtenido = (
                               SELECT COALESCE(AVG(puntaje_obtenido), 0)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           ),
                           puntaje_porcentaje = (
                               SELECT COALESCE(AVG(puntaje_porcentaje), 0)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           ),
                           respuestas_correctas = (
                               SELECT COALESCE(SUM(respuestas_correctas), 0)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           ),
                           total_preguntas = (
                               SELECT COALESCE(SUM(total_preguntas), 0)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           )
-                          WHERE id = :progreso_seccion_id";
+                          WHERE id = ?";
 
         $stmt = $db->prepare($update_seccion);
-        $stmt->execute([':progreso_seccion_id' => $progreso_seccion_id]);
+        $stmt->execute([
+            $progreso_seccion_id, $progreso_seccion_id, $progreso_seccion_id,
+            $progreso_seccion_id, $progreso_seccion_id, $progreso_seccion_id
+        ]);
 
         // Marcar la sección como completada si todas las subsecciones están completadas
         $check_completion = "UPDATE progreso_secciones_equipo
@@ -589,10 +568,10 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
                                     WHEN (subsecciones_completadas >= total_subsecciones) THEN NOW()
                                     ELSE fecha_completada
                                 END
-                            WHERE id = :progreso_seccion_id";
+                            WHERE id = ?";
 
         $stmt = $db->prepare($check_completion);
-        $stmt->execute([':progreso_seccion_id' => $progreso_seccion_id]);
+        $stmt->execute([$progreso_seccion_id]);
 
         $db->commit();
 
@@ -616,12 +595,7 @@ function marcarSeccionCompletada($db, $usuario_id, $tipo_planta, $input) {
             completada, puntaje_obtenido, puntaje_porcentaje,
             total_subsecciones, subsecciones_completadas,
             respuestas_correctas, total_preguntas, fecha_completada
-        ) VALUES (
-            :usuario_id, :tipo_planta, :seccion_id, :seccion_nombre,
-            TRUE, :puntaje_obtenido, :puntaje_porcentaje,
-            :total_subsecciones, :subsecciones_completadas,
-            :respuestas_correctas, :total_preguntas, NOW()
-        )
+        ) VALUES (?, ?, ?, ?, TRUE, ?, ?, ?, ?, ?, ?, NOW())
         ON DUPLICATE KEY UPDATE
             completada = TRUE,
             puntaje_obtenido = VALUES(puntaje_obtenido),
@@ -635,16 +609,16 @@ function marcarSeccionCompletada($db, $usuario_id, $tipo_planta, $input) {
 
         $stmt = $db->prepare($upsert_seccion);
         $stmt->execute([
-            ':usuario_id' => $usuario_id,
-            ':tipo_planta' => $tipo_planta,
-            ':seccion_id' => $input['seccion_id'],
-            ':seccion_nombre' => $input['seccion_nombre'],
-            ':puntaje_obtenido' => $input['puntaje_obtenido'],
-            ':puntaje_porcentaje' => $input['puntaje_porcentaje'],
-            ':total_subsecciones' => $input['total_subsecciones'],
-            ':subsecciones_completadas' => $input['subsecciones_completadas'],
-            ':respuestas_correctas' => $input['respuestas_correctas'],
-            ':total_preguntas' => $input['total_preguntas']
+            $usuario_id,
+            $tipo_planta,
+            $input['seccion_id'],
+            $input['seccion_nombre'],
+            $input['puntaje_obtenido'],
+            $input['puntaje_porcentaje'],
+            $input['total_subsecciones'],
+            $input['subsecciones_completadas'],
+            $input['respuestas_correctas'],
+            $input['total_preguntas']
         ]);
 
         $db->commit();
