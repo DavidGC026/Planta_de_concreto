@@ -73,11 +73,11 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             sectionCorrect++;
             correctAnswers++;
           } else if (randomValue < 0.8) {
-            answer = 'regular';
-            sectionCorrect += 0.5;
-            correctAnswers += 0.5;
+            answer = 'na';
+            sectionCorrect++;
+            correctAnswers++;
           } else {
-            answer = 'malo';
+            answer = 'no';
           }
 
           simulatedAnswers[key] = answer;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Zap, Loader2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Zap, Loader2, CheckCircle, XCircle, MinusCircle, BarChart3 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
@@ -64,11 +64,10 @@ const EquipmentQuestionnaire = ({
       const totalQuestions = subsectionAnswers.length;
 
       subsectionAnswers.forEach(([, answer]) => {
-        if (answer === 'bueno') {
+        if (answer === 'si' || answer === 'na') {
           correctAnswers++;
-        } else if (answer === 'regular') {
-          correctAnswers += 0.5; // Valor parcial para regular
         }
+        // 'no' = 0 puntos
       });
 
       const percentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
@@ -125,10 +124,8 @@ const EquipmentQuestionnaire = ({
 
           subsectionAnswers.forEach(([, answer]) => {
             totalQuestions++;
-            if (answer === 'bueno') {
+            if (answer === 'si' || answer === 'na') {
               totalCorrect++;
-            } else if (answer === 'regular') {
-              totalCorrect += 0.5;
             }
           });
         }
@@ -160,10 +157,8 @@ const EquipmentQuestionnaire = ({
 
         let subCorrect = 0;
         subsectionAnswers.forEach(([, answer]) => {
-          if (answer === 'bueno') {
+          if (answer === 'si' || answer === 'na') {
             subCorrect++;
-          } else if (answer === 'regular') {
-            subCorrect += 0.5;
           }
         });
 
@@ -258,13 +253,11 @@ const EquipmentQuestionnaire = ({
 
       Object.entries(answers).forEach(([key, answer]) => {
         totalQuestions++;
-        if (answer === 'bueno') {
+        if (answer === 'si' || answer === 'na') {
           totalScore += 10;
           correctAnswers++;
-        } else if (answer === 'regular') {
-          totalScore += 5;
-          correctAnswers += 0.5;
         }
+        // 'no' = 0 puntos
       });
 
       const finalScore = totalQuestions > 0 ? Math.round((totalScore / (totalQuestions * 10)) * 100) : 0;
@@ -276,7 +269,7 @@ const EquipmentQuestionnaire = ({
         rol_personal: null,
         respuestas: Object.entries(answers).map(([key, answer]) => ({
           pregunta_id: null,
-          respuesta: answer === 'bueno' ? 'si' : answer === 'malo' ? 'no' : 'na',
+          respuesta: answer, // 'si', 'no', 'na'
           observacion: `Equipo evaluado: ${key} - Estado: ${answer}`
         })),
         observaciones: `Evaluación de equipo completada - Planta ${selectedPlantType}`
@@ -296,10 +289,8 @@ const EquipmentQuestionnaire = ({
 
           subsectionAnswers.forEach(([, answer]) => {
             sectionTotal++;
-            if (answer === 'bueno') {
+            if (answer === 'si' || answer === 'na') {
               sectionCorrect++;
-            } else if (answer === 'regular') {
-              sectionCorrect += 0.5;
             }
           });
         });
@@ -347,6 +338,51 @@ const EquipmentQuestionnaire = ({
     const key = `${currentSectionData.id}-${currentSubsectionData.id}-${index}`;
     return answers[key] !== undefined;
   });
+
+  // Calcular estadísticas de progreso
+  const calculateProgressStats = () => {
+    if (!evaluationData?.secciones) return null;
+
+    const totalQuestions = evaluationData.secciones.reduce((total, section) => {
+      return total + (section.subsecciones?.reduce((subTotal, subsection) => {
+        return subTotal + (subsection.preguntas?.length || 0);
+      }, 0) || 0);
+    }, 0);
+
+    const answeredQuestions = Object.keys(answers).length;
+    const progressPercentage = totalQuestions > 0 ? (answeredQuestions / totalQuestions) * 100 : 0;
+
+    // Contar respuestas por tipo
+    const responseStats = {
+      si: 0,
+      no: 0,
+      na: 0
+    };
+
+    let correctAnswers = 0;
+
+    Object.values(answers).forEach(answer => {
+      if (responseStats.hasOwnProperty(answer)) {
+        responseStats[answer]++;
+        if (answer === 'si' || answer === 'na') {
+          correctAnswers++;
+        }
+      }
+    });
+
+    const currentScore = answeredQuestions > 0 ? Math.round((correctAnswers / answeredQuestions) * 100) : 0;
+
+    return {
+      totalQuestions,
+      answeredQuestions,
+      progressPercentage,
+      responseStats,
+      correctAnswers,
+      currentScore
+    };
+  };
+
+  const progressStats = calculateProgressStats();
 
   if (!evaluationData || !evaluationData.secciones || evaluationData.secciones.length === 0) {
     return (
@@ -417,106 +453,280 @@ const EquipmentQuestionnaire = ({
           </div>
         </div>
 
-        {/* Panel principal de evaluación */}
-        <div className="w-full">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${currentSection}-${currentSubsection}`}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
-                {/* Header de la sección y subsección */}
-                <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        {currentSectionData?.nombre}
-                      </h2>
-                      <h3 className="text-lg text-blue-600 mt-1">
-                        {currentSubsectionData?.nombre}
-                      </h3>
-                    </div>
-                    <div className="text-right">
-                      {completedSections.has(currentSectionData?.id) && (
-                        <div className="flex items-center text-green-600 mb-1">
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          <span className="text-sm">Sección Completada</span>
-                        </div>
-                      )}
-                      {completedSubsections.has(`${currentSectionData?.id}-${currentSubsectionData?.id}`) && (
-                        <div className="flex items-center text-blue-600">
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          <span className="text-sm">Subsección Completada</span>
-                        </div>
-                      )}
+        <div className="flex gap-6">
+          {/* Panel principal de evaluación */}
+          <div className={`${progressStats ? 'w-3/5' : 'w-full'}`}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${currentSection}-${currentSubsection}`}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200">
+                  {/* Header de la sección y subsección */}
+                  <div className="bg-gray-50/80 px-6 py-4 rounded-t-lg border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-800">
+                          {currentSectionData?.nombre}
+                        </h2>
+                        <h3 className="text-lg text-blue-600 mt-1">
+                          {currentSubsectionData?.nombre}
+                        </h3>
+                      </div>
+                      <div className="text-right">
+                        {completedSections.has(currentSectionData?.id) && (
+                          <div className="flex items-center text-green-600 mb-1">
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            <span className="text-sm">Sección Completada</span>
+                          </div>
+                        )}
+                        {completedSubsections.has(`${currentSectionData?.id}-${currentSubsectionData?.id}`) && (
+                          <div className="flex items-center text-blue-600">
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            <span className="text-sm">Subsección Completada</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Contenido */}
-                <div className="p-6">
-                  <div className="space-y-6">
-                    {currentSubsectionData?.preguntas?.map((question, index) => {
-                      const key = `${currentSectionData.id}-${currentSubsectionData.id}-${index}`;
-                      const selectedAnswer = answers[key];
+                  {/* Contenido */}
+                  <div className="p-6">
+                    <div className="space-y-6">
+                      {currentSubsectionData?.preguntas?.map((question, index) => {
+                        const key = `${currentSectionData.id}-${currentSubsectionData.id}-${index}`;
+                        const selectedAnswer = answers[key];
 
-                      return (
-                        <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
-                          <h3 className="text-lg font-medium text-gray-800 mb-4">
-                            {index + 1}. {question.pregunta}
-                          </h3>
+                        return (
+                          <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
+                            <h3 className="text-lg font-medium text-gray-800 mb-4">
+                              {index + 1}. {question.pregunta}
+                            </h3>
 
-                          <div className="space-y-2">
-                            {[
-                              { value: 'bueno', label: 'Bueno', color: 'bg-green-500 hover:bg-green-600' },
-                              { value: 'regular', label: 'Regular', color: 'bg-yellow-500 hover:bg-yellow-600' },
-                              { value: 'malo', label: 'Malo', color: 'bg-red-500 hover:bg-red-600' }
-                            ].map((option) => (
-                              <label
-                                key={option.value}
-                                className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50"
-                              >
+                            <div className="space-y-2">
+                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
                                 <input
                                   type="radio"
                                   name={`question-${index}`}
-                                  value={option.value}
-                                  checked={selectedAnswer === option.value}
-                                  onChange={() => handleAnswer(index, option.value)}
-                                  className="mr-3 text-blue-600 focus:ring-blue-500"
+                                  value="si"
+                                  checked={selectedAnswer === 'si'}
+                                  onChange={() => handleAnswer(index, 'si')}
+                                  className="mr-3 text-green-600 focus:ring-green-500"
                                 />
-                                <div className={`w-4 h-4 rounded-full ${option.color} mr-3`}></div>
-                                <span className="text-gray-700">{option.label}</span>
+                                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                                <span className="text-gray-700">Sí</span>
                               </label>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
 
-                  {/* Botón para continuar */}
-                  <div className="mt-8 flex justify-center">
-                    <Button
-                      onClick={handleNextSubsection}
-                      disabled={!allQuestionsAnswered || loading}
-                      className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                    >
-                      {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      <span>
-                        {currentSubsection < totalSubsections - 1
-                          ? 'Siguiente Subsección'
-                          : 'Completar Sección'
-                        }
-                      </span>
-                    </Button>
+                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                                <input
+                                  type="radio"
+                                  name={`question-${index}`}
+                                  value="no"
+                                  checked={selectedAnswer === 'no'}
+                                  onChange={() => handleAnswer(index, 'no')}
+                                  className="mr-3 text-red-600 focus:ring-red-500"
+                                />
+                                <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                                <span className="text-gray-700">No</span>
+                              </label>
+
+                              <label className="flex items-center p-3 rounded-lg border cursor-pointer transition-all duration-200 border-gray-300 hover:border-gray-400 hover:bg-gray-50">
+                                <input
+                                  type="radio"
+                                  name={`question-${index}`}
+                                  value="na"
+                                  checked={selectedAnswer === 'na'}
+                                  onChange={() => handleAnswer(index, 'na')}
+                                  className="mr-3 text-gray-600 focus:ring-gray-500"
+                                />
+                                <MinusCircle className="w-5 h-5 text-gray-600 mr-2" />
+                                <span className="text-gray-700">No Aplica</span>
+                              </label>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Botón para continuar */}
+                    <div className="mt-8 flex justify-center">
+                      <Button
+                        onClick={handleNextSubsection}
+                        disabled={!allQuestionsAnswered || loading}
+                        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      >
+                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <span>
+                          {currentSubsection < totalSubsections - 1
+                            ? 'Siguiente Subsección'
+                            : 'Completar Sección'
+                          }
+                        </span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Panel de ponderación de secciones */}
+          {progressStats && (
+            <div className="w-2/5">
+              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 sticky top-8">
+                <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                    <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
+                    Ponderación de Secciones
+                  </h3>
+                </div>
+
+                <div className="p-4">
+                  <div className="space-y-4">
+                    {/* Tabla de ponderación de secciones */}
+                    <div className="overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="text-left p-2 font-medium text-gray-700">Sección</th>
+                            <th className="text-center p-2 font-medium text-gray-700">Peso (%)</th>
+                            <th className="text-center p-2 font-medium text-gray-700">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {evaluationData.secciones?.map((section, index) => {
+                            const isCurrentSection = index === currentSection;
+                            const isCompleted = completedSections.has(section.id);
+                            
+                            return (
+                              <tr
+                                key={section.id}
+                                className={`border-b border-gray-100 ${
+                                  isCurrentSection ? 'bg-blue-50' :
+                                  isCompleted ? 'bg-green-50' : ''
+                                }`}
+                              >
+                                <td className="p-2">
+                                  <div className="flex items-center">
+                                    <span className="text-xs font-medium text-blue-600 mr-1">
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-xs text-gray-800 truncate" title={section.nombre}>
+                                      {section.nombre.length > 20 ? section.nombre.substring(0, 20) + '...' : section.nombre}
+                                    </span>
+                                    {isCurrentSection && (
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full ml-1 flex-shrink-0" />
+                                    )}
+                                    {isCompleted && (
+                                      <CheckCircle className="w-3 h-3 text-green-500 ml-1 flex-shrink-0" />
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="text-center p-2 text-xs font-medium">
+                                  {section.ponderacion}%
+                                </td>
+                                <td className="text-center p-2">
+                                  {isCompleted ? (
+                                    <span className="text-xs text-green-600 font-medium">✓</span>
+                                  ) : isCurrentSection ? (
+                                    <span className="text-xs text-blue-600 font-medium">●</span>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">○</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          <tr className="bg-gray-100 font-bold">
+                            <td className="p-2 text-xs">TOTAL</td>
+                            <td className="text-center p-2 text-xs">100%</td>
+                            <td className="text-center p-2 text-xs">-</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Progreso general */}
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Progreso general</h4>
+                      <div className="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Progreso</span>
+                        <span>{Math.round(progressStats.progressPercentage)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${progressStats.progressPercentage}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {progressStats.answeredQuestions} de {progressStats.totalQuestions} preguntas
+                      </div>
+                    </div>
+
+                    {/* Puntuación estimada */}
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {progressStats.currentScore}%
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          puntos acumulados
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {progressStats.correctAnswers} correctas de {progressStats.answeredQuestions} respondidas
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Estadísticas de respuestas */}
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Distribución de respuestas</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                            <span>Sí</span>
+                          </div>
+                          <span className="font-medium">{progressStats.responseStats.si}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <XCircle className="w-4 h-4 text-red-600 mr-2" />
+                            <span>No</span>
+                          </div>
+                          <span className="font-medium">{progressStats.responseStats.no}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <MinusCircle className="w-4 h-4 text-gray-600 mr-2" />
+                            <span>No Aplica</span>
+                          </div>
+                          <span className="font-medium">{progressStats.responseStats.na}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Información del sistema */}
+                    <div className="border-t pt-3">
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <h4 className="text-xs font-medium text-blue-800 mb-1">Sistema de Evaluación</h4>
+                        <div className="text-xs text-blue-700">
+                          <div>• Respuestas "Sí" y "No Aplica" = Correctas</div>
+                          <div>• Respuesta "No" = Incorrecta</div>
+                          <div>• Ponderación por secciones</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          )}
         </div>
       </div>
 
