@@ -34,11 +34,12 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   }, [sectionSelectionMode, selectedPlantType]);
 
   // Scroll al inicio cuando cambia la sección o subsección
+  // Scroll al inicio cuando cambia la sección o subsección
   useEffect(() => {
     if (evaluationContentRef.current) {
-      evaluationContentRef.current.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
+      evaluationContentRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
       });
     }
   }, [currentSection, currentSubsection]);
@@ -53,6 +54,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const data = await apiService.getPreguntas(params);
       setEvaluationData(data);
+      setEvaluationStarted(true);
     } catch (error) {
       console.error('Error loading evaluation data:', error);
       toast({
@@ -71,7 +73,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       const progress = await equipmentProgressService.getProgress(user.id, selectedPlantType);
       setProgressData(progress);
-      
+
       if (progress && progress.secciones) {
         const completedSecs = new Set();
         const completedSubs = new Set();
@@ -86,7 +88,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             section.subsecciones.forEach(subsection => {
               if (subsection.completada) {
                 completedSubs.add(`${section.seccion_id}-${subsection.subseccion_id}`);
-                
+
                 // Simular respuestas para subsecciones completadas
                 for (let i = 0; i < 5; i++) {
                   const key = `${section.seccion_id}-${subsection.subseccion_id}-${i}`;
@@ -114,10 +116,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       // Calcular progreso de la subsección actual
       const subsectionAnswers = Object.entries(answers)
         .filter(([key]) => key.startsWith(`${sectionId}-${subsectionId}-`));
-      
+
       let correctAnswers = 0;
       const totalQuestions = subsectionAnswers.length;
-      
+
       subsectionAnswers.forEach(([, answer]) => {
         if (answer === 'bueno') {
           correctAnswers++;
@@ -174,10 +176,10 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       section.subsecciones?.forEach(subsection => {
         const subsectionAnswers = Object.entries(answers)
           .filter(([key]) => key.startsWith(`${sectionId}-${subsection.id}-`));
-        
+
         if (subsectionAnswers.length > 0) {
           completedSubsections++;
-          
+
           subsectionAnswers.forEach(([, answer]) => {
             totalQuestions++;
             if (answer === 'bueno') {
@@ -212,7 +214,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       const subsectionResults = section.subsecciones?.map(subsection => {
         const subsectionAnswers = Object.entries(answers)
           .filter(([key]) => key.startsWith(`${sectionId}-${subsection.id}-`));
-        
+
         let subCorrect = 0;
         subsectionAnswers.forEach(([, answer]) => {
           if (answer === 'bueno') {
@@ -259,7 +261,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
   const generateRecommendations = (percentage) => {
     const recommendations = [];
-    
+
     if (percentage < 60) {
       recommendations.push('Se requiere revisión completa de los equipos de esta sección');
       recommendations.push('Implementar plan de mantenimiento preventivo inmediato');
@@ -288,6 +290,15 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
       { nombre: 'Gestión y Administración', ponderacion: 14.00 }
     ];
 
+    const simulatedSections = [
+      { nombre: 'Producción y Mezclado', ponderacion: 19.90 },
+      { nombre: 'Transporte y Entrega', ponderacion: 12.04 },
+      { nombre: 'Control de Calidad', ponderacion: 18.50 },
+      { nombre: 'Mantenimiento', ponderacion: 15.20 },
+      { nombre: 'Seguridad y Medio Ambiente', ponderacion: 20.36 },
+      { nombre: 'Gestión y Administración', ponderacion: 14.00 }
+    ];
+
     const simulatedAnswers = {};
     const sectionResults = [];
     let totalQuestions = 0;
@@ -303,7 +314,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         for (let qIndex = 0; qIndex < questionsPerSubsection; qIndex++) {
           const key = `${sectionIndex}-${subIndex}-${qIndex}`;
           const randomValue = Math.random();
-          
+
           let answer;
           if (randomValue < 0.6) {
             answer = 'bueno';
@@ -316,7 +327,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
           } else {
             answer = 'malo';
           }
-          
+
           simulatedAnswers[key] = answer;
           sectionTotal++;
           totalQuestions++;
@@ -351,7 +362,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const handleSkipToResults = () => {
     try {
       const simulatedResults = generateSimulatedEvaluation();
-      
+
+
       toast({
         title: "🎯 Evaluación Simulada",
         description: "Se ha generado una evaluación con respuestas aleatorias para demostración"
@@ -359,7 +371,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
       onComplete(simulatedResults);
     } catch (error) {
-      console.error('Error generating simulated evaluation:', error);
+      console.error('Error generating simulated equipment evaluation:', error);
       toast({
         title: "❌ Error",
         description: "No se pudo generar la evaluación simulada"
@@ -372,7 +384,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const totalSubsections = currentSectionData?.subsecciones?.length || 0;
   const currentSubsectionData = currentSectionData?.subsecciones?.[currentSubsection];
 
-  const progress = totalSections > 0 
+  const progress = totalSections > 0
     ? ((currentSection + (currentSubsection + 1) / totalSubsections) / totalSections) * 100
     : 0;
 
@@ -457,7 +469,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         section.subsecciones?.forEach(subsection => {
           const subsectionAnswers = Object.entries(answers)
             .filter(([key]) => key.startsWith(`${section.id}-${subsection.id}-`));
-          
+
           subsectionAnswers.forEach(([, answer]) => {
             sectionTotal++;
             if (answer === 'bueno') {
@@ -527,16 +539,16 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     if (completedSections.has(sectionId)) {
       return { status: 'completed', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' };
     }
-    
+
     // Verificar si tiene progreso parcial
-    const hasPartialProgress = progressData?.secciones?.find(s => 
+    const hasPartialProgress = progressData?.secciones?.find(s =>
       s.seccion_id === sectionId && s.subsecciones_completadas > 0 && !s.completada
     );
-    
+
     if (hasPartialProgress) {
       return { status: 'partial', icon: AlertTriangle, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' };
     }
-    
+
     return { status: 'pending', icon: Play, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
   };
 
@@ -553,7 +565,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
 
     const sectionsCompleted = progressData.secciones_completadas || 0;
     const totalSections = progressData.total_secciones || 6;
-    
+
     // Calcular respuestas correctas y total evaluado basado en el progreso
     let correctAnswers = 0;
     let totalEvaluated = 0;
@@ -592,21 +604,13 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   // Pantalla de selección de tipo de planta
   if (!selectedPlantType) {
     return (
-      <div className="min-h-screen relative bg-gray-100 overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: `url("public/Fondo.png")`,
-          }}
-        />
-        <div className="absolute inset-0 bg-black/20" />
-
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
-          <div className="w-full max-w-lg space-y-4">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Equipo</h2>
-              <p className="text-white/80">Selecciona el tipo de planta a evaluar</p>
-            </div>
+      <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 sticky top-8">
+        <div className="bg-blue-50/80 px-4 py-3 rounded-t-lg border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+            <Target className="w-5 h-5 mr-2 text-blue-600" />
+            Criterios de Evaluación
+          </h3>
+        </div>
 
             {/* Botón para saltar a resultados simulados */}
             <div className="mb-6 flex justify-center">
@@ -663,7 +667,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   // Pantalla de selección de secciones - DISEÑO ACTUALIZADO COMO EN LA IMAGEN
   if (sectionSelectionMode) {
     const generalStats = calculateGeneralStats();
-    const progressPercentage = generalStats.totalSections > 0 ? 
+    const progressPercentage = generalStats.totalSections > 0 ?
       Math.round((generalStats.sectionsCompleted / generalStats.totalSections) * 100) : 0;
 
     return (
@@ -728,7 +732,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {evaluationData.secciones.map((section, index) => {
                 const sectionStatus = getSectionStatus(section.id);
-                
+
                 // Obtener información de progreso
                 const progressInfo = progressData?.secciones?.find(s => s.seccion_id === section.id);
                 const completedSubsections = progressInfo?.subsecciones_completadas || 0;
@@ -757,7 +761,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                           </div>
                         </div>
                       </CardHeader>
-                      
+
                       <CardContent className="pt-0">
                         {/* Lista de subsecciones */}
                         <div className="mb-4">
@@ -798,7 +802,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               <BarChart3 className="w-5 h-5 text-blue-600" />
               <h3 className="text-lg font-semibold text-gray-800">Progreso General</h3>
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600 mb-1">
@@ -806,21 +810,21 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 </div>
                 <div className="text-sm text-gray-600">Secciones Completadas</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="text-3xl font-bold text-gray-800 mb-1">
                   {generalStats.totalSections}
                 </div>
                 <div className="text-sm text-gray-600">Total de Secciones</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-600 mb-1">
                   {generalStats.correctAnswers}
                 </div>
                 <div className="text-sm text-gray-600">Respuestas Correctas</div>
               </div>
-              
+
               <div className="text-center">
                 <div className="text-3xl font-bold text-purple-600 mb-1">
                   {generalStats.totalEvaluated}
@@ -836,7 +840,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                 <span>{progressPercentage}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
+                <div
                   className="h-3 bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500"
                   style={{ width: `${progressPercentage}%` }}
                 />
@@ -867,6 +871,16 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
     );
   }
 
+  // Pantalla de evaluación
+  return (
+    <div className="min-h-screen relative bg-gray-100 overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url("public/Fondo.png")`,
+        }}
+      />
+      <div className="absolute inset-0 bg-black/20" />
   // Pantalla de evaluación
   return (
     <div className="min-h-screen relative bg-gray-100 overflow-hidden">
@@ -916,13 +930,13 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
             </span>
           </div>
           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-blue-600 transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
           <div className="mt-2 text-sm text-gray-600">
-            Sección {currentSection + 1} de {totalSections} • 
+            Sección {currentSection + 1} de {totalSections} •
             Subsección {currentSubsection + 1} de {totalSubsections}
           </div>
         </div>
@@ -978,7 +992,7 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                           <h3 className="text-lg font-medium text-gray-800 mb-4">
                             {index + 1}. {question.pregunta}
                           </h3>
-                          
+
                           <div className="space-y-2">
                             {[
                               { value: 'bueno', label: 'Bueno', color: 'bg-green-500 hover:bg-green-600' },
@@ -1016,8 +1030,8 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
                     >
                       {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                       <span>
-                        {currentSubsection < totalSubsections - 1 
-                          ? 'Siguiente Subsección' 
+                        {currentSubsection < totalSubsections - 1
+                          ? 'Siguiente Subsección'
                           : 'Completar Sección'
                         }
                       </span>
@@ -1042,6 +1056,13 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
         plantType={selectedPlantType}
       />
 
+      <img
+        src="public/Concreton.png"
+        alt="Mascota Concreton"
+        className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+      />
+    </div>
+  );
       <img
         src="public/Concreton.png"
         alt="Mascota Concreton"
