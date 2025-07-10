@@ -31,7 +31,7 @@ RewriteRule ^evaluaciones/progreso-secciones/?$ evaluaciones/progreso-secciones.
 RewriteRule ^evaluaciones/progreso-subseccion/?$ evaluaciones/progreso-subseccion.php [L,QSA]
 RewriteRule ^evaluaciones/progreso-subsecciones/?$ evaluaciones/progreso-subsecciones.php [L,QSA]
 
-# Nueva ruta para progreso de equipo
+# Ruta para progreso de equipo
 RewriteRule ^evaluaciones/progreso-equipo/?$ evaluaciones/progreso-equipo.php [L,QSA]
 
 # Rutas de reportes

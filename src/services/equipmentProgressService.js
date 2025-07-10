@@ -33,10 +33,18 @@ class EquipmentProgressService {
    */
   async saveSubsectionProgress(progressData) {
     try {
+      // Validar que los datos requeridos estén presentes
+      if (!progressData.usuario_id || !progressData.tipo_planta) {
+        throw new Error('usuario_id y tipo_planta son requeridos');
+      }
+
       const data = {
         ...progressData,
         tipo_progreso: 'subseccion'
       };
+
+      // Log para debugging
+      console.log('Enviando datos de subsección:', data);
 
       const response = await apiService.request(this.baseEndpoint, {
         method: 'POST',
@@ -55,10 +63,18 @@ class EquipmentProgressService {
    */
   async saveSectionProgress(progressData) {
     try {
+      // Validar que los datos requeridos estén presentes
+      if (!progressData.usuario_id || !progressData.tipo_planta) {
+        throw new Error('usuario_id y tipo_planta son requeridos');
+      }
+
       const data = {
         ...progressData,
         tipo_progreso: 'seccion'
       };
+
+      // Log para debugging
+      console.log('Enviando datos de sección:', data);
 
       const response = await apiService.request(this.baseEndpoint, {
         method: 'POST',
