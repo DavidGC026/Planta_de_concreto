@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Settings, Zap, Loader2, Play, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Settings, Zap, Loader2, Play, BarChart3, CheckCircle, Clock } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
@@ -59,20 +59,52 @@ const EquipmentSectionSelector = ({
 
   const getSectionStatus = (sectionId) => {
     if (!progressData?.secciones) {
-      return { status: 'pending', icon: Play, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
+      return { 
+        status: 'pending', 
+        icon: Play, 
+        color: 'text-blue-600', 
+        bg: 'bg-blue-50', 
+        border: 'border-blue-200',
+        textColor: 'text-blue-800',
+        buttonColor: 'bg-blue-600 hover:bg-blue-700'
+      };
     }
 
     const section = progressData.secciones.find(s => s.seccion_id === sectionId);
     
     if (section?.completada) {
-      return { status: 'completed', icon: Play, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' };
+      return { 
+        status: 'completed', 
+        icon: CheckCircle, 
+        color: 'text-green-600', 
+        bg: 'bg-green-50', 
+        border: 'border-green-200',
+        textColor: 'text-green-800',
+        buttonColor: 'bg-green-600 hover:bg-green-700'
+      };
     }
 
     if (section?.subsecciones_completadas > 0) {
-      return { status: 'partial', icon: Play, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' };
+      return { 
+        status: 'partial', 
+        icon: Clock, 
+        color: 'text-yellow-600', 
+        bg: 'bg-yellow-50', 
+        border: 'border-yellow-200',
+        textColor: 'text-yellow-800',
+        buttonColor: 'bg-yellow-600 hover:bg-yellow-700'
+      };
     }
 
-    return { status: 'pending', icon: Play, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
+    return { 
+      status: 'pending', 
+      icon: Play, 
+      color: 'text-blue-600', 
+      bg: 'bg-blue-50', 
+      border: 'border-blue-200',
+      textColor: 'text-blue-800',
+      buttonColor: 'bg-blue-600 hover:bg-blue-700'
+    };
   };
 
   const calculateGeneralStats = () => {
@@ -186,6 +218,7 @@ const EquipmentSectionSelector = ({
               const progressInfo = progressData?.secciones?.find(s => s.seccion_id === section.id);
               const completedSubsections = progressInfo?.subsecciones_completadas || 0;
               const totalSubsections = progressInfo?.total_subsecciones || section.subsecciones?.length || 0;
+              const sectionPercentage = progressInfo?.puntaje_porcentaje || 0;
 
               return (
                 <motion.div
@@ -194,16 +227,38 @@ const EquipmentSectionSelector = ({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card className="bg-white/95 backdrop-blur-sm border border-gray-200 hover:shadow-lg transition-all duration-200">
-                    <CardHeader className="pb-3">
+                  <Card className={`bg-white/95 backdrop-blur-sm ${sectionStatus.border} hover:shadow-lg transition-all duration-200 ${sectionStatus.bg}`}>
+                    <CardHeader className="pb-3 relative">
+                      {/* Indicador de estado en la esquina superior derecha */}
+                      <div className="absolute top-3 right-3">
+                        <sectionStatus.icon className={`w-6 h-6 ${sectionStatus.color}`} />
+                      </div>
+                      
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                        <div className="flex-1 pr-8">
                           <CardTitle className="text-lg font-semibold text-gray-800 mb-1">
                             {section.nombre}
                           </CardTitle>
-                          <div className="text-sm text-gray-600 mb-2">
+                          <div className={`text-sm ${sectionStatus.textColor} mb-2 font-medium`}>
                             Peso: {section.ponderacion}%
                           </div>
+                          
+                          {/* Mostrar progreso si existe */}
+                          {progressInfo && (
+                            <div className="mb-2">
+                              <div className={`text-sm font-medium ${sectionStatus.color}`}>
+                                {sectionStatus.status === 'completed' && '✅ Completada'}
+                                {sectionStatus.status === 'partial' && `🔄 En progreso (${completedSubsections}/${totalSubsections})`}
+                                {sectionStatus.status === 'pending' && '⏳ Pendiente'}
+                              </div>
+                              {sectionPercentage > 0 && (
+                                <div className={`text-xs ${sectionStatus.textColor} mt-1`}>
+                                  Puntuación: {Math.round(sectionPercentage)}%
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           <div className="text-sm text-gray-600">
                             {totalSubsections} subsecciones
                           </div>
@@ -212,13 +267,39 @@ const EquipmentSectionSelector = ({
                     </CardHeader>
 
                     <CardContent className="pt-0">
+                      {/* Barra de progreso de subsecciones */}
+                      {totalSubsections > 0 && (
+                        <div className="mb-4">
+                          <div className="flex justify-between text-xs text-gray-600 mb-1">
+                            <span>Progreso de subsecciones</span>
+                            <span>{completedSubsections}/{totalSubsections}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-500 ${
+                                sectionStatus.status === 'completed' ? 'bg-green-500' :
+                                sectionStatus.status === 'partial' ? 'bg-yellow-500' : 'bg-gray-300'
+                              }`}
+                              style={{ 
+                                width: `${totalSubsections > 0 ? (completedSubsections / totalSubsections) * 100 : 0}%` 
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       {/* Lista de subsecciones */}
                       <div className="mb-4">
                         <div className="text-sm font-medium text-gray-700 mb-2">Subsecciones:</div>
                         <div className="space-y-1">
                           {section.subsecciones?.slice(0, 3).map((subsection, subIndex) => (
                             <div key={subIndex} className="flex items-center text-xs text-gray-600">
-                              <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                              <div className={`w-2 h-2 rounded-full mr-2 ${
+                                // Verificar si esta subsección específica está completada
+                                progressInfo?.subsecciones?.some(sub => 
+                                  sub.subseccion_id === subsection.id && sub.completada
+                                ) ? 'bg-green-500' : 'bg-gray-400'
+                              }`}></div>
                               {subsection.nombre}
                             </div>
                           ))}
@@ -232,10 +313,13 @@ const EquipmentSectionSelector = ({
 
                       <Button
                         onClick={() => handleSectionSelect(index)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center space-x-2"
+                        className={`w-full ${sectionStatus.buttonColor} text-white flex items-center justify-center space-x-2`}
                       >
-                        <Play className="w-4 h-4" />
-                        <span>Iniciar Evaluación</span>
+                        <sectionStatus.icon className="w-4 h-4" />
+                        <span>
+                          {sectionStatus.status === 'completed' ? 'Ver Evaluación' :
+                           sectionStatus.status === 'partial' ? 'Continuar' : 'Iniciar Evaluación'}
+                        </span>
                       </Button>
                     </CardContent>
                   </Card>
