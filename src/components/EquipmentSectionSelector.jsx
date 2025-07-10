@@ -113,7 +113,9 @@ const EquipmentSectionSelector = ({
         sectionsCompleted: 0,
         totalSections: evaluationData?.secciones?.length || 6,
         correctAnswers: 0,
-        totalEvaluated: 0
+        totalEvaluated: 0,
+        weightedProgress: 0,
+        totalWeight: 100
       };
     }
 
@@ -122,17 +124,36 @@ const EquipmentSectionSelector = ({
 
     let correctAnswers = 0;
     let totalEvaluated = 0;
+    let weightedProgress = 0;
+    let totalWeight = 0;
 
+    // Calcular el peso total de todas las secciones
+    evaluationData?.secciones?.forEach(section => {
+      totalWeight += section.ponderacion || 0;
+    });
+
+    // Calcular progreso ponderado basado en secciones completadas
     progressData.secciones.forEach(section => {
       correctAnswers += section.respuestas_correctas || 0;
       totalEvaluated += section.total_preguntas || 0;
+      
+      // Si la sección está completada, sumar su ponderación
+      if (section.completada) {
+        // Buscar la ponderación de esta sección en evaluationData
+        const sectionData = evaluationData?.secciones?.find(s => s.id === section.seccion_id);
+        if (sectionData) {
+          weightedProgress += sectionData.ponderacion || 0;
+        }
+      }
     });
 
     return {
       sectionsCompleted,
       totalSections,
       correctAnswers,
-      totalEvaluated
+      totalEvaluated,
+      weightedProgress,
+      totalWeight
     };
   };
 
@@ -153,8 +174,10 @@ const EquipmentSectionSelector = ({
   }
 
   const generalStats = calculateGeneralStats();
-  const progressPercentage = generalStats.totalSections > 0 ?
-    Math.round((generalStats.sectionsCompleted / generalStats.totalSections) * 100) : 0;
+  
+  // Usar progreso ponderado en lugar de conteo simple
+  const progressPercentage = generalStats.totalWeight > 0 ?
+    Math.round((generalStats.weightedProgress / generalStats.totalWeight) * 100) : 0;
 
   return (
     <div className="min-h-screen relative bg-gray-100 overflow-hidden">
@@ -336,7 +359,7 @@ const EquipmentSectionSelector = ({
             <h3 className="text-lg font-semibold text-gray-800">Progreso General</h3>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600 mb-1">
                 {generalStats.sectionsCompleted}
@@ -352,6 +375,13 @@ const EquipmentSectionSelector = ({
             </div>
 
             <div className="text-center">
+              <div className="text-3xl font-bold text-purple-600 mb-1">
+                {Math.round(generalStats.weightedProgress)}%
+              </div>
+              <div className="text-sm text-gray-600">Peso Completado</div>
+            </div>
+
+            <div className="text-center">
               <div className="text-3xl font-bold text-green-600 mb-1">
                 {generalStats.correctAnswers}
               </div>
@@ -359,18 +389,21 @@ const EquipmentSectionSelector = ({
             </div>
 
             <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600 mb-1">
+              <div className="text-3xl font-bold text-orange-600 mb-1">
                 {generalStats.totalEvaluated}
               </div>
-              <div className="text-sm text-gray-600">Total Evaluado</div>
+              <div className="text-sm text-gray-600">Preguntas Evaluadas</div>
             </div>
           </div>
 
           {/* Barra de progreso general */}
           <div className="mt-6">
             <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Progreso General</span>
+              <span>Progreso Ponderado</span>
               <span>{progressPercentage}%</span>
+            </div>
+            <div className="text-xs text-gray-500 mb-2">
+              {Math.round(generalStats.weightedProgress)}% de {generalStats.totalWeight}% total completado
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
