@@ -46,66 +46,39 @@ function obtenerProgreso($db) {
     }
 
     try {
-        // Verificar si existen las tablas de progreso de equipo
-        $check_table = $db->query("SHOW TABLES LIKE 'progreso_secciones_equipo'");
-        if ($check_table->rowCount() == 0) {
-            // Si no existe la tabla, usar el sistema de progreso estándar como fallback
+        // Verificar si existe el procedimiento almacenado
+        $check_procedure = $db->query("SHOW PROCEDURE STATUS WHERE Name = 'ObtenerProgresoEquipoUsuario'");
+        if ($check_procedure->rowCount() == 0) {
+            // Si no existe el procedimiento, usar el sistema de progreso estándar como fallback
             return obtenerProgresoFallback($db, $usuario_id, $tipo_planta);
         }
 
-        // Obtener progreso de secciones
-        $query = "SELECT
-                    pse.seccion_id,
-                    pse.seccion_nombre,
-                    pse.completada as seccion_completada,
-                    pse.puntaje_obtenido as seccion_puntaje,
-                    pse.puntaje_porcentaje as seccion_porcentaje,
-                    pse.total_subsecciones,
-                    pse.subsecciones_completadas,
-                    pse.respuestas_correctas as seccion_respuestas_correctas,
-                    pse.total_preguntas as seccion_total_preguntas,
-                    pse.fecha_completada as seccion_fecha_completada
-                  FROM progreso_secciones_equipo pse
-                  WHERE pse.usuario_id = :usuario_id
-                    AND pse.tipo_planta = :tipo_planta
-                  ORDER BY pse.seccion_id";
-
-        $stmt = $db->prepare($query);
-        $stmt->execute([
-            ':usuario_id' => $usuario_id,
-            ':tipo_planta' => $tipo_planta
-        ]);
+        // Llamar al procedimiento almacenado
+        $stmt = $db->prepare("CALL ObtenerProgresoEquipoUsuario(?, ?)");
+        $stmt->execute([$usuario_id, $tipo_planta]);
 
         $progreso = $stmt->fetchAll();
 
-        // Obtener detalles de subsecciones para cada sección
+        // Procesar los datos para el frontend
         $resultado = [];
         foreach ($progreso as $seccion) {
-            // Obtener subsecciones de esta sección
-            $subsecciones_query = "SELECT
-                                     psse.subseccion_id,
-                                     psse.subseccion_nombre as nombre,
-                                     psse.completada,
-                                     psse.puntaje_porcentaje
-                                   FROM progreso_subsecciones_equipo psse
-                                   WHERE psse.usuario_id = :usuario_id
-                                     AND psse.tipo_planta = :tipo_planta
-                                     AND psse.progreso_seccion_id = (
-                                         SELECT id FROM progreso_secciones_equipo
-                                         WHERE usuario_id = :usuario_id
-                                           AND tipo_planta = :tipo_planta
-                                           AND seccion_id = :seccion_id
-                                     )
-                                   ORDER BY psse.subseccion_id";
+            $subsecciones = [];
 
-            $subsecciones_stmt = $db->prepare($subsecciones_query);
-            $subsecciones_stmt->execute([
-                ':usuario_id' => $usuario_id,
-                ':tipo_planta' => $tipo_planta,
-                ':seccion_id' => $seccion['seccion_id']
-            ]);
-
-            $subsecciones = $subsecciones_stmt->fetchAll();
+            // Procesar el detalle de subsecciones si existe
+            if ($seccion['subsecciones_detalle']) {
+                $subsecciones_raw = explode('|', $seccion['subsecciones_detalle']);
+                foreach ($subsecciones_raw as $sub_raw) {
+                    $parts = explode(':', $sub_raw);
+                    if (count($parts) >= 4) {
+                        $subsecciones[] = [
+                            'subseccion_id' => (int)$parts[0],
+                            'nombre' => $parts[1],
+                            'completada' => (bool)$parts[2],
+                            'puntaje_porcentaje' => (float)$parts[3]
+                        ];
+                    }
+                }
+            }
 
             $resultado[] = [
                 'seccion_id' => (int)$seccion['seccion_id'],
