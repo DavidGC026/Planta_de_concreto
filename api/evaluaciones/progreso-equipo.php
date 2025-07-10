@@ -29,6 +29,8 @@ try {
     }
 
 } catch (Exception $e) {
+    error_log("Error crítico en progreso-equipo.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     handleError('Error interno del servidor: ' . $e->getMessage());
 }
 
@@ -44,66 +46,39 @@ function obtenerProgreso($db) {
     }
 
     try {
-        // Verificar si existen las tablas de progreso de equipo
-        $check_table = $db->query("SHOW TABLES LIKE 'progreso_secciones_equipo'");
-        if ($check_table->rowCount() == 0) {
-            // Si no existe la tabla, crear estructura básica
-            createProgressTables($db);
+        // Verificar si existe el procedimiento almacenado
+        $check_procedure = $db->query("SHOW PROCEDURE STATUS WHERE Name = 'ObtenerProgresoEquipoUsuario'");
+        if ($check_procedure->rowCount() == 0) {
+            // Si no existe el procedimiento, usar el sistema de progreso estándar como fallback
+            return obtenerProgresoFallback($db, $usuario_id, $tipo_planta);
         }
 
-        // Obtener progreso de secciones
-        $query = "SELECT
-                    pse.seccion_id,
-                    pse.seccion_nombre,
-                    pse.completada as seccion_completada,
-                    pse.puntaje_obtenido as seccion_puntaje,
-                    pse.puntaje_porcentaje as seccion_porcentaje,
-                    pse.total_subsecciones,
-                    pse.subsecciones_completadas,
-                    pse.respuestas_correctas as seccion_respuestas_correctas,
-                    pse.total_preguntas as seccion_total_preguntas,
-                    pse.fecha_completada as seccion_fecha_completada
-                  FROM progreso_secciones_equipo pse
-                  WHERE pse.usuario_id = :usuario_id
-                    AND pse.tipo_planta = :tipo_planta
-                  ORDER BY pse.seccion_id";
-
-        $stmt = $db->prepare($query);
-        $stmt->execute([
-            ':usuario_id' => $usuario_id,
-            ':tipo_planta' => $tipo_planta
-        ]);
+        // Llamar al procedimiento almacenado
+        $stmt = $db->prepare("CALL ObtenerProgresoEquipoUsuario(?, ?)");
+        $stmt->execute([$usuario_id, $tipo_planta]);
 
         $progreso = $stmt->fetchAll();
 
-        // Obtener detalles de subsecciones para cada sección
+        // Procesar los datos para el frontend
         $resultado = [];
         foreach ($progreso as $seccion) {
-            // Obtener subsecciones de esta sección
-            $subsecciones_query = "SELECT
-                                     psse.subseccion_id,
-                                     psse.subseccion_nombre as nombre,
-                                     psse.completada,
-                                     psse.puntaje_porcentaje
-                                   FROM progreso_subsecciones_equipo psse
-                                   WHERE psse.usuario_id = :usuario_id
-                                     AND psse.tipo_planta = :tipo_planta
-                                     AND psse.progreso_seccion_id = (
-                                         SELECT id FROM progreso_secciones_equipo
-                                         WHERE usuario_id = :usuario_id
-                                           AND tipo_planta = :tipo_planta
-                                           AND seccion_id = :seccion_id
-                                     )
-                                   ORDER BY psse.subseccion_id";
+            $subsecciones = [];
 
-            $subsecciones_stmt = $db->prepare($subsecciones_query);
-            $subsecciones_stmt->execute([
-                ':usuario_id' => $usuario_id,
-                ':tipo_planta' => $tipo_planta,
-                ':seccion_id' => $seccion['seccion_id']
-            ]);
-
-            $subsecciones = $subsecciones_stmt->fetchAll();
+            // Procesar el detalle de subsecciones si existe
+            if ($seccion['subsecciones_detalle']) {
+                $subsecciones_raw = explode('|', $seccion['subsecciones_detalle']);
+                foreach ($subsecciones_raw as $sub_raw) {
+                    $parts = explode(':', $sub_raw);
+                    if (count($parts) >= 4) {
+                        $subsecciones[] = [
+                            'subseccion_id' => (int)$parts[0],
+                            'nombre' => $parts[1],
+                            'completada' => (bool)$parts[2],
+                            'puntaje_porcentaje' => (float)$parts[3]
+                        ];
+                    }
+                }
+            }
 
             $resultado[] = [
                 'seccion_id' => (int)$seccion['seccion_id'],
@@ -132,7 +107,82 @@ function obtenerProgreso($db) {
         ]);
 
     } catch (Exception $e) {
+        error_log("Error en obtenerProgreso: " . $e->getMessage());
         handleError('Error al obtener progreso: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Obtener progreso usando el sistema estándar como fallback
+ */
+function obtenerProgresoFallback($db, $usuario_id, $tipo_planta) {
+    try {
+        // Usar el sistema de progreso estándar
+        $query = "SELECT
+                    ps.seccion_nombre,
+                    ps.seccion_orden,
+                    ps.puntaje_porcentaje,
+                    ps.respuestas_correctas,
+                    ps.total_preguntas,
+                    ps.fecha_completada
+                  FROM progreso_secciones ps
+                  WHERE ps.usuario_id = :usuario_id
+                    AND ps.tipo_evaluacion = 'equipo'
+                    AND ps.tipo_planta = :tipo_planta
+                  ORDER BY ps.seccion_orden";
+
+        $stmt = $db->prepare($query);
+        $stmt->execute([
+            ':usuario_id' => $usuario_id,
+            ':tipo_planta' => $tipo_planta
+        ]);
+
+        $progreso_secciones = $stmt->fetchAll();
+
+        // Convertir a formato esperado
+        $resultado = [];
+        foreach ($progreso_secciones as $index => $seccion) {
+            $resultado[] = [
+                'seccion_id' => $seccion['seccion_orden'],
+                'seccion_nombre' => $seccion['seccion_nombre'],
+                'completada' => true, // Si está en progreso_secciones, está completada
+                'puntaje_obtenido' => (float)$seccion['puntaje_porcentaje'],
+                'puntaje_porcentaje' => (float)$seccion['puntaje_porcentaje'],
+                'total_subsecciones' => 0,
+                'subsecciones_completadas' => 0,
+                'respuestas_correctas' => (int)$seccion['respuestas_correctas'],
+                'total_preguntas' => (int)$seccion['total_preguntas'],
+                'fecha_completada' => $seccion['fecha_completada'],
+                'subsecciones' => []
+            ];
+        }
+
+        sendJsonResponse([
+            'success' => true,
+            'data' => [
+                'usuario_id' => (int)$usuario_id,
+                'tipo_planta' => $tipo_planta,
+                'secciones' => $resultado,
+                'total_secciones' => count($resultado),
+                'secciones_completadas' => count($resultado),
+                'sistema' => 'fallback'
+            ]
+        ]);
+
+    } catch (Exception $e) {
+        error_log("Error en obtenerProgresoFallback: " . $e->getMessage());
+        // Si también falla el fallback, devolver estructura vacía
+        sendJsonResponse([
+            'success' => true,
+            'data' => [
+                'usuario_id' => (int)$usuario_id,
+                'tipo_planta' => $tipo_planta,
+                'secciones' => [],
+                'total_secciones' => 0,
+                'secciones_completadas' => 0,
+                'sistema' => 'empty'
+            ]
+        ]);
     }
 }
 
@@ -142,22 +192,36 @@ function obtenerProgreso($db) {
 function guardarProgreso($db) {
     $input = json_decode(file_get_contents('php://input'), true);
 
+    // Log para debugging
+    error_log("=== DATOS RECIBIDOS EN PROGRESO-EQUIPO ===");
+    error_log("Input completo: " . json_encode($input, JSON_PRETTY_PRINT));
+
+    if (!$input) {
+        handleError('Datos JSON inválidos', 400);
+    }
+
+    // Validar campos requeridos básicos
     $required_fields = ['usuario_id', 'tipo_planta', 'tipo_progreso'];
     foreach ($required_fields as $field) {
-        if (!isset($input[$field])) {
+        if (!isset($input[$field]) || $input[$field] === null || $input[$field] === '') {
+            error_log("Campo faltante o vacío: $field");
+            error_log("Valor recibido: " . var_export($input[$field] ?? 'NO_EXISTE', true));
             handleError("Campo requerido: $field", 400);
         }
     }
 
-    $usuario_id = $input['usuario_id'];
+    $usuario_id = (int)$input['usuario_id'];
     $tipo_planta = $input['tipo_planta'];
     $tipo_progreso = $input['tipo_progreso']; // 'seccion' o 'subseccion'
+
+    error_log("Procesando: usuario_id=$usuario_id, tipo_planta=$tipo_planta, tipo_progreso=$tipo_progreso");
 
     try {
         // Verificar si existen las tablas de progreso de equipo
         $check_table = $db->query("SHOW TABLES LIKE 'progreso_secciones_equipo'");
         if ($check_table->rowCount() == 0) {
-            createProgressTables($db);
+            // Usar sistema de progreso estándar como fallback
+            return guardarProgresoFallback($db, $input);
         }
 
         if ($tipo_progreso === 'subseccion') {
@@ -207,7 +271,94 @@ function guardarProgreso($db) {
         }
 
     } catch (Exception $e) {
+        error_log("Error en guardarProgreso: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
         handleError('Error al guardar progreso: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Guardar progreso usando el sistema estándar como fallback
+ */
+function guardarProgresoFallback($db, $input) {
+    try {
+        error_log("Usando sistema fallback para guardar progreso");
+
+        // Usar el sistema de progreso estándar
+        if ($input['tipo_progreso'] === 'subseccion') {
+            // Para subsecciones, usar progreso_subsecciones
+            $query = "INSERT INTO progreso_subsecciones
+                      (usuario_id, tipo_evaluacion, subseccion_nombre, subseccion_orden,
+                       puntaje_subseccion, puntaje_porcentaje, respuestas_correctas, total_preguntas,
+                       tipo_planta, fecha_completada)
+                      VALUES
+                      (?, 'equipo', ?, ?,
+                       ?, ?, ?, ?,
+                       ?, NOW())
+                      ON DUPLICATE KEY UPDATE
+                      subseccion_nombre = VALUES(subseccion_nombre),
+                      puntaje_subseccion = VALUES(puntaje_subseccion),
+                      puntaje_porcentaje = VALUES(puntaje_porcentaje),
+                      respuestas_correctas = VALUES(respuestas_correctas),
+                      total_preguntas = VALUES(total_preguntas),
+                      fecha_actualizacion = NOW()";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute([
+                $input['usuario_id'],
+                $input['subseccion_nombre'],
+                $input['subseccion_id'],
+                $input['puntaje_obtenido'],
+                $input['puntaje_porcentaje'],
+                $input['respuestas_correctas'],
+                $input['total_preguntas'],
+                $input['tipo_planta']
+            ]);
+
+        } else {
+            // Para secciones, usar progreso_secciones
+            $query = "INSERT INTO progreso_secciones
+                      (usuario_id, tipo_evaluacion, seccion_nombre, seccion_orden,
+                       puntaje_seccion, puntaje_porcentaje, respuestas_correctas, total_preguntas,
+                       tipo_planta, fecha_completada)
+                      VALUES
+                      (?, 'equipo', ?, ?,
+                       ?, ?, ?, ?,
+                       ?, NOW())
+                      ON DUPLICATE KEY UPDATE
+                      seccion_nombre = VALUES(seccion_nombre),
+                      puntaje_seccion = VALUES(puntaje_seccion),
+                      puntaje_porcentaje = VALUES(puntaje_porcentaje),
+                      respuestas_correctas = VALUES(respuestas_correctas),
+                      total_preguntas = VALUES(total_preguntas),
+                      fecha_actualizacion = NOW()";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute([
+                $input['usuario_id'],
+                $input['seccion_nombre'],
+                $input['seccion_id'],
+                $input['puntaje_obtenido'],
+                $input['puntaje_porcentaje'],
+                $input['respuestas_correctas'],
+                $input['total_preguntas'],
+                $input['tipo_planta']
+            ]);
+        }
+
+        sendJsonResponse([
+            'success' => true,
+            'message' => 'Progreso guardado exitosamente (sistema fallback)',
+            'data' => [
+                'tipo_progreso' => $input['tipo_progreso'],
+                'sistema' => 'fallback'
+            ]
+        ]);
+
+    } catch (Exception $e) {
+        error_log("Error en guardarProgresoFallback: " . $e->getMessage());
+        error_log("Stack trace fallback: " . $e->getTraceAsString());
+        handleError('Error al guardar progreso (fallback): ' . $e->getMessage());
     }
 }
 
@@ -225,22 +376,37 @@ function limpiarProgreso($db) {
     try {
         $db->beginTransaction();
 
-        // Eliminar progreso de subsecciones
-        $delete_subsecciones = "DELETE psse FROM progreso_subsecciones_equipo psse
-                                JOIN progreso_secciones_equipo pse ON psse.progreso_seccion_id = pse.id
-                                WHERE pse.usuario_id = :usuario_id
-                                  AND pse.tipo_planta = :tipo_planta";
+        // Verificar si existen las tablas de progreso de equipo
+        $check_table = $db->query("SHOW TABLES LIKE 'progreso_secciones_equipo'");
+        if ($check_table->rowCount() > 0) {
+            // Eliminar progreso de subsecciones
+            $delete_subsecciones = "DELETE psse FROM progreso_subsecciones_equipo psse
+                                    JOIN progreso_secciones_equipo pse ON psse.progreso_seccion_id = pse.id
+                                    WHERE pse.usuario_id = ? AND pse.tipo_planta = ?";
 
-        $stmt = $db->prepare($delete_subsecciones);
-        $stmt->execute([':usuario_id' => $usuario_id, ':tipo_planta' => $tipo_planta]);
+            $stmt = $db->prepare($delete_subsecciones);
+            $stmt->execute([$usuario_id, $tipo_planta]);
 
-        // Eliminar progreso de secciones
-        $delete_secciones = "DELETE FROM progreso_secciones_equipo
-                            WHERE usuario_id = :usuario_id
-                              AND tipo_planta = :tipo_planta";
+            // Eliminar progreso de secciones
+            $delete_secciones = "DELETE FROM progreso_secciones_equipo
+                                WHERE usuario_id = ? AND tipo_planta = ?";
 
-        $stmt = $db->prepare($delete_secciones);
-        $stmt->execute([':usuario_id' => $usuario_id, ':tipo_planta' => $tipo_planta]);
+            $stmt = $db->prepare($delete_secciones);
+            $stmt->execute([$usuario_id, $tipo_planta]);
+        }
+
+        // También limpiar del sistema estándar
+        $delete_standard_subsecciones = "DELETE FROM progreso_subsecciones
+                                        WHERE usuario_id = ? AND tipo_evaluacion = 'equipo' AND tipo_planta = ?";
+
+        $stmt = $db->prepare($delete_standard_subsecciones);
+        $stmt->execute([$usuario_id, $tipo_planta]);
+
+        $delete_standard_secciones = "DELETE FROM progreso_secciones
+                                     WHERE usuario_id = ? AND tipo_evaluacion = 'equipo' AND tipo_planta = ?";
+
+        $stmt = $db->prepare($delete_standard_secciones);
+        $stmt->execute([$usuario_id, $tipo_planta]);
 
         $db->commit();
 
@@ -255,69 +421,13 @@ function limpiarProgreso($db) {
 
     } catch (Exception $e) {
         $db->rollback();
+        error_log("Error en limpiarProgreso: " . $e->getMessage());
         handleError('Error al limpiar progreso: ' . $e->getMessage());
     }
 }
 
 /**
- * Crear tablas de progreso si no existen
- */
-function createProgressTables($db) {
-    // Crear tabla para el progreso de secciones de equipo
-    $create_secciones = "CREATE TABLE IF NOT EXISTS progreso_secciones_equipo (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        usuario_id INT NOT NULL,
-        tipo_planta ENUM('pequena', 'mediana', 'grande') NOT NULL,
-        seccion_id INT NOT NULL,
-        seccion_nombre VARCHAR(200) NOT NULL,
-        completada BOOLEAN DEFAULT FALSE,
-        puntaje_obtenido DECIMAL(5,2) DEFAULT 0.00,
-        puntaje_porcentaje DECIMAL(5,2) DEFAULT 0.00,
-        total_subsecciones INT DEFAULT 0,
-        subsecciones_completadas INT DEFAULT 0,
-        respuestas_correctas INT DEFAULT 0,
-        total_preguntas INT DEFAULT 0,
-        fecha_completada TIMESTAMP NULL,
-        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-        UNIQUE KEY unique_user_plant_section (usuario_id, tipo_planta, seccion_id),
-        INDEX idx_usuario_tipo_planta (usuario_id, tipo_planta),
-        INDEX idx_completada (completada)
-    )";
-
-    $db->exec($create_secciones);
-
-    // Crear tabla para el progreso detallado de subsecciones
-    $create_subsecciones = "CREATE TABLE IF NOT EXISTS progreso_subsecciones_equipo (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        progreso_seccion_id INT NOT NULL,
-        usuario_id INT NOT NULL,
-        tipo_planta ENUM('pequena', 'mediana', 'grande') NOT NULL,
-        subseccion_id INT NOT NULL,
-        subseccion_nombre VARCHAR(200) NOT NULL,
-        completada BOOLEAN DEFAULT FALSE,
-        puntaje_obtenido DECIMAL(5,2) DEFAULT 0.00,
-        puntaje_porcentaje DECIMAL(5,2) DEFAULT 0.00,
-        respuestas_correctas INT DEFAULT 0,
-        total_preguntas INT DEFAULT 0,
-        fecha_completada TIMESTAMP NULL,
-        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-        FOREIGN KEY (progreso_seccion_id) REFERENCES progreso_secciones_equipo(id) ON DELETE CASCADE,
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-        UNIQUE KEY unique_user_plant_subsection (usuario_id, tipo_planta, subseccion_id),
-        INDEX idx_progreso_seccion (progreso_seccion_id),
-        INDEX idx_usuario_tipo_planta (usuario_id, tipo_planta)
-    )";
-
-    $db->exec($create_subsecciones);
-}
-
-/**
- * Marcar una subsección como completada
+ * Marcar una subsección como completada (solo si existen las tablas específicas)
  */
 function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
     $db->beginTransaction();
@@ -325,17 +435,10 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
     try {
         // Obtener o crear el registro de progreso de sección
         $seccion_query = "SELECT id FROM progreso_secciones_equipo
-                         WHERE usuario_id = :usuario_id
-                           AND tipo_planta = :tipo_planta
-                           AND seccion_id = :seccion_id";
+                         WHERE usuario_id = ? AND tipo_planta = ? AND seccion_id = ?";
 
         $stmt = $db->prepare($seccion_query);
-        $stmt->execute([
-            ':usuario_id' => $usuario_id,
-            ':tipo_planta' => $tipo_planta,
-            ':seccion_id' => $input['seccion_id']
-        ]);
-
+        $stmt->execute([$usuario_id, $tipo_planta, $input['seccion_id']]);
         $progreso_seccion_id = $stmt->fetchColumn();
 
         // Si no existe el progreso de sección, crearlo
@@ -344,28 +447,25 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
             $seccion_info_query = "SELECT se.nombre, COUNT(sub.id) as total_subsecciones
                                   FROM secciones_evaluacion se
                                   LEFT JOIN subsecciones_evaluacion sub ON se.id = sub.seccion_id AND sub.activo = 1
-                                  WHERE se.id = :seccion_id
+                                  WHERE se.id = ?
                                   GROUP BY se.id, se.nombre";
 
             $stmt = $db->prepare($seccion_info_query);
-            $stmt->execute([':seccion_id' => $input['seccion_id']]);
+            $stmt->execute([$input['seccion_id']]);
             $seccion_info = $stmt->fetch();
 
             $insert_seccion = "INSERT INTO progreso_secciones_equipo (
                 usuario_id, tipo_planta, seccion_id, seccion_nombre,
                 completada, total_subsecciones, subsecciones_completadas
-            ) VALUES (
-                :usuario_id, :tipo_planta, :seccion_id, :seccion_nombre,
-                FALSE, :total_subsecciones, 0
-            )";
+            ) VALUES (?, ?, ?, ?, FALSE, ?, 0)";
 
             $stmt = $db->prepare($insert_seccion);
             $stmt->execute([
-                ':usuario_id' => $usuario_id,
-                ':tipo_planta' => $tipo_planta,
-                ':seccion_id' => $input['seccion_id'],
-                ':seccion_nombre' => $seccion_info['nombre'] ?? 'Sección ' . $input['seccion_id'],
-                ':total_subsecciones' => $seccion_info['total_subsecciones'] ?? 0
+                $usuario_id,
+                $tipo_planta,
+                $input['seccion_id'],
+                $seccion_info['nombre'] ?? 'Sección ' . $input['seccion_id'],
+                $seccion_info['total_subsecciones'] ?? 0
             ]);
 
             $progreso_seccion_id = $db->lastInsertId();
@@ -376,11 +476,7 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
             progreso_seccion_id, usuario_id, tipo_planta, subseccion_id, subseccion_nombre,
             completada, puntaje_obtenido, puntaje_porcentaje,
             respuestas_correctas, total_preguntas, fecha_completada
-        ) VALUES (
-            :progreso_seccion_id, :usuario_id, :tipo_planta, :subseccion_id, :subseccion_nombre,
-            TRUE, :puntaje_obtenido, :puntaje_porcentaje,
-            :respuestas_correctas, :total_preguntas, NOW()
-        )
+        ) VALUES (?, ?, ?, ?, ?, TRUE, ?, ?, ?, ?, NOW())
         ON DUPLICATE KEY UPDATE
             completada = TRUE,
             puntaje_obtenido = VALUES(puntaje_obtenido),
@@ -392,15 +488,15 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
 
         $stmt = $db->prepare($upsert_subseccion);
         $stmt->execute([
-            ':progreso_seccion_id' => $progreso_seccion_id,
-            ':usuario_id' => $usuario_id,
-            ':tipo_planta' => $tipo_planta,
-            ':subseccion_id' => $input['subseccion_id'],
-            ':subseccion_nombre' => $input['subseccion_nombre'],
-            ':puntaje_obtenido' => $input['puntaje_obtenido'],
-            ':puntaje_porcentaje' => $input['puntaje_porcentaje'],
-            ':respuestas_correctas' => $input['respuestas_correctas'],
-            ':total_preguntas' => $input['total_preguntas']
+            $progreso_seccion_id,
+            $usuario_id,
+            $tipo_planta,
+            $input['subseccion_id'],
+            $input['subseccion_nombre'],
+            $input['puntaje_obtenido'],
+            $input['puntaje_porcentaje'],
+            $input['respuestas_correctas'],
+            $input['total_preguntas']
         ]);
 
         // Actualizar el contador de subsecciones completadas en la sección
@@ -408,37 +504,35 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
                           SET subsecciones_completadas = (
                               SELECT COUNT(*)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           ),
                           puntaje_obtenido = (
                               SELECT COALESCE(AVG(puntaje_obtenido), 0)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           ),
                           puntaje_porcentaje = (
                               SELECT COALESCE(AVG(puntaje_porcentaje), 0)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           ),
                           respuestas_correctas = (
                               SELECT COALESCE(SUM(respuestas_correctas), 0)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           ),
                           total_preguntas = (
                               SELECT COALESCE(SUM(total_preguntas), 0)
                               FROM progreso_subsecciones_equipo
-                              WHERE progreso_seccion_id = :progreso_seccion_id
-                                AND completada = TRUE
+                              WHERE progreso_seccion_id = ? AND completada = TRUE
                           )
-                          WHERE id = :progreso_seccion_id";
+                          WHERE id = ?";
 
         $stmt = $db->prepare($update_seccion);
-        $stmt->execute([':progreso_seccion_id' => $progreso_seccion_id]);
+        $stmt->execute([
+            $progreso_seccion_id, $progreso_seccion_id, $progreso_seccion_id,
+            $progreso_seccion_id, $progreso_seccion_id, $progreso_seccion_id
+        ]);
 
         // Marcar la sección como completada si todas las subsecciones están completadas
         $check_completion = "UPDATE progreso_secciones_equipo
@@ -447,21 +541,22 @@ function marcarSubseccionCompletada($db, $usuario_id, $tipo_planta, $input) {
                                     WHEN (subsecciones_completadas >= total_subsecciones) THEN NOW()
                                     ELSE fecha_completada
                                 END
-                            WHERE id = :progreso_seccion_id";
+                            WHERE id = ?";
 
         $stmt = $db->prepare($check_completion);
-        $stmt->execute([':progreso_seccion_id' => $progreso_seccion_id]);
+        $stmt->execute([$progreso_seccion_id]);
 
         $db->commit();
 
     } catch (Exception $e) {
         $db->rollback();
+        error_log("Error en marcarSubseccionCompletada: " . $e->getMessage());
         throw $e;
     }
 }
 
 /**
- * Marcar una sección como completada
+ * Marcar una sección como completada (solo si existen las tablas específicas)
  */
 function marcarSeccionCompletada($db, $usuario_id, $tipo_planta, $input) {
     $db->beginTransaction();
@@ -473,12 +568,7 @@ function marcarSeccionCompletada($db, $usuario_id, $tipo_planta, $input) {
             completada, puntaje_obtenido, puntaje_porcentaje,
             total_subsecciones, subsecciones_completadas,
             respuestas_correctas, total_preguntas, fecha_completada
-        ) VALUES (
-            :usuario_id, :tipo_planta, :seccion_id, :seccion_nombre,
-            TRUE, :puntaje_obtenido, :puntaje_porcentaje,
-            :total_subsecciones, :subsecciones_completadas,
-            :respuestas_correctas, :total_preguntas, NOW()
-        )
+        ) VALUES (?, ?, ?, ?, TRUE, ?, ?, ?, ?, ?, ?, NOW())
         ON DUPLICATE KEY UPDATE
             completada = TRUE,
             puntaje_obtenido = VALUES(puntaje_obtenido),
@@ -492,22 +582,23 @@ function marcarSeccionCompletada($db, $usuario_id, $tipo_planta, $input) {
 
         $stmt = $db->prepare($upsert_seccion);
         $stmt->execute([
-            ':usuario_id' => $usuario_id,
-            ':tipo_planta' => $tipo_planta,
-            ':seccion_id' => $input['seccion_id'],
-            ':seccion_nombre' => $input['seccion_nombre'],
-            ':puntaje_obtenido' => $input['puntaje_obtenido'],
-            ':puntaje_porcentaje' => $input['puntaje_porcentaje'],
-            ':total_subsecciones' => $input['total_subsecciones'],
-            ':subsecciones_completadas' => $input['subsecciones_completadas'],
-            ':respuestas_correctas' => $input['respuestas_correctas'],
-            ':total_preguntas' => $input['total_preguntas']
+            $usuario_id,
+            $tipo_planta,
+            $input['seccion_id'],
+            $input['seccion_nombre'],
+            $input['puntaje_obtenido'],
+            $input['puntaje_porcentaje'],
+            $input['total_subsecciones'],
+            $input['subsecciones_completadas'],
+            $input['respuestas_correctas'],
+            $input['total_preguntas']
         ]);
 
         $db->commit();
 
     } catch (Exception $e) {
         $db->rollback();
+        error_log("Error en marcarSeccionCompletada: " . $e->getMessage());
         throw $e;
     }
 }
