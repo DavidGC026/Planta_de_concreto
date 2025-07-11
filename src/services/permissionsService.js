@@ -38,7 +38,7 @@ class PermissionsService {
   async getUserAllowedRoles(userId) {
     try {
       const response = await apiService.request(`${this.rolesEndpoint}?usuario_id=${userId}`);
-      return response.data;
+      return response.data || [];
     } catch (error) {
       console.error('Error getting user allowed roles:', error);
       return [];
@@ -57,7 +57,7 @@ class PermissionsService {
         })
       });
 
-      return response.data;
+      return response.data || { roles_permitidos: [], total_roles: 0 };
     } catch (error) {
       console.error('Error getting user permissions:', error);
       return { roles_permitidos: [], total_roles: 0 };
@@ -113,7 +113,7 @@ class PermissionsService {
         : this.adminEndpoint;
       
       const response = await apiService.request(endpoint);
-      return response.data;
+      return response.data || [];
     } catch (error) {
       console.error('Error getting all permissions:', error);
       return [];
@@ -124,10 +124,13 @@ class PermissionsService {
    * Filtrar roles según permisos del usuario
    */
   filterRolesByPermissions(allRoles, allowedRoles) {
-    if (!allowedRoles || allowedRoles.length === 0) {
+    if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) {
       return [];
     }
 
+    if (!Array.isArray(allRoles)) {
+      return [];
+    }
     const allowedCodes = allowedRoles.map(role => role.codigo);
     return allRoles.filter(role => allowedCodes.includes(role.codigo));
   }

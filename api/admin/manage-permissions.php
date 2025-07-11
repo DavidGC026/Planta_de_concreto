@@ -39,18 +39,20 @@ try {
 function obtenerPermisos($db) {
     $usuario_id = $_GET['usuario_id'] ?? null;
     
+    $permisos = [];
+    
     if ($usuario_id) {
         // Obtener permisos de un usuario específico
         $query = "SELECT * FROM vista_permisos_usuarios WHERE usuario_id = :usuario_id";
         $stmt = $db->prepare($query);
         $stmt->execute([':usuario_id' => $usuario_id]);
-        $permisos = $stmt->fetchAll();
+        $permisos = $stmt->fetchAll() ?: [];
     } else {
         // Obtener todos los permisos
         $query = "SELECT * FROM vista_permisos_usuarios ORDER BY username, rol_nombre";
         $stmt = $db->prepare($query);
         $stmt->execute();
-        $permisos = $stmt->fetchAll();
+        $permisos = $stmt->fetchAll() ?: [];
     }
     
     sendJsonResponse([

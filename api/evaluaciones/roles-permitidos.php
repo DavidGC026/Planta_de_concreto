@@ -38,7 +38,14 @@ try {
     $stmt->execute([':usuario_id' => $usuario_id]);
     
     $result = $stmt->fetch();
-    $roles_permitidos = json_decode($result['roles_permitidos'], true) ?? [];
+    $roles_permitidos = [];
+    
+    if ($result && $result['roles_permitidos']) {
+        $decoded = json_decode($result['roles_permitidos'], true);
+        if (is_array($decoded)) {
+            $roles_permitidos = $decoded;
+        }
+    }
     
     // Log para debugging
     error_log("Usuario {$user['username']} - Permisos completos: " . ($user['permisos_completos'] ? 'SÍ' : 'NO'));

@@ -33,7 +33,7 @@ try {
     $stmt = $db->prepare($query);
     $stmt->execute();
     
-    $usuarios = $stmt->fetchAll();
+    $usuarios = $stmt->fetchAll() ?: [];
     
     sendJsonResponse([
         'success' => true,

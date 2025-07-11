@@ -23,14 +23,14 @@ const AdminPermissionsPanel = ({ onBack }) => {
       setLoading(true);
       
       const [usersData, rolesData, permissionsData] = await Promise.all([
-        apiService.request('admin/users'),
+        apiService.request('admin/users').catch(() => ({ data: [] })),
         apiService.getRolesPersonal(),
         permissionsService.getAllPermissions()
       ]);
       
-      setUsers(usersData || []);
-      setRoles(rolesData || []);
-      setPermissions(permissionsData || []);
+      setUsers(Array.isArray(usersData?.data) ? usersData.data : []);
+      setRoles(Array.isArray(rolesData) ? rolesData : []);
+      setPermissions(Array.isArray(permissionsData) ? permissionsData : []);
       
     } catch (error) {
       console.error('Error loading admin data:', error);
@@ -38,6 +38,10 @@ const AdminPermissionsPanel = ({ onBack }) => {
         title: "❌ Error",
         description: "No se pudieron cargar los datos de administración"
       });
+      // Establecer valores por defecto en caso de error
+      setUsers([]);
+      setRoles([]);
+      setPermissions([]);
     } finally {
       setLoading(false);
     }
@@ -84,10 +88,16 @@ const AdminPermissionsPanel = ({ onBack }) => {
   };
 
   const getUserPermissions = (userId) => {
+    if (!Array.isArray(permissions)) {
+      return [];
+    }
     return permissions.filter(p => p.usuario_id === userId && p.puede_evaluar);
   };
 
   const hasPermission = (userId, roleCode) => {
+    if (!Array.isArray(permissions)) {
+      return false;
+    }
     return permissions.some(p => 
       p.usuario_id === userId && 
       p.rol_codigo === roleCode && 
@@ -96,6 +106,15 @@ const AdminPermissionsPanel = ({ onBack }) => {
   };
 
   const getPermissionStats = () => {
+    if (!Array.isArray(users)) {
+      return {
+        totalUsers: 0,
+        usersWithRestrictions: 0,
+        usersWithFullAccess: 0,
+        usersWithoutAccess: 0
+      };
+    }
+    
     const totalUsers = users.length;
     const usersWithRestrictions = users.filter(user => 
       !user.permisos_completos && getUserPermissions(user.id).length > 0

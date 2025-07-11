@@ -50,7 +50,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       // Obtener roles permitidos para este usuario específico
       const allowedRolesData = await permissionsService.getUserAllowedRoles(user.id);
       
-      if (allowedRolesData.length === 0) {
+      if (!Array.isArray(allowedRolesData) || allowedRolesData.length === 0) {
         // Si no tiene roles permitidos, mostrar mensaje de error
         toast({
           title: "❌ Sin permisos",

@@ -96,20 +96,20 @@ class ApiService {
   async getTiposEvaluacion() {
     try {
       const response = await this.request('evaluaciones/tipos.php');
-      return response.data;
+      return response.data || [];
     } catch (error) {
       console.error('Error getting evaluation types:', error);
-      throw error;
+      return [];
     }
   }
 
   async getRolesPersonal() {
     try {
       const response = await this.request('evaluaciones/roles.php');
-      return response.data;
+      return response.data || [];
     } catch (error) {
       console.error('Error getting personnel roles:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -126,10 +126,10 @@ class ApiService {
       if (params.categoria) queryParams.append('categoria', params.categoria);
       
       const response = await this.request(`evaluaciones/preguntas.php?${queryParams}`);
-      return response.data;
+      return response.data || { secciones: [] };
     } catch (error) {
       console.error('Error getting questions:', error);
-      throw error;
+      return { secciones: [] };
     }
   }
 
