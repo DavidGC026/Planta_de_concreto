@@ -129,7 +129,7 @@ const EquipmentSectionSelector = ({
 
     // Calcular el peso total de todas las secciones
     evaluationData?.secciones?.forEach(section => {
-      totalWeight += section.ponderacion || 0;
+      totalWeight += parseFloat(section.ponderacion) || 0;
     });
 
     // Calcular progreso ponderado basado en secciones completadas
@@ -142,7 +142,7 @@ const EquipmentSectionSelector = ({
         // Buscar la ponderación de esta sección en evaluationData
         const sectionData = evaluationData?.secciones?.find(s => s.id === section.seccion_id);
         if (sectionData) {
-          weightedProgress += sectionData.ponderacion || 0;
+          weightedProgress += parseFloat(sectionData.ponderacion) || 0;
         }
       }
     });
