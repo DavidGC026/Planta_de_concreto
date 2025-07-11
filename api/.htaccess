@@ -19,10 +19,12 @@ RewriteCond %{REQUEST_FILENAME} !-d
 
 # Rutas de autenticación
 RewriteRule ^login/?$ auth/login.php [L,QSA]
+RewriteRule ^auth/check-permissions/?$ auth/check-permissions.php [L,QSA]
 
 # Rutas de evaluaciones
 RewriteRule ^evaluaciones/tipos/?$ evaluaciones/tipos.php [L,QSA]
 RewriteRule ^evaluaciones/roles/?$ evaluaciones/roles.php [L,QSA]
+RewriteRule ^evaluaciones/roles-permitidos/?$ evaluaciones/roles-permitidos.php [L,QSA]
 RewriteRule ^evaluaciones/preguntas/?$ evaluaciones/preguntas.php [L,QSA]
 RewriteRule ^evaluaciones/guardar/?$ evaluaciones/guardar.php [L,QSA]
 RewriteRule ^evaluaciones/historial/?$ evaluaciones/historial.php [L,QSA]
@@ -30,6 +32,10 @@ RewriteRule ^evaluaciones/progreso-seccion/?$ evaluaciones/progreso-seccion.php 
 RewriteRule ^evaluaciones/progreso-secciones/?$ evaluaciones/progreso-secciones.php [L,QSA]
 RewriteRule ^evaluaciones/progreso-subseccion/?$ evaluaciones/progreso-subseccion.php [L,QSA]
 RewriteRule ^evaluaciones/progreso-subsecciones/?$ evaluaciones/progreso-subsecciones.php [L,QSA]
+
+# Rutas de administración
+RewriteRule ^admin/manage-permissions/?$ admin/manage-permissions.php [L,QSA]
+RewriteRule ^admin/users/?$ admin/users.php [L,QSA]
 
 # Ruta para progreso de equipo
 RewriteRule ^evaluaciones/progreso-equipo/?$ evaluaciones/progreso-equipo.php [L,QSA]

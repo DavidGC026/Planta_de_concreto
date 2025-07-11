@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, CheckCircle, XCircle, MinusCircle, UserCheck, Zap, Loader2, BarChart3 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
+import permissionsService from '@/services/permissionsService';
 
 const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, username }) => {
   const [currentSection, setCurrentSection] = useState(0);
@@ -14,6 +15,8 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState([]);
   const [evaluationData, setEvaluationData] = useState(null);
+  const [allowedRoles, setAllowedRoles] = useState([]);
+  const [hasPermissionRestrictions, setHasPermissionRestrictions] = useState(false);
 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
@@ -21,6 +24,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   useEffect(() => {
     if (!evaluationStarted) {
       loadRoles();
+      checkUserPermissions();
     }
   }, []);
 
@@ -37,16 +41,58 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   const loadRoles = async () => {
     try {
       setLoading(true);
-      const rolesData = await apiService.getRolesPersonal();
-      setRoles(rolesData);
+      
+      const user = apiService.getCurrentUser();
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // Obtener roles permitidos para este usuario específico
+      const allowedRolesData = await permissionsService.getUserAllowedRoles(user.id);
+      
+      if (allowedRolesData.length === 0) {
+        // Si no tiene roles permitidos, mostrar mensaje de error
+        toast({
+          title: "❌ Sin permisos",
+          description: "No tienes permisos para realizar evaluaciones de personal"
+        });
+        setRoles([]);
+        setAllowedRoles([]);
+        setHasPermissionRestrictions(true);
+        return;
+      }
+      
+      setRoles(allowedRolesData);
+      setAllowedRoles(allowedRolesData);
+      setHasPermissionRestrictions(allowedRolesData.length < 4); // Menos de 4 roles = permisos restringidos
+      
     } catch (error) {
       console.error('Error loading roles:', error);
       toast({
         title: "❌ Error",
-        description: "No se pudieron cargar los roles de personal"
+        description: "No se pudieron cargar los roles permitidos"
       });
+      setRoles([]);
+      setAllowedRoles([]);
+      setHasPermissionRestrictions(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkUserPermissions = async () => {
+    try {
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+
+      const permissionsInfo = await permissionsService.getPermissionsInfo(user.id);
+      setHasPermissionRestrictions(permissionsInfo.restrictedAccess);
+      
+      // Log para debugging
+      console.log('Información de permisos:', permissionsInfo);
+      
+    } catch (error) {
+      console.error('Error checking permissions:', error);
     }
   };
 
@@ -486,6 +532,13 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Personal</h2>
               <p className="text-white/80">Selecciona el rol a evaluar</p>
+              {hasPermissionRestrictions && (
+                <div className="mt-4 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded-lg">
+                  <p className="text-sm">
+                    <strong>Acceso Restringido:</strong> Solo puedes evaluar los roles para los que tienes permisos asignados.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Botón para saltar a resultados simulados */}
@@ -501,7 +554,18 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
               </Button>
             </div>
 
-            {roles.map((role, index) => (
+            {roles.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="bg-red-100 border border-red-400 text-red-800 px-4 py-3 rounded-lg">
+                  <h3 className="font-semibold mb-2">Sin permisos de evaluación</h3>
+                  <p className="text-sm">
+                    No tienes permisos para realizar evaluaciones de personal. 
+                    Contacta al administrador para solicitar acceso.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              roles.map((role, index) => (
               <motion.div
                 key={role.codigo}
                 initial={{ opacity: 0, y: 20 }}
@@ -525,7 +589,8 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                   </div>
                 </button>
               </motion.div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

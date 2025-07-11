@@ -1,8 +1,23 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { Shield } from 'lucide-react';
+import AdminPermissionsPanel from '@/components/AdminPermissionsPanel';
+import apiService from '@/services/api';
 
 const MainMenu = ({ onSelectEvaluation }) => {
+  const [showAdminPanel, setShowAdminPanel] = React.useState(false);
+  const [isAdmin, setIsAdmin] = React.useState(false);
+  
+  React.useEffect(() => {
+    const user = apiService.getCurrentUser();
+    setIsAdmin(user && user.rol === 'admin');
+  }, []);
+  
+  if (showAdminPanel) {
+    return <AdminPermissionsPanel onBack={() => setShowAdminPanel(false)} />;
+  }
+
   const evaluationTypes = [
     {
       id: 'personal',
@@ -63,6 +78,27 @@ const MainMenu = ({ onSelectEvaluation }) => {
               </Button>
             </motion.div>
           ))}
+          
+          {/* Panel de administración para admins */}
+          {isAdmin && (
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 + evaluationTypes.length * 0.15 }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setShowAdminPanel(true)}
+                className="w-full font-semibold py-6 rounded-lg text-lg border-2 border-blue-600 text-blue-600 hover:bg-blue-50 justify-start pl-8"
+              >
+                <Shield className="w-5 h-5 mr-3" />
+                Panel de Permisos de Usuario
+              </Button>
+            </motion.div>
+          )}
         </motion.div>
       </main>
 
