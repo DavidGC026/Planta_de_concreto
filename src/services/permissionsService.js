@@ -1,5 +1,5 @@
 /**
- * Servicio para manejar permisos de usuarios
+ * Servicio para manejar permisos de usuarios expandido
  * IMCYC - Sistema de Evaluación de Plantas de Concreto
  */
 
@@ -13,16 +13,22 @@ class PermissionsService {
   }
 
   /**
-   * Verificar si un usuario puede evaluar un rol específico
+   * Verificar si un usuario puede evaluar un tipo específico
    */
-  async canUserEvaluateRole(userId, roleCode) {
+  async canUserEvaluate(userId, tipoEvaluacion, roleCode = null) {
     try {
+      const requestData = {
+        usuario_id: userId,
+        tipo_evaluacion: tipoEvaluacion
+      };
+      
+      if (roleCode) {
+        requestData.rol_codigo = roleCode;
+      }
+      
       const response = await apiService.request(this.baseEndpoint, {
         method: 'POST',
-        body: JSON.stringify({
-          usuario_id: userId,
-          rol_codigo: roleCode
-        })
+        body: JSON.stringify(requestData)
       });
 
       return response.data.puede_evaluar;
@@ -30,6 +36,13 @@ class PermissionsService {
       console.error('Error checking user permissions:', error);
       return false;
     }
+  }
+
+  /**
+   * Verificar si un usuario puede evaluar un rol específico (legacy)
+   */
+  async canUserEvaluateRole(userId, roleCode) {
+    return this.canUserEvaluate(userId, 'personal', roleCode);
   }
 
   /**
@@ -57,26 +70,32 @@ class PermissionsService {
         })
       });
 
-      return response.data || { roles_permitidos: [], total_roles: 0 };
+      return response.data || { permisos_resumen: {}, total_permisos: 0 };
     } catch (error) {
       console.error('Error getting user permissions:', error);
-      return { roles_permitidos: [], total_roles: 0 };
+      return { permisos_resumen: {}, total_permisos: 0 };
     }
   }
 
   /**
    * Asignar permisos a un usuario (solo para administradores)
    */
-  async assignPermissions(userId, roleCode, canEvaluate, canViewResults = true) {
+  async assignPermissions(userId, tipoEvaluacion, canEvaluate, canViewResults = true, roleCode = null) {
     try {
+      const requestData = {
+        usuario_id: userId,
+        tipo_evaluacion: tipoEvaluacion,
+        puede_evaluar: canEvaluate,
+        puede_ver_resultados: canViewResults
+      };
+      
+      if (roleCode) {
+        requestData.rol_codigo = roleCode;
+      }
+      
       const response = await apiService.request(this.adminEndpoint, {
         method: 'POST',
-        body: JSON.stringify({
-          usuario_id: userId,
-          rol_codigo: roleCode,
-          puede_evaluar: canEvaluate,
-          puede_ver_resultados: canViewResults
-        })
+        body: JSON.stringify(requestData)
       });
 
       return response.data;
@@ -89,13 +108,15 @@ class PermissionsService {
   /**
    * Eliminar permisos de un usuario (solo para administradores)
    */
-  async removePermissions(userId, roleCode) {
+  async removePermissions(userId, tipoEvaluacion, roleCode = null) {
     try {
-      const response = await apiService.request(
-        `${this.adminEndpoint}?usuario_id=${userId}&rol_codigo=${roleCode}`,
-        { method: 'DELETE' }
-      );
-
+      let endpoint = `${this.adminEndpoint}?usuario_id=${userId}&tipo_evaluacion=${tipoEvaluacion}`;
+      
+      if (roleCode) {
+        endpoint += `&rol_codigo=${roleCode}`;
+      }
+      
+      const response = await apiService.request(endpoint, { method: 'DELETE' });
       return response.data;
     } catch (error) {
       console.error('Error removing permissions:', error);
@@ -142,10 +163,9 @@ class PermissionsService {
     try {
       const permissions = await this.getUserPermissions(userId);
       
-      // Si tiene muchos roles permitidos, probablemente es admin
-      // También podríamos verificar el rol del usuario directamente
+      // Si tiene permisos completos, es admin
       const user = apiService.getCurrentUser();
-      return user && (user.rol === 'admin' || permissions.total_roles >= 4);
+      return user && (user.rol === 'admin' || permissions.permisos_completos);
     } catch (error) {
       console.error('Error checking full permissions:', error);
       return false;
@@ -157,17 +177,24 @@ class PermissionsService {
    */
   async getPermissionsInfo(userId) {
     try {
-      const [allowedRoles, hasFullPerms] = await Promise.all([
+      const [allowedRoles, permissions, hasFullPerms] = await Promise.all([
         this.getUserAllowedRoles(userId),
+        this.getUserPermissions(userId),
         this.hasFullPermissions(userId)
       ]);
+
+      const permisos_resumen = permissions.permisos_resumen || {};
 
       return {
         allowedRoles,
         hasFullPermissions: hasFullPerms,
         totalAllowedRoles: allowedRoles.length,
-        canEvaluatePersonal: allowedRoles.some(role => role.codigo === 'jefe_planta'),
-        restrictedAccess: !hasFullPerms && allowedRoles.length < 4
+        canEvaluatePersonal: allowedRoles.some(role => role.codigo === 'jefe_planta') || hasFullPerms,
+        canEvaluateEquipo: permisos_resumen.equipo || hasFullPerms,
+        canEvaluateOperacion: permisos_resumen.operacion || hasFullPerms,
+        restrictedAccess: !hasFullPerms && permissions.total_permisos < 3,
+        permisos_resumen: permisos_resumen,
+        total_permisos: permissions.total_permisos || 0
       };
     } catch (error) {
       console.error('Error getting permissions info:', error);
@@ -176,8 +203,39 @@ class PermissionsService {
         hasFullPermissions: false,
         totalAllowedRoles: 0,
         canEvaluatePersonal: false,
-        restrictedAccess: true
+        canEvaluateEquipo: false,
+        canEvaluateOperacion: false,
+        restrictedAccess: true,
+        permisos_resumen: {},
+        total_permisos: 0
       };
+    }
+  }
+
+  /**
+   * Verificar acceso a un tipo de evaluación específico
+   */
+  async checkEvaluationAccess(userId, tipoEvaluacion) {
+    try {
+      const permissionsInfo = await this.getPermissionsInfo(userId);
+      
+      if (permissionsInfo.hasFullPermissions) {
+        return true;
+      }
+      
+      switch (tipoEvaluacion) {
+        case 'personal':
+          return permissionsInfo.canEvaluatePersonal;
+        case 'equipo':
+          return permissionsInfo.canEvaluateEquipo;
+        case 'operacion':
+          return permissionsInfo.canEvaluateOperacion;
+        default:
+          return false;
+      }
+    } catch (error) {
+      console.error('Error checking evaluation access:', error);
+      return false;
     }
   }
 }
@@ -189,6 +247,7 @@ export default permissionsService;
 
 // Exportar también métodos específicos para facilitar el uso
 export const {
+  canUserEvaluate,
   canUserEvaluateRole,
   getUserAllowedRoles,
   getUserPermissions,
@@ -197,5 +256,6 @@ export const {
   getAllPermissions,
   filterRolesByPermissions,
   hasFullPermissions,
-  getPermissionsInfo
+  getPermissionsInfo,
+  checkEvaluationAccess
 } = permissionsService;

@@ -2,6 +2,7 @@
 /**
  * API para gestionar permisos de usuarios (solo para administradores)
  * IMCYC - Sistema de Evaluación de Plantas de Concreto
+ * Expandido para incluir permisos de equipo y operación
  */
 
 require_once '../config/database.php';
@@ -43,13 +44,67 @@ function obtenerPermisos($db) {
     
     if ($usuario_id) {
         // Obtener permisos de un usuario específico
-        $query = "SELECT * FROM vista_permisos_usuarios WHERE usuario_id = :usuario_id";
+        $query = "SELECT 
+                    u.id as usuario_id,
+                    u.username,
+                    u.nombre_completo,
+                    u.rol as rol_sistema,
+                    u.permisos_completos,
+                    
+                    -- Permisos de personal (roles específicos)
+                    rp.id as rol_personal_id,
+                    rp.codigo as rol_codigo,
+                    rp.nombre as rol_nombre,
+                    pu.puede_evaluar as puede_evaluar_personal,
+                    pu.puede_ver_resultados as puede_ver_resultados_personal,
+                    pu.fecha_creacion as fecha_asignacion_personal,
+                    
+                    -- Permisos de equipo
+                    pe.puede_evaluar as puede_evaluar_equipo,
+                    pe.puede_ver_resultados as puede_ver_resultados_equipo,
+                    pe.fecha_creacion as fecha_asignacion_equipo,
+                    
+                    -- Permisos de operación
+                    po.puede_evaluar as puede_evaluar_operacion,
+                    po.puede_ver_resultados as puede_ver_resultados_operacion,
+                    po.fecha_creacion as fecha_asignacion_operacion
+                    
+                  FROM usuarios u
+                  LEFT JOIN permisos_usuario pu ON u.id = pu.usuario_id
+                  LEFT JOIN roles_personal rp ON pu.rol_personal_id = rp.id
+                  LEFT JOIN permisos_equipo pe ON u.id = pe.usuario_id
+                  LEFT JOIN permisos_operacion po ON u.id = po.usuario_id
+                  WHERE u.id = :usuario_id AND u.activo = 1
+                  ORDER BY rp.nombre";
+        
         $stmt = $db->prepare($query);
         $stmt->execute([':usuario_id' => $usuario_id]);
         $permisos = $stmt->fetchAll() ?: [];
     } else {
-        // Obtener todos los permisos
-        $query = "SELECT * FROM vista_permisos_usuarios ORDER BY username, rol_nombre";
+        // Obtener todos los permisos con información consolidada
+        $query = "SELECT DISTINCT
+                    u.id as usuario_id,
+                    u.username,
+                    u.nombre_completo,
+                    u.rol as rol_sistema,
+                    u.permisos_completos,
+                    
+                    -- Contar permisos de personal
+                    (SELECT COUNT(*) FROM permisos_usuario pu2 
+                     WHERE pu2.usuario_id = u.id AND pu2.puede_evaluar = 1) as total_roles_personal,
+                    
+                    -- Permisos de equipo
+                    COALESCE(pe.puede_evaluar, 0) as puede_evaluar_equipo,
+                    
+                    -- Permisos de operación
+                    COALESCE(po.puede_evaluar, 0) as puede_evaluar_operacion
+                    
+                  FROM usuarios u
+                  LEFT JOIN permisos_equipo pe ON u.id = pe.usuario_id
+                  LEFT JOIN permisos_operacion po ON u.id = po.usuario_id
+                  WHERE u.activo = 1
+                  ORDER BY u.username";
+        
         $stmt = $db->prepare($query);
         $stmt->execute();
         $permisos = $stmt->fetchAll() ?: [];
@@ -71,7 +126,7 @@ function asignarPermisos($db) {
         handleError('Datos JSON inválidos', 400);
     }
     
-    $required_fields = ['usuario_id', 'rol_codigo', 'puede_evaluar'];
+    $required_fields = ['usuario_id', 'tipo_evaluacion'];
     foreach ($required_fields as $field) {
         if (!isset($input[$field])) {
             handleError("Campo requerido: $field", 400);
@@ -79,32 +134,123 @@ function asignarPermisos($db) {
     }
     
     $usuario_id = $input['usuario_id'];
-    $rol_codigo = $input['rol_codigo'];
-    $puede_evaluar = (bool)$input['puede_evaluar'];
-    $puede_ver_resultados = $input['puede_ver_resultados'] ?? true;
+    $tipo_evaluacion = $input['tipo_evaluacion'];
+    $puede_evaluar = (bool)($input['puede_evaluar'] ?? true);
+    $puede_ver_resultados = (bool)($input['puede_ver_resultados'] ?? true);
     
     try {
-        // Llamar al procedimiento almacenado
-        $stmt = $db->prepare("CALL AsignarPermisosUsuario(?, ?, ?, ?)");
-        $stmt->execute([
-            $usuario_id,
-            $rol_codigo,
-            $puede_evaluar,
-            $puede_ver_resultados
-        ]);
+        $db->beginTransaction();
+        
+        if ($tipo_evaluacion === 'personal') {
+            // Para evaluación de personal, requiere rol_codigo
+            $rol_codigo = $input['rol_codigo'] ?? null;
+            if (!$rol_codigo) {
+                throw new Exception('rol_codigo es requerido para evaluación de personal');
+            }
+            
+            // Obtener ID del rol
+            $rol_query = "SELECT id FROM roles_personal WHERE codigo = :rol_codigo AND activo = 1";
+            $rol_stmt = $db->prepare($rol_query);
+            $rol_stmt->execute([':rol_codigo' => $rol_codigo]);
+            $rol = $rol_stmt->fetch();
+            
+            if (!$rol) {
+                throw new Exception('Rol no encontrado');
+            }
+            
+            // Insertar o actualizar permisos de personal
+            $query = "INSERT INTO permisos_usuario (usuario_id, rol_personal_id, puede_evaluar, puede_ver_resultados)
+                      VALUES (:usuario_id, :rol_personal_id, :puede_evaluar, :puede_ver_resultados)
+                      ON DUPLICATE KEY UPDATE
+                      puede_evaluar = VALUES(puede_evaluar),
+                      puede_ver_resultados = VALUES(puede_ver_resultados),
+                      fecha_actualizacion = NOW()";
+            
+            $stmt = $db->prepare($query);
+            $stmt->execute([
+                ':usuario_id' => $usuario_id,
+                ':rol_personal_id' => $rol['id'],
+                ':puede_evaluar' => $puede_evaluar,
+                ':puede_ver_resultados' => $puede_ver_resultados
+            ]);
+            
+        } elseif ($tipo_evaluacion === 'equipo') {
+            // Crear tabla si no existe
+            $create_table = "CREATE TABLE IF NOT EXISTS permisos_equipo (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                usuario_id INT NOT NULL,
+                puede_evaluar BOOLEAN DEFAULT TRUE,
+                puede_ver_resultados BOOLEAN DEFAULT TRUE,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_user_equipo (usuario_id)
+            )";
+            $db->exec($create_table);
+            
+            // Insertar o actualizar permisos de equipo
+            $query = "INSERT INTO permisos_equipo (usuario_id, puede_evaluar, puede_ver_resultados)
+                      VALUES (:usuario_id, :puede_evaluar, :puede_ver_resultados)
+                      ON DUPLICATE KEY UPDATE
+                      puede_evaluar = VALUES(puede_evaluar),
+                      puede_ver_resultados = VALUES(puede_ver_resultados),
+                      fecha_actualizacion = NOW()";
+            
+            $stmt = $db->prepare($query);
+            $stmt->execute([
+                ':usuario_id' => $usuario_id,
+                ':puede_evaluar' => $puede_evaluar,
+                ':puede_ver_resultados' => $puede_ver_resultados
+            ]);
+            
+        } elseif ($tipo_evaluacion === 'operacion') {
+            // Crear tabla si no existe
+            $create_table = "CREATE TABLE IF NOT EXISTS permisos_operacion (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                usuario_id INT NOT NULL,
+                puede_evaluar BOOLEAN DEFAULT TRUE,
+                puede_ver_resultados BOOLEAN DEFAULT TRUE,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_user_operacion (usuario_id)
+            )";
+            $db->exec($create_table);
+            
+            // Insertar o actualizar permisos de operación
+            $query = "INSERT INTO permisos_operacion (usuario_id, puede_evaluar, puede_ver_resultados)
+                      VALUES (:usuario_id, :puede_evaluar, :puede_ver_resultados)
+                      ON DUPLICATE KEY UPDATE
+                      puede_evaluar = VALUES(puede_evaluar),
+                      puede_ver_resultados = VALUES(puede_ver_resultados),
+                      fecha_actualizacion = NOW()";
+            
+            $stmt = $db->prepare($query);
+            $stmt->execute([
+                ':usuario_id' => $usuario_id,
+                ':puede_evaluar' => $puede_evaluar,
+                ':puede_ver_resultados' => $puede_ver_resultados
+            ]);
+            
+        } else {
+            throw new Exception('Tipo de evaluación no válido');
+        }
+        
+        $db->commit();
         
         sendJsonResponse([
             'success' => true,
             'message' => 'Permisos asignados exitosamente',
             'data' => [
                 'usuario_id' => $usuario_id,
-                'rol_codigo' => $rol_codigo,
+                'tipo_evaluacion' => $tipo_evaluacion,
                 'puede_evaluar' => $puede_evaluar,
                 'puede_ver_resultados' => $puede_ver_resultados
             ]
         ]);
         
     } catch (Exception $e) {
+        $db->rollback();
         handleError('Error al asignar permisos: ' . $e->getMessage());
     }
 }
@@ -114,41 +260,69 @@ function asignarPermisos($db) {
  */
 function eliminarPermisos($db) {
     $usuario_id = $_GET['usuario_id'] ?? null;
+    $tipo_evaluacion = $_GET['tipo_evaluacion'] ?? null;
     $rol_codigo = $_GET['rol_codigo'] ?? null;
     
-    if (!$usuario_id || !$rol_codigo) {
-        handleError('usuario_id y rol_codigo son requeridos', 400);
+    if (!$usuario_id || !$tipo_evaluacion) {
+        handleError('usuario_id y tipo_evaluacion son requeridos', 400);
     }
     
     try {
-        // Obtener ID del rol
-        $rol_query = "SELECT id FROM roles_personal WHERE codigo = :rol_codigo";
-        $rol_stmt = $db->prepare($rol_query);
-        $rol_stmt->execute([':rol_codigo' => $rol_codigo]);
-        $rol = $rol_stmt->fetch();
+        $db->beginTransaction();
         
-        if (!$rol) {
-            handleError('Rol no encontrado', 404);
+        if ($tipo_evaluacion === 'personal') {
+            if (!$rol_codigo) {
+                throw new Exception('rol_codigo es requerido para eliminar permisos de personal');
+            }
+            
+            // Obtener ID del rol
+            $rol_query = "SELECT id FROM roles_personal WHERE codigo = :rol_codigo";
+            $rol_stmt = $db->prepare($rol_query);
+            $rol_stmt->execute([':rol_codigo' => $rol_codigo]);
+            $rol = $rol_stmt->fetch();
+            
+            if (!$rol) {
+                throw new Exception('Rol no encontrado');
+            }
+            
+            // Eliminar permisos de personal
+            $delete_query = "DELETE FROM permisos_usuario WHERE usuario_id = :usuario_id AND rol_personal_id = :rol_id";
+            $delete_stmt = $db->prepare($delete_query);
+            $delete_stmt->execute([
+                ':usuario_id' => $usuario_id,
+                ':rol_id' => $rol['id']
+            ]);
+            
+        } elseif ($tipo_evaluacion === 'equipo') {
+            // Eliminar permisos de equipo
+            $delete_query = "DELETE FROM permisos_equipo WHERE usuario_id = :usuario_id";
+            $delete_stmt = $db->prepare($delete_query);
+            $delete_stmt->execute([':usuario_id' => $usuario_id]);
+            
+        } elseif ($tipo_evaluacion === 'operacion') {
+            // Eliminar permisos de operación
+            $delete_query = "DELETE FROM permisos_operacion WHERE usuario_id = :usuario_id";
+            $delete_stmt = $db->prepare($delete_query);
+            $delete_stmt->execute([':usuario_id' => $usuario_id]);
+            
+        } else {
+            throw new Exception('Tipo de evaluación no válido');
         }
         
-        // Eliminar permisos
-        $delete_query = "DELETE FROM permisos_usuario WHERE usuario_id = :usuario_id AND rol_personal_id = :rol_id";
-        $delete_stmt = $db->prepare($delete_query);
-        $delete_stmt->execute([
-            ':usuario_id' => $usuario_id,
-            ':rol_id' => $rol['id']
-        ]);
+        $db->commit();
         
         sendJsonResponse([
             'success' => true,
             'message' => 'Permisos eliminados exitosamente',
             'data' => [
                 'usuario_id' => $usuario_id,
+                'tipo_evaluacion' => $tipo_evaluacion,
                 'rol_codigo' => $rol_codigo
             ]
         ]);
         
     } catch (Exception $e) {
+        $db->rollback();
         handleError('Error al eliminar permisos: ' . $e->getMessage());
     }
 }

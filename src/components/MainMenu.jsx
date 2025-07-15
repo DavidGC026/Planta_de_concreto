@@ -1,17 +1,32 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Shield } from 'lucide-react';
+import { Shield, UserCheck, Settings, ClipboardCheck } from 'lucide-react';
 import AdminPermissionsPanel from '@/components/AdminPermissionsPanel';
 import apiService from '@/services/api';
+import permissionsService from '@/services/permissionsService';
 
 const MainMenu = ({ onSelectEvaluation }) => {
   const [showAdminPanel, setShowAdminPanel] = React.useState(false);
   const [isAdmin, setIsAdmin] = React.useState(false);
+  const [userPermissions, setUserPermissions] = React.useState(null);
   
   React.useEffect(() => {
-    const user = apiService.getCurrentUser();
-    setIsAdmin(user && user.rol === 'admin');
+    const loadUserData = async () => {
+      const user = apiService.getCurrentUser();
+      setIsAdmin(user && user.rol === 'admin');
+      
+      if (user) {
+        try {
+          const permissions = await permissionsService.getPermissionsInfo(user.id);
+          setUserPermissions(permissions);
+        } catch (error) {
+          console.error('Error loading user permissions:', error);
+        }
+      }
+    };
+    
+    loadUserData();
   }, []);
   
   if (showAdminPanel) {
@@ -22,16 +37,45 @@ const MainMenu = ({ onSelectEvaluation }) => {
     {
       id: 'personal',
       title: 'Evaluación de Personal',
+      icon: UserCheck,
+      description: 'Evaluar competencias del personal',
+      enabled: userPermissions?.canEvaluatePersonal || isAdmin
     },
     {
       id: 'equipo',
       title: 'Evaluación de Equipo',
+      icon: Settings,
+      description: 'Evaluar estado de equipos',
+      enabled: userPermissions?.canEvaluateEquipo || isAdmin
     },
     {
       id: 'operacion',
       title: 'Evaluación de Operación',
+      icon: ClipboardCheck,
+      description: 'Evaluar procesos operativos',
+      enabled: userPermissions?.canEvaluateOperacion || isAdmin
     }
   ];
+
+  const handleEvaluationSelect = async (evaluationType) => {
+    // Verificar permisos antes de permitir acceso
+    const user = apiService.getCurrentUser();
+    if (!user) return;
+
+    try {
+      const hasAccess = await permissionsService.checkEvaluationAccess(user.id, evaluationType);
+      
+      if (!hasAccess && !isAdmin) {
+        alert('No tienes permisos para realizar este tipo de evaluación. Contacta al administrador.');
+        return;
+      }
+      
+      onSelectEvaluation(evaluationType);
+    } catch (error) {
+      console.error('Error checking evaluation access:', error);
+      alert('Error al verificar permisos. Intenta nuevamente.');
+    }
+  };
 
   return (
     <div className="min-h-screen custom-bg flex flex-col">
@@ -51,6 +95,15 @@ const MainMenu = ({ onSelectEvaluation }) => {
           <p className="text-lg text-gray-600">
             Selecciona el tipo de evaluación que deseas realizar
           </p>
+          
+          {/* Mostrar información de permisos si es usuario restringido */}
+          {userPermissions?.restrictedAccess && (
+            <div className="mt-4 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded-lg inline-block">
+              <p className="text-sm">
+                <strong>Acceso Restringido:</strong> Solo puedes realizar las evaluaciones para las que tienes permisos asignados.
+              </p>
+            </div>
+          )}
         </motion.div>
 
         <motion.div 
@@ -59,25 +112,43 @@ const MainMenu = ({ onSelectEvaluation }) => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
         >
-          {evaluationTypes.map((type, index) => (
-            <motion.div
-              key={type.id}
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 + index * 0.15 }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Button
-                variant="list"
-                size="lg"
-                onClick={() => onSelectEvaluation(type.id)}
-                className="w-full font-semibold py-6 rounded-lg text-lg button-list-item justify-start pl-8"
+          {evaluationTypes.map((type, index) => {
+            const IconComponent = type.icon;
+            
+            return (
+              <motion.div
+                key={type.id}
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 + index * 0.15 }}
+                whileHover={{ scale: type.enabled ? 1.03 : 1 }}
+                whileTap={{ scale: type.enabled ? 0.98 : 1 }}
               >
-                {type.title}
-              </Button>
-            </motion.div>
-          ))}
+                <Button
+                  variant="list"
+                  size="lg"
+                  onClick={() => type.enabled && handleEvaluationSelect(type.id)}
+                  disabled={!type.enabled}
+                  className={`w-full font-semibold py-6 rounded-lg text-lg justify-start pl-8 ${
+                    type.enabled 
+                      ? 'button-list-item hover:shadow-lg transition-all duration-200' 
+                      : 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500'
+                  }`}
+                >
+                  <IconComponent className="w-6 h-6 mr-3" />
+                  <div className="text-left">
+                    <div className="font-semibold">{type.title}</div>
+                    <div className="text-sm font-normal text-gray-600">{type.description}</div>
+                  </div>
+                  {!type.enabled && (
+                    <div className="ml-auto text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
+                      Sin permisos
+                    </div>
+                  )}
+                </Button>
+              </motion.div>
+            );
+          })}
           
           {/* Panel de administración para admins */}
           {isAdmin && (

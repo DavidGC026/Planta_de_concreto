@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { Shield, Users, Check, X, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { Shield, Users, Check, X, Plus, Trash2, AlertTriangle, Settings, ClipboardCheck, UserCheck } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import permissionsService from '@/services/permissionsService';
 import apiService from '@/services/api';
@@ -38,7 +38,6 @@ const AdminPermissionsPanel = ({ onBack }) => {
         title: "❌ Error",
         description: "No se pudieron cargar los datos de administración"
       });
-      // Establecer valores por defecto en caso de error
       setUsers([]);
       setRoles([]);
       setPermissions([]);
@@ -47,61 +46,139 @@ const AdminPermissionsPanel = ({ onBack }) => {
     }
   };
 
-  const handleAssignPermission = async (userId, roleCode) => {
+  const handleAssignPersonalPermission = async (userId, roleCode) => {
     try {
-      await permissionsService.assignPermissions(userId, roleCode, true, true);
+      await permissionsService.assignPermissions(userId, 'personal', true, true, roleCode);
       
       toast({
-        title: "✅ Permiso asignado",
+        title: "✅ Permiso de personal asignado",
         description: "El permiso se ha asignado exitosamente"
       });
       
-      await loadData(); // Recargar datos
+      await loadData();
       
     } catch (error) {
-      console.error('Error assigning permission:', error);
+      console.error('Error assigning personal permission:', error);
       toast({
         title: "❌ Error",
-        description: "No se pudo asignar el permiso"
+        description: "No se pudo asignar el permiso de personal"
       });
     }
   };
 
-  const handleRemovePermission = async (userId, roleCode) => {
+  const handleRemovePersonalPermission = async (userId, roleCode) => {
     try {
-      await permissionsService.removePermissions(userId, roleCode);
+      await permissionsService.removePermissions(userId, 'personal', roleCode);
       
       toast({
-        title: "✅ Permiso eliminado",
+        title: "✅ Permiso de personal eliminado",
         description: "El permiso se ha eliminado exitosamente"
       });
       
-      await loadData(); // Recargar datos
+      await loadData();
       
     } catch (error) {
-      console.error('Error removing permission:', error);
+      console.error('Error removing personal permission:', error);
       toast({
         title: "❌ Error",
-        description: "No se pudo eliminar el permiso"
+        description: "No se pudo eliminar el permiso de personal"
       });
     }
   };
 
-  const getUserPermissions = (userId) => {
+  const handleToggleEquipmentPermission = async (userId, currentStatus) => {
+    try {
+      if (currentStatus) {
+        await permissionsService.removePermissions(userId, 'equipo');
+        toast({
+          title: "✅ Permiso de equipo eliminado",
+          description: "El permiso se ha eliminado exitosamente"
+        });
+      } else {
+        await permissionsService.assignPermissions(userId, 'equipo', true, true);
+        toast({
+          title: "✅ Permiso de equipo asignado",
+          description: "El permiso se ha asignado exitosamente"
+        });
+      }
+      
+      await loadData();
+      
+    } catch (error) {
+      console.error('Error toggling equipment permission:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo modificar el permiso de equipo"
+      });
+    }
+  };
+
+  const handleToggleOperationPermission = async (userId, currentStatus) => {
+    try {
+      if (currentStatus) {
+        await permissionsService.removePermissions(userId, 'operacion');
+        toast({
+          title: "✅ Permiso de operación eliminado",
+          description: "El permiso se ha eliminado exitosamente"
+        });
+      } else {
+        await permissionsService.assignPermissions(userId, 'operacion', true, true);
+        toast({
+          title: "✅ Permiso de operación asignado",
+          description: "El permiso se ha asignado exitosamente"
+        });
+      }
+      
+      await loadData();
+      
+    } catch (error) {
+      console.error('Error toggling operation permission:', error);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo modificar el permiso de operación"
+      });
+    }
+  };
+
+  const getUserPersonalPermissions = (userId) => {
     if (!Array.isArray(permissions)) {
       return [];
     }
-    return permissions.filter(p => p.usuario_id === userId && p.puede_evaluar);
+    return permissions.filter(p => 
+      p.usuario_id === userId && 
+      p.puede_evaluar_personal && 
+      p.rol_codigo
+    );
   };
 
-  const hasPermission = (userId, roleCode) => {
+  const hasPersonalPermission = (userId, roleCode) => {
     if (!Array.isArray(permissions)) {
       return false;
     }
     return permissions.some(p => 
       p.usuario_id === userId && 
       p.rol_codigo === roleCode && 
-      p.puede_evaluar
+      p.puede_evaluar_personal
+    );
+  };
+
+  const hasEquipmentPermission = (userId) => {
+    if (!Array.isArray(permissions)) {
+      return false;
+    }
+    return permissions.some(p => 
+      p.usuario_id === userId && 
+      p.puede_evaluar_equipo
+    );
+  };
+
+  const hasOperationPermission = (userId) => {
+    if (!Array.isArray(permissions)) {
+      return false;
+    }
+    return permissions.some(p => 
+      p.usuario_id === userId && 
+      p.puede_evaluar_operacion
     );
   };
 
@@ -116,10 +193,17 @@ const AdminPermissionsPanel = ({ onBack }) => {
     }
     
     const totalUsers = users.length;
-    const usersWithRestrictions = users.filter(user => 
-      !user.permisos_completos && getUserPermissions(user.id).length > 0
-    ).length;
     const usersWithFullAccess = users.filter(user => user.permisos_completos).length;
+    
+    const usersWithRestrictions = users.filter(user => {
+      if (user.permisos_completos) return false;
+      
+      const personalPerms = getUserPersonalPermissions(user.id).length;
+      const equipmentPerm = hasEquipmentPermission(user.id);
+      const operationPerm = hasOperationPermission(user.id);
+      
+      return personalPerms > 0 || equipmentPerm || operationPerm;
+    }).length;
     
     return {
       totalUsers,
@@ -154,7 +238,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                 Panel de Permisos de Usuario
               </h1>
               <p className="text-gray-600 mt-2">
-                Gestiona los permisos de acceso a roles de evaluación para cada usuario
+                Gestiona los permisos de acceso a evaluaciones para cada usuario
               </p>
             </div>
             <Button onClick={onBack} variant="outline">
@@ -214,7 +298,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
           </Card>
         </div>
 
-        {/* Tabla de permisos */}
+        {/* Tabla de permisos expandida */}
         <Card>
           <CardHeader>
             <CardTitle>Matriz de Permisos por Usuario</CardTitle>
@@ -226,17 +310,54 @@ const AdminPermissionsPanel = ({ onBack }) => {
                   <tr className="border-b">
                     <th className="text-left p-4 font-semibold">Usuario</th>
                     <th className="text-center p-4 font-semibold">Tipo</th>
+                    
+                    {/* Columnas de Personal */}
+                    <th className="text-center p-2 font-semibold text-sm bg-blue-50" colSpan={roles.length}>
+                      <div className="flex items-center justify-center">
+                        <UserCheck className="w-4 h-4 mr-1 text-blue-600" />
+                        Personal
+                      </div>
+                    </th>
+                    
+                    {/* Columnas de Equipo y Operación */}
+                    <th className="text-center p-4 font-semibold bg-green-50">
+                      <div className="flex items-center justify-center">
+                        <Settings className="w-4 h-4 mr-1 text-green-600" />
+                        Equipo
+                      </div>
+                    </th>
+                    <th className="text-center p-4 font-semibold bg-purple-50">
+                      <div className="flex items-center justify-center">
+                        <ClipboardCheck className="w-4 h-4 mr-1 text-purple-600" />
+                        Operación
+                      </div>
+                    </th>
+                    
+                    <th className="text-center p-4 font-semibold">Total</th>
+                  </tr>
+                  
+                  {/* Sub-header para roles de personal */}
+                  <tr className="border-b bg-gray-50">
+                    <th></th>
+                    <th></th>
                     {roles.map(role => (
-                      <th key={role.codigo} className="text-center p-2 font-semibold text-sm">
-                        {role.nombre}
+                      <th key={role.codigo} className="text-center p-2 font-medium text-xs">
+                        {role.nombre.length > 15 ? role.nombre.substring(0, 15) + '...' : role.nombre}
                       </th>
                     ))}
-                    <th className="text-center p-4 font-semibold">Total Permisos</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map(user => {
-                    const userPermissions = getUserPermissions(user.id);
+                    const personalPermissions = getUserPersonalPermissions(user.id);
+                    const hasEquipment = hasEquipmentPermission(user.id);
+                    const hasOperation = hasOperationPermission(user.id);
+                    const totalPermissions = personalPermissions.length + 
+                                           (hasEquipment ? 1 : 0) + 
+                                           (hasOperation ? 1 : 0);
                     
                     return (
                       <motion.tr
@@ -266,15 +387,16 @@ const AdminPermissionsPanel = ({ onBack }) => {
                           )}
                         </td>
                         
+                        {/* Permisos de Personal */}
                         {roles.map(role => (
                           <td key={role.codigo} className="p-2 text-center">
                             {user.permisos_completos ? (
                               <Check className="w-5 h-5 text-green-600 mx-auto" />
                             ) : (
                               <div className="flex items-center justify-center space-x-1">
-                                {hasPermission(user.id, role.codigo) ? (
+                                {hasPersonalPermission(user.id, role.codigo) ? (
                                   <button
-                                    onClick={() => handleRemovePermission(user.id, role.codigo)}
+                                    onClick={() => handleRemovePersonalPermission(user.id, role.codigo)}
                                     className="p-1 text-green-600 hover:text-red-600 transition-colors"
                                     title="Quitar permiso"
                                   >
@@ -282,7 +404,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                                   </button>
                                 ) : (
                                   <button
-                                    onClick={() => handleAssignPermission(user.id, role.codigo)}
+                                    onClick={() => handleAssignPersonalPermission(user.id, role.codigo)}
                                     className="p-1 text-gray-400 hover:text-green-600 transition-colors"
                                     title="Asignar permiso"
                                   >
@@ -294,9 +416,47 @@ const AdminPermissionsPanel = ({ onBack }) => {
                           </td>
                         ))}
                         
+                        {/* Permisos de Equipo */}
+                        <td className="p-4 text-center">
+                          {user.permisos_completos ? (
+                            <Check className="w-5 h-5 text-green-600 mx-auto" />
+                          ) : (
+                            <button
+                              onClick={() => handleToggleEquipmentPermission(user.id, hasEquipment)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                hasEquipment 
+                                  ? 'text-green-600 bg-green-100 hover:bg-red-100 hover:text-red-600' 
+                                  : 'text-gray-400 bg-gray-100 hover:bg-green-100 hover:text-green-600'
+                              }`}
+                              title={hasEquipment ? "Quitar permiso de equipo" : "Asignar permiso de equipo"}
+                            >
+                              {hasEquipment ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                            </button>
+                          )}
+                        </td>
+                        
+                        {/* Permisos de Operación */}
+                        <td className="p-4 text-center">
+                          {user.permisos_completos ? (
+                            <Check className="w-5 h-5 text-green-600 mx-auto" />
+                          ) : (
+                            <button
+                              onClick={() => handleToggleOperationPermission(user.id, hasOperation)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                hasOperation 
+                                  ? 'text-green-600 bg-green-100 hover:bg-red-100 hover:text-red-600' 
+                                  : 'text-gray-400 bg-gray-100 hover:bg-green-100 hover:text-green-600'
+                              }`}
+                              title={hasOperation ? "Quitar permiso de operación" : "Asignar permiso de operación"}
+                            >
+                              {hasOperation ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                            </button>
+                          )}
+                        </td>
+                        
                         <td className="p-4 text-center">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {user.permisos_completos ? roles.length : userPermissions.length}
+                            {user.permisos_completos ? roles.length + 2 : totalPermissions}
                           </span>
                         </td>
                       </motion.tr>
@@ -315,15 +475,16 @@ const AdminPermissionsPanel = ({ onBack }) => {
             <div>
               <h4 className="font-medium mb-2">Tipos de Usuario:</h4>
               <ul className="space-y-1">
-                <li>• <strong>Admin:</strong> Acceso completo a todos los roles</li>
-                <li>• <strong>Restringido:</strong> Solo roles específicos asignados</li>
+                <li>• <strong>Admin:</strong> Acceso completo a todas las evaluaciones</li>
+                <li>• <strong>Restringido:</strong> Solo evaluaciones específicas asignadas</li>
               </ul>
             </div>
             <div>
-              <h4 className="font-medium mb-2">Acciones:</h4>
+              <h4 className="font-medium mb-2">Tipos de Evaluación:</h4>
               <ul className="space-y-1">
-                <li>• <strong>✓ Verde:</strong> Permiso activo (click para quitar)</li>
-                <li>• <strong>+ Gris:</strong> Sin permiso (click para asignar)</li>
+                <li>• <strong>Personal:</strong> Evaluación por roles específicos</li>
+                <li>• <strong>Equipo:</strong> Evaluación de equipos de la planta</li>
+                <li>• <strong>Operación:</strong> Evaluación de procesos operativos</li>
               </ul>
             </div>
           </div>
