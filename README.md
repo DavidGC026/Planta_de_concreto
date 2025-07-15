@@ -209,6 +209,21 @@ server {
 
 ## 🚧 Desarrollo
 
+### Solución de Problemas Comunes
+
+#### Error: Tablas de permisos no existen
+Si ves errores como "Table 'plantas_concreto.permisos_equipo' doesn't exist":
+
+```bash
+# Ejecutar el script de creación de tablas faltantes
+mysql -u tu_usuario -p plantas_concreto < database/create_missing_permissions_tables.sql
+```
+
+#### Error 404 en imágenes
+Las imágenes deben estar en la carpeta `public/` y referenciarse con `/` al inicio:
+- ✅ Correcto: `src="/Concreton.png"`
+- ❌ Incorrecto: `src="public/Concreton.png"`
+
 ### Comandos Útiles
 
 ```bash

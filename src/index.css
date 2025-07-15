@@ -36,7 +36,7 @@ body {
 }
 
 .custom-bg {
-  background-image: url('public/Fondo.png');
+  background-image: url('/Fondo.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
