@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, Settings, Zap, Loader2, ClipboardCheck, Calendar } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
+import CalendarMaintenanceSystem from '@/components/CalendarMaintenanceSystem';
 
 // Evaluación de estado de planta (Operación)
 const plantStatusEvaluation = {
@@ -60,6 +61,7 @@ const plantStatusEvaluation = {
 };
 
 const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, username }) => {
+  const [showCalendar, setShowCalendar] = useState(false);
   const [currentSection, setCurrentSection] = useState(0);
   const [plantStatusAnswers, setPlantStatusAnswers] = useState({});
   const [loading, setLoading] = useState(false);
@@ -283,6 +285,11 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
     }
   };
 
+  // Si se está mostrando el calendario, renderizar solo el calendario
+  if (showCalendar) {
+    return <CalendarMaintenanceSystem onBack={() => setShowCalendar(false)} />;
+  }
+
   // Verificar si todos los items de la sección actual han sido respondidos
   const allQuestionsAnswered = currentSectionData?.items?.every((_, index) => {
     const key = `${currentSection}-${index}`;
@@ -301,9 +308,19 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
       <div className="absolute inset-0 bg-black/20" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
-        {/* Botón de desarrollo para saltar a resultados - solo en primera sección */}
+        {/* Botón para acceder al calendario - solo en primera sección */}
         {currentSection === 0 && (
-          <div className="mb-4 flex justify-end">
+          <div className="mb-4 flex justify-between">
+            <Button
+              onClick={() => setShowCalendar(true)}
+              variant="outline"
+              size="sm"
+              className="bg-green-100 border-green-400 text-green-800 hover:bg-green-200 flex items-center space-x-2"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Sistema de Mantenimiento</span>
+            </Button>
+            
             <Button
               onClick={handleSkipToResults}
               variant="outline"
@@ -313,6 +330,12 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
               <Zap className="w-4 h-4" />
               <span>Saltar a Resultados (Simulado)</span>
             </Button>
+          </div>
+        )}
+
+        {/* Botón de desarrollo para saltar a resultados - solo en primera sección */}
+        {currentSection === 0 && !showCalendar && (
+          <div className="mb-4 flex justify-end">
           </div>
         )}
 
