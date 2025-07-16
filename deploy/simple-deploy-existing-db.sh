@@ -122,7 +122,6 @@ if [ -n "$JS_FILES" ]; then
 else
     log_warning "⚠️ No se encontraron archivos JS en assets/"
 fi
-
 # Ajustar rutas en index.html para hacer rutas relativas
 log_info "📄 Ajustando rutas en index.html..."
 if [ -f "$WEB_DIR/index.html" ]; then
