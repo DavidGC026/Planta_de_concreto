@@ -7,9 +7,9 @@ import apiService from './api';
 
 class PermissionsService {
   constructor() {
-    this.baseEndpoint = 'auth/check-permissions';
-    this.rolesEndpoint = 'evaluaciones/roles-permitidos';
-    this.adminEndpoint = 'admin/manage-permissions';
+    this.baseEndpoint = 'auth/check-permissions.php';
+    this.rolesEndpoint = 'evaluaciones/roles-permitidos.php';
+    this.adminEndpoint = 'admin/manage-permissions.php';
   }
 
   /**

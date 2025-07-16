@@ -23,7 +23,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
       setLoading(true);
       
       const [usersData, rolesData, permissionsData] = await Promise.all([
-        apiService.request('admin/users').catch(() => ({ data: [] })),
+        apiService.request('admin/users.php').catch(() => ({ data: [] })),
         apiService.getRolesPersonal(),
         permissionsService.getAllPermissions()
       ]);

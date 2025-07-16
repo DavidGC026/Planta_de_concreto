@@ -36,7 +36,11 @@ body {
 }
 
 .custom-bg {
+<<<<<<< HEAD
   background-image: url('/Fondo.png');
+=======
+  background-image: url('../public/Fondo.png');
+>>>>>>> bc6c2d5 (summit)
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

@@ -7,7 +7,7 @@ import apiService from './api';
 
 class EquipmentProgressService {
   constructor() {
-    this.baseEndpoint = 'evaluaciones/progreso-equipo';
+    this.baseEndpoint = 'evaluaciones/progreso-equipo.php';
   }
 
   /**
