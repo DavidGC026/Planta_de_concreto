@@ -84,6 +84,55 @@ sudo mkdir -p "$WEB_DIR"
 # Copiar archivos del frontend
 sudo cp -r dist/* "$WEB_DIR/"
 
+# Crear carpeta public y copiar imágenes
+log_info "🖼️ Configurando imágenes para deploy..."
+sudo mkdir -p "$WEB_DIR/public"
+if [ -f "public/Fondo.png" ]; then
+    sudo cp public/Fondo.png "$WEB_DIR/public/"
+fi
+if [ -f "public/Logo_imcyc.png" ]; then
+    sudo cp public/Logo_imcyc.png "$WEB_DIR/public/"
+fi
+if [ -f "public/Concreton.png" ]; then
+    sudo cp public/Concreton.png "$WEB_DIR/public/"
+fi
+
+# Ajustar rutas en el archivo CSS generado
+log_info "🎨 Ajustando rutas de imágenes en CSS..."
+CSS_FILE=$(find "$WEB_DIR/assets" -name "index-*.css" 2>/dev/null | head -1)
+if [ -n "$CSS_FILE" ]; then
+    # Cambiar rutas de imágenes para que apunten a ../public/
+    sudo sed -i 's|url("public/|url("../public/|g' "$CSS_FILE"
+    sudo sed -i "s|url('public/|url('../public/|g" "$CSS_FILE"
+    log_info "✅ Rutas de imágenes ajustadas en CSS: $(basename "$CSS_FILE")"
+else
+    log_warning "⚠️ No se encontró archivo CSS en assets/"
+fi
+
+# Ajustar rutas en archivos JS generados
+log_info "⚡ Ajustando rutas de imágenes en archivos JS..."
+JS_FILES=$(find "$WEB_DIR/assets" -name "index-*.js" 2>/dev/null)
+if [ -n "$JS_FILES" ]; then
+    for JS_FILE in $JS_FILES; do
+        # Cambiar rutas de imágenes en archivos JS
+        sudo sed -i 's|"public/|"public/|g' "$JS_FILE"
+        sudo sed -i "s|'public/|'public/|g" "$JS_FILE"
+        log_info "✅ Rutas ajustadas en JS: $(basename "$JS_FILE")"
+    done
+else
+    log_warning "⚠️ No se encontraron archivos JS en assets/"
+fi
+
+# Ajustar rutas en index.html para hacer rutas relativas
+log_info "📄 Ajustando rutas en index.html..."
+if [ -f "$WEB_DIR/index.html" ]; then
+    # Cambiar /assets/ a ./assets/ para rutas relativas
+    sudo sed -i 's|/assets/|./assets/|g' "$WEB_DIR/index.html"
+    log_info "✅ Rutas ajustadas en index.html"
+else
+    log_warning "⚠️ No se encontró index.html"
+fi
+
 # Crear directorio de API
 sudo mkdir -p "$WEB_DIR/api"
 sudo cp -r api/* "$WEB_DIR/api/"
@@ -294,6 +343,7 @@ echo ""
 log_info "📋 Estructura desplegada:"
 echo "   Frontend: $WEB_DIR/"
 echo "   API: $WEB_DIR/api/"
+echo "   Imágenes: $WEB_DIR/public/"
 echo "   Base de datos: $DB_NAME"
 echo "   Usuario DB: $DB_USER"
 echo ""
