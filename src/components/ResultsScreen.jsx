@@ -68,8 +68,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       return generateSimpleCircularChart();
     }
 
-    const centerX = 300;
-    const centerY = 300;
+    const centerX = 400;
+    const centerY = 400;
     const maxRadius = 140;
     const minRadius = 30;
     
@@ -198,7 +198,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
     return (
       <div className="relative flex items-center justify-center mb-6">
-        <svg width="600" height="600" className="drop-shadow-lg">
+        <svg width="800" height="800" className="drop-shadow-lg">
           {/* Definir gradientes para los anillos */}
           <defs>
             <radialGradient id="redGradient" cx="50%" cy="50%" r="50%">
@@ -313,7 +313,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           {/* Etiquetas de las secciones */}
           {radarPoints.map((point, index) => {
             const angle = (point.angle - 90) * (Math.PI / 180);
-            const labelRadius = maxRadius + 60;
+            const labelRadius = maxRadius + 100; // Aumentar distancia para más espacio
             const labelX = centerX + labelRadius * Math.cos(angle);
             const labelY = centerY + labelRadius * Math.sin(angle);
             
@@ -327,35 +327,72 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             if (labelY > centerY + 10) dominantBaseline = 'hanging';
             else if (labelY < centerY - 10) dominantBaseline = 'baseline';
 
-            // Truncar nombres más agresivamente para que quepan en los recuadros
-            const truncatedName = point.name.length > 12 ? point.name.substring(0, 12) + '...' : point.name;
+            // Dividir texto largo en múltiples líneas
+            const maxCharsPerLine = 15;
+            const words = point.name.split(' ');
+            const lines = [];
+            let currentLine = '';
+            
+            words.forEach(word => {
+              if ((currentLine + word).length <= maxCharsPerLine) {
+                currentLine += (currentLine ? ' ' : '') + word;
+              } else {
+                if (currentLine) lines.push(currentLine);
+                currentLine = word;
+              }
+            });
+            if (currentLine) lines.push(currentLine);
+            
+            // Si aún es muy largo, truncar la última línea
+            if (lines.length > 2) {
+              lines[1] = lines[1].length > 12 ? lines[1].substring(0, 12) + '...' : lines[1];
+              lines.splice(2);
+            }
 
             return (
               <g key={index}>
-                {/* Texto del nombre de la sección sin recuadro */}
-                <text
-                  x={labelX}
-                  y={labelY - 8}
-                  textAnchor={textAnchor}
-                  dominantBaseline={dominantBaseline}
-                  className="text-sm font-bold fill-white"
+                {/* Fondo semi-transparente para mejor legibilidad */}
+                <rect
+                  x={labelX - 50}
+                  y={labelY - 20}
+                  width="100"
+                  height={lines.length * 16 + 20}
+                  fill="rgba(0,0,0,0.7)"
+                  rx="8"
+                  ry="8"
                   style={{
-                    textShadow: '1px 1px 2px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8), 1px -1px 2px rgba(0,0,0,0.8), -1px 1px 2px rgba(0,0,0,0.8)',
-                    filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
+                    transform: `translate(${textAnchor === 'start' ? '0' : textAnchor === 'end' ? '-100px' : '-50px'}, ${dominantBaseline === 'hanging' ? '0' : dominantBaseline === 'baseline' ? `-${lines.length * 16 + 20}px` : `-${(lines.length * 16 + 20) / 2}px`})`
                   }}
-                >
-                  {truncatedName}
-                </text>
+                />
+                
+                {/* Texto del nombre de la sección en múltiples líneas */}
+                {lines.map((line, lineIndex) => (
+                  <text
+                    key={lineIndex}
+                    x={labelX}
+                    y={labelY - 8 + (lineIndex * 16) - ((lines.length - 1) * 8)}
+                    textAnchor={textAnchor}
+                    dominantBaseline="middle"
+                    className="text-sm font-bold fill-white"
+                    style={{
+                      textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                      filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.8))'
+                    }}
+                  >
+                    {line}
+                  </text>
+                ))}
+                
                 {/* Porcentaje */}
                 <text
                   x={labelX}
-                  y={labelY + 8}
+                  y={labelY + 8 + ((lines.length - 1) * 8)}
                   textAnchor={textAnchor}
-                  dominantBaseline={dominantBaseline}
+                  dominantBaseline="middle"
                   className="text-lg font-bold fill-yellow-300"
                   style={{
-                    textShadow: '1px 1px 2px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8), 1px -1px 2px rgba(0,0,0,0.8), -1px 1px 2px rgba(0,0,0,0.8)',
-                    filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                    filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.8))'
                   }}
                 >
                   {Math.round(point.percentage)}%
@@ -820,25 +857,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
               <div className="flex justify-center space-x-4">
                 <Button
-                  onClick={handleDownloadJSON}
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 flex items-center space-x-2"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Descargar JSON</span>
-                </Button>
-
-                <Button
-                  onClick={handleDownloadPDF}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 flex items-center space-x-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Descargar HTML</span>
-                </Button>
-                
-                <Button
                   onClick={onNewEvaluation}
-                  variant="outline"
-                  className="px-6 py-3 flex items-center space-x-2"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 flex items-center space-x-2"
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span>Nueva Evaluación</span>
