@@ -201,38 +201,36 @@ const SectionCompletionModal = ({
             if (labelY > centerY + 10) dominantBaseline = 'hanging';
             else if (labelY < centerY - 10) dominantBaseline = 'baseline';
 
-            const truncatedName = point.name.length > 20 ? point.name.substring(0, 20) + '...' : point.name;
+            // Truncar nombres más agresivamente para que quepan mejor
+            const truncatedName = point.name.length > 12 ? point.name.substring(0, 12) + '...' : point.name;
 
             return (
               <g key={index}>
-                <rect
-                  x={labelX - (textAnchor === 'start' ? 5 : textAnchor === 'end' ? 115 : 60)}
-                  y={labelY - 20}
-                  width="120"
-                  height="40"
-                  fill="rgba(255, 255, 255, 0.95)"
-                  rx="6"
-                  stroke="rgba(0, 0, 0, 0.2)"
-                  strokeWidth="1"
-                  style={{
-                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-                  }}
-                />
+                {/* Texto del nombre de la subsección sin recuadro */}
                 <text
                   x={labelX}
-                  y={labelY - 5}
+                  y={labelY - 8}
                   textAnchor={textAnchor}
                   dominantBaseline={dominantBaseline}
-                  className="text-xs font-medium fill-gray-800"
+                  className="text-sm font-bold fill-white"
+                  style={{
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8), 1px -1px 2px rgba(0,0,0,0.8), -1px 1px 2px rgba(0,0,0,0.8)',
+                    filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
+                  }}
                 >
                   {truncatedName}
                 </text>
+                {/* Porcentaje */}
                 <text
                   x={labelX}
-                  y={labelY + 10}
+                  y={labelY + 8}
                   textAnchor={textAnchor}
                   dominantBaseline={dominantBaseline}
-                  className="text-sm font-bold fill-blue-600"
+                  className="text-lg font-bold fill-yellow-300"
+                  style={{
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8), 1px -1px 2px rgba(0,0,0,0.8), -1px 1px 2px rgba(0,0,0,0.8)',
+                    filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
+                  }}
                 >
                   {Math.round(point.percentage)}%
                 </text>
@@ -240,26 +238,6 @@ const SectionCompletionModal = ({
             );
           })}
 
-          {/* Etiquetas de porcentajes en los anillos */}
-          <g className="opacity-80">
-            <text x={centerX} y={centerY - minRadius - 0.2 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">20%</text>
-            <text x={centerX} y={centerY - minRadius - 0.4 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">40%</text>
-            <text x={centerX} y={centerY - minRadius - 0.6 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">60%</text>
-            <text x={centerX} y={centerY - minRadius - 0.8 * (maxRadius - minRadius) - 5} className="text-xs fill-white font-bold" textAnchor="middle">80%</text>
-            <text x={centerX} y={centerY - maxRadius - 5} className="text-xs fill-white font-bold" textAnchor="middle">100%</text>
-          </g>
-
-          {/* Etiquetas de los rangos de colores */}
-          <g className="opacity-90">
-            <rect x={centerX + maxRadius + 30} y={centerY - maxRadius - 10} width="100" height="25" fill="rgba(34, 197, 94, 0.9)" rx="4" />
-            <text x={centerX + maxRadius + 80} y={centerY - maxRadius + 7} className="text-xs fill-white font-bold" textAnchor="middle">86-100%</text>
-            
-            <rect x={centerX + maxRadius + 30} y={centerY - 10} width="100" height="25" fill="rgba(234, 179, 8, 0.9)" rx="4" />
-            <text x={centerX + maxRadius + 80} y={centerY + 7} className="text-xs fill-white font-bold" textAnchor="middle">61-85%</text>
-            
-            <rect x={centerX + maxRadius + 30} y={centerY + maxRadius - 15} width="100" height="25" fill="rgba(239, 68, 68, 0.9)" rx="4" />
-            <text x={centerX + maxRadius + 80} y={centerY + maxRadius + 2} className="text-xs fill-white font-bold" textAnchor="middle">0-60%</text>
-          </g>
         </svg>
       </div>
     );
