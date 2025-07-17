@@ -527,7 +527,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         />
         <div className="absolute inset-0 bg-black/20" />
 
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8 pt-24">
           <div className="w-full max-w-lg space-y-4">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Evaluación de Personal</h2>
@@ -605,7 +605,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
   if (!evaluationData || !evaluationData.secciones || evaluationData.secciones.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4">
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-gray-800 p-4 pt-24">
         <UserCheck size={64} className="mb-4 text-blue-600" />
         <h1 className="text-3xl font-bold mb-2">Evaluación no disponible</h1>
         <p className="text-lg mb-6 text-center">No se encontraron preguntas para esta selección.</p>
@@ -633,7 +633,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       />
       <div className="absolute inset-0 bg-black/20" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8" ref={evaluationContentRef}>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 pt-24" ref={evaluationContentRef}>
         {/* Botón de desarrollo para saltar a resultados - solo en primera sección */}
         {currentSection === 0 && (
           <div className="mb-4 flex justify-end">

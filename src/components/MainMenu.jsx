@@ -82,7 +82,7 @@ const MainMenu = ({ onSelectEvaluation }) => {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-700/10"></div>
       
       {/* Main Content */}
-      <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+      <main className="relative z-10 flex-grow flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-12 pt-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

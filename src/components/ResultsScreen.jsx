@@ -70,8 +70,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
     const centerX = 400;
     const centerY = 400;
-    const maxRadius = 140;
-    const minRadius = 30;
+    const maxRadius = 180; // Aumentar el radio máximo
+    const minRadius = 40; // Aumentar el radio mínimo
     
     // Calcular datos de las secciones para el radar - MEJORADO
     const sectionData = sections.map((section, index) => {
@@ -217,8 +217,9 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
           {/* Anillos de fondo con colores */}
           {/* Anillo exterior - Verde (86-100%) */}
+          {/* Centrar en el nuevo tamaño */}
           <circle
-            cx={500} {/* Centrar en el nuevo tamaño */}
+            cx={500}
             cy={500}
             r={maxRadius + 20}
             fill="url(#greenGradient)"
@@ -313,7 +314,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           {/* Etiquetas de las secciones */}
           {radarPoints.map((point, index) => {
             const angle = (point.angle - 90) * (Math.PI / 180);
-            const labelRadius = maxRadius + 180; // Aumentar distancia para más espacio
+            const labelRadius = maxRadius + 80; // Reducir distancia para que quede más cerca
             const labelX = 500 + labelRadius * Math.cos(angle);
             const labelY = 500 + labelRadius * Math.sin(angle);
             
@@ -328,7 +329,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             else if (labelY < 500 - 10) dominantBaseline = 'baseline';
 
             // Dividir texto largo en múltiples líneas
-            const maxCharsPerLine = 25; // Aumentar caracteres por línea
+            const maxCharsPerLine = 35; // Aumentar caracteres por línea
             const words = point.name.split(' ');
             const lines = [];
             let currentLine = '';
@@ -343,10 +344,10 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             });
             if (currentLine) lines.push(currentLine);
             
-            // Permitir hasta 3 líneas sin truncar
-            if (lines.length > 3) {
-              lines[2] = lines[2].length > 20 ? lines[2].substring(0, 20) + '...' : lines[2];
-              lines.splice(3);
+            // Permitir hasta 4 líneas para textos más largos
+            if (lines.length > 4) {
+              lines[3] = lines[3].length > 30 ? lines[3].substring(0, 30) + '...' : lines[3];
+              lines.splice(4);
             }
 
             return (
@@ -356,11 +357,12 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                   <text
                     key={lineIndex}
                     x={labelX}
-                    y={labelY - 24 + (lineIndex * 28) - ((lines.length - 1) * 14)} // Mejor espaciado vertical
+                    y={labelY - 20 + (lineIndex * 18) - ((lines.length - 1) * 9)} // Mejor espaciado vertical
                     textAnchor={textAnchor}
                     dominantBaseline="middle"
-                    className="text-2xl font-bold fill-white"
+                    className="text-sm font-bold fill-white"
                     style={{
+                      fontSize: '14px',
                       textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
                       filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
                     }}
@@ -372,11 +374,12 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 {/* Porcentaje */}
                 <text
                   x={labelX}
-                  y={labelY + 24 + ((lines.length - 1) * 14)} // Ajustar posición del porcentaje
+                  y={labelY + 20 + ((lines.length - 1) * 9)} // Ajustar posición del porcentaje
                   textAnchor={textAnchor}
                   dominantBaseline="middle"
-                  className="text-3xl font-bold fill-yellow-300"
+                  className="text-lg font-bold fill-yellow-300"
                   style={{
+                    fontSize: '18px',
                     textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
                     filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
                   }}
@@ -718,7 +721,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-700/20"></div>
       
       {/* Results Content */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-12">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 py-12 pt-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
