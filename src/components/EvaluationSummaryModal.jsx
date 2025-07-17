@@ -29,8 +29,8 @@ const EvaluationSummaryModal = ({
     const radarPoints = sectionResults.map((section, index) => {
       const angle = (index * 360) / sectionResults.length - 90; // -90 para empezar arriba
       const angleRad = (angle * Math.PI) / 180;
-      const radius = minRadius + (section.percentage / 100) * (maxRadius - minRadius);
-      const x = centerX + radius * Math.cos(angleRad);
+      const x = 400 + radius * Math.cos(angle); // Usar coordenadas del nuevo centro
+      const y = 400 + radius * Math.sin(angle);
       const y = centerY + radius * Math.sin(angleRad);
       return { x, y, ...section, angle };
     });
@@ -42,7 +42,7 @@ const EvaluationSummaryModal = ({
 
     return (
       <div className="relative flex items-center justify-center mb-6">
-        <svg width="600" height="600" className="drop-shadow-lg">
+        <svg width="800" height="800" className="drop-shadow-lg"> {/* Aumentar tamaño del SVG */}
           {/* Definir gradientes para los anillos */}
           <defs>
             <radialGradient id="redGradient" cx="50%" cy="50%" r="50%">
@@ -61,8 +61,8 @@ const EvaluationSummaryModal = ({
 
           {/* Anillos de fondo con colores */}
           <circle
-            cx={centerX}
-            cy={centerY}
+            cx={400} {/* Centrar en el nuevo tamaño */}
+            cy={400}
             r={maxRadius + 20}
             fill="url(#greenGradient)"
             stroke="#16a34a"
@@ -70,8 +70,8 @@ const EvaluationSummaryModal = ({
           />
           
           <circle
-            cx={centerX}
-            cy={centerY}
+            cx={400}
+            cy={400}
             r={maxRadius - 20}
             fill="url(#yellowGradient)"
             stroke="#ca8a04"
@@ -79,8 +79,8 @@ const EvaluationSummaryModal = ({
           />
           
           <circle
-            cx={centerX}
-            cy={centerY}
+            cx={400}
+            cy={400}
             r={maxRadius - 60}
             fill="url(#redGradient)"
             stroke="#dc2626"
@@ -93,8 +93,8 @@ const EvaluationSummaryModal = ({
             return (
               <circle
                 key={percent}
-                cx={centerX}
-                cy={centerY}
+                cx={400}
+                cy={400}
                 r={radius}
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.6)"
@@ -107,14 +107,14 @@ const EvaluationSummaryModal = ({
           {/* Líneas radiales desde el centro */}
           {radarPoints.map((point, index) => {
             const angle = (point.angle - 90) * (Math.PI / 180);
-            const endX = centerX + (maxRadius + 15) * Math.cos(angle);
-            const endY = centerY + (maxRadius + 15) * Math.sin(angle);
+            const endX = 400 + (maxRadius + 15) * Math.cos(angle);
+            const endY = 400 + (maxRadius + 15) * Math.sin(angle);
             
             return (
               <line
                 key={index}
-                x1={centerX}
-                y1={centerY}
+                x1={400}
+                y1={400}
                 x2={endX}
                 y2={endY}
                 stroke="rgba(255, 255, 255, 0.7)"
@@ -154,52 +154,98 @@ const EvaluationSummaryModal = ({
           {/* Etiquetas de las secciones */}
           {radarPoints.map((point, index) => {
             const angle = (point.angle - 90) * (Math.PI / 180);
-            const labelRadius = maxRadius + 60;
-            const labelX = centerX + labelRadius * Math.cos(angle);
-            const labelY = centerY + labelRadius * Math.sin(angle);
+            const labelRadius = maxRadius + 120; // Aumentar distancia para más espacio
+            const labelX = 400 + labelRadius * Math.cos(angle);
+            const labelY = 400 + labelRadius * Math.sin(angle);
             
             let textAnchor = 'middle';
             let dominantBaseline = 'middle';
             
-            if (labelX > centerX + 10) textAnchor = 'start';
-            else if (labelX < centerX - 10) textAnchor = 'end';
+            if (labelX > 400 + 10) textAnchor = 'start';
+            else if (labelX < 400 - 10) textAnchor = 'end';
             
-            if (labelY > centerY + 10) dominantBaseline = 'hanging';
-            else if (labelY < centerY - 10) dominantBaseline = 'baseline';
+            if (labelY > 400 + 10) dominantBaseline = 'hanging';
+            else if (labelY < 400 - 10) dominantBaseline = 'baseline';
 
-            // Truncar nombres más agresivamente para que quepan mejor
-            const truncatedName = point.name.length > 12 ? point.name.substring(0, 12) + '...' : point.name;
+            // Dividir texto largo en múltiples líneas
+            const maxCharsPerLine = 20;
+            const words = point.name.split(' ');
+            const lines = [];
+            let currentLine = '';
+            
+            words.forEach(word => {
+              if ((currentLine + word).length <= maxCharsPerLine) {
+                currentLine += (currentLine ? ' ' : '') + word;
+              } else {
+                if (currentLine) lines.push(currentLine);
+                currentLine = word;
+              }
+            });
+            if (currentLine) lines.push(currentLine);
+            
+            // Permitir hasta 3 líneas
+            if (lines.length > 3) {
+              lines[2] = lines[2].length > 15 ? lines[2].substring(0, 15) + '...' : lines[2];
+            // Dividir texto largo en múltiples líneas
+            const maxCharsPerLine = 20;
+            const words = point.name.split(' ');
+            const lines = [];
+            let currentLine = '';
+            
+            words.forEach(word => {
+              if ((currentLine + word).length <= maxCharsPerLine) {
+                currentLine += (currentLine ? ' ' : '') + word;
+              } else {
+                if (currentLine) lines.push(currentLine);
+                currentLine = word;
+              }
+            });
+            if (currentLine) lines.push(currentLine);
+            
+            // Permitir hasta 3 líneas
+            if (lines.length > 3) {
+              lines[2] = lines[2].length > 15 ? lines[2].substring(0, 15) + '...' : lines[2];
+              lines.splice(3);
+            }
 
             return (
               <g key={index}>
-                {/* Texto del nombre de la sección sin recuadro */}
-                <text
-                  x={labelX}
-                  y={labelY - 8}
-                  textAnchor={textAnchor}
-                  dominantBaseline={dominantBaseline}
-                  className="text-2xl font-bold fill-white"
-                  style={{
-                    textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
-                    filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
-                  }}
-                >
-                  {truncatedName}
-                </text>
-                {/* Porcentaje */}
-                <text
-                  x={labelX}
-                  y={labelY + 8}
-                  textAnchor={textAnchor}
-                  dominantBaseline={dominantBaseline}
-                  className="text-3xl font-bold fill-yellow-300"
-                  style={{
-                    textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
-                    filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
-                  }}
-                >
-                  {Math.round(point.percentage)}%
-                </text>
+                {/* Texto del nombre de la sección en múltiples líneas */}
+                {lines.map((line, lineIndex) => (
+                  <text
+                    key={lineIndex}
+                    x={labelX}
+                    y={labelY - 16 + (lineIndex * 24) - ((lines.length - 1) * 12)}
+                    textAnchor={textAnchor}
+                    dominantBaseline="middle"
+                    className="text-2xl font-bold fill-white"
+                    style={{
+                      textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
+                      filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
+                    }}
+                  >
+                    {line}
+                  </text>
+                ))}
+                
+                {/* Texto del nombre de la sección en múltiples líneas */}
+                {lines.map((line, lineIndex) => (
+                  <text
+                    key={lineIndex}
+                    x={labelX}
+                    y={labelY - 16 + (lineIndex * 24) - ((lines.length - 1) * 12)}
+                    textAnchor={textAnchor}
+                  y={labelY + 16 + ((lines.length - 1) * 12)}
+                    className="text-2xl font-bold fill-white"
+                    style={{
+                      textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
+                      filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
+                    }}
+                  >
+                    {line}
+                  </text>
+                ))}
+                
               </g>
             );
           })}

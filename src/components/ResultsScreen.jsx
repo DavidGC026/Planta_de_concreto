@@ -186,8 +186,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
     const radarPoints = sectionData.map(section => {
       const angle = (section.angle - 90) * (Math.PI / 180); // -90 para empezar arriba
       const radius = minRadius + (section.percentage / 100) * (maxRadius - minRadius);
-      const x = centerX + radius * Math.cos(angle);
-      const y = centerY + radius * Math.sin(angle);
+      const x = 500 + radius * Math.cos(angle); // Usar coordenadas del nuevo centro
+      const y = 500 + radius * Math.sin(angle);
       return { x, y, ...section };
     });
 
@@ -198,7 +198,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
     return (
       <div className="relative flex items-center justify-center mb-6">
-        <svg width="800" height="800" className="drop-shadow-lg">
+        <svg width="1000" height="1000" className="drop-shadow-lg"> {/* Aumentar tamaño del SVG para más espacio */}
           {/* Definir gradientes para los anillos */}
           <defs>
             <radialGradient id="redGradient" cx="50%" cy="50%" r="50%">
@@ -218,8 +218,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           {/* Anillos de fondo con colores */}
           {/* Anillo exterior - Verde (86-100%) */}
           <circle
-            cx={centerX}
-            cy={centerY}
+            cx={500} {/* Centrar en el nuevo tamaño */}
+            cy={500}
             r={maxRadius + 20}
             fill="url(#greenGradient)"
             stroke="#16a34a"
@@ -228,8 +228,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           
           {/* Anillo medio - Amarillo (61-85%) */}
           <circle
-            cx={centerX}
-            cy={centerY}
+            cx={500}
+            cy={500}
             r={maxRadius - 20}
             fill="url(#yellowGradient)"
             stroke="#ca8a04"
@@ -238,8 +238,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           
           {/* Anillo interior - Rojo (0-60%) */}
           <circle
-            cx={centerX}
-            cy={centerY}
+            cx={500}
+            cy={500}
             r={maxRadius - 60}
             fill="url(#redGradient)"
             stroke="#dc2626"
@@ -252,8 +252,8 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             return (
               <circle
                 key={percent}
-                cx={centerX}
-                cy={centerY}
+                cx={500}
+                cy={500}
                 r={radius}
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.6)"
@@ -266,14 +266,14 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           {/* Líneas radiales desde el centro */}
           {sectionData.map((section, index) => {
             const angle = (section.angle - 90) * (Math.PI / 180);
-            const endX = centerX + (maxRadius + 15) * Math.cos(angle);
-            const endY = centerY + (maxRadius + 15) * Math.sin(angle);
+            const endX = 500 + (maxRadius + 15) * Math.cos(angle);
+            const endY = 500 + (maxRadius + 15) * Math.sin(angle);
             
             return (
               <line
                 key={index}
-                x1={centerX}
-                y1={centerY}
+                x1={500}
+                y1={500}
                 x2={endX}
                 y2={endY}
                 stroke="rgba(255, 255, 255, 0.7)"
@@ -313,22 +313,22 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
           {/* Etiquetas de las secciones */}
           {radarPoints.map((point, index) => {
             const angle = (point.angle - 90) * (Math.PI / 180);
-            const labelRadius = maxRadius + 100; // Aumentar distancia para más espacio
-            const labelX = centerX + labelRadius * Math.cos(angle);
-            const labelY = centerY + labelRadius * Math.sin(angle);
+            const labelRadius = maxRadius + 180; // Aumentar distancia para más espacio
+            const labelX = 500 + labelRadius * Math.cos(angle);
+            const labelY = 500 + labelRadius * Math.sin(angle);
             
             // Ajustar posición del texto según el ángulo
             let textAnchor = 'middle';
             let dominantBaseline = 'middle';
             
-            if (labelX > centerX + 10) textAnchor = 'start';
-            else if (labelX < centerX - 10) textAnchor = 'end';
+            if (labelX > 500 + 10) textAnchor = 'start';
+            else if (labelX < 500 - 10) textAnchor = 'end';
             
-            if (labelY > centerY + 10) dominantBaseline = 'hanging';
-            else if (labelY < centerY - 10) dominantBaseline = 'baseline';
+            if (labelY > 500 + 10) dominantBaseline = 'hanging';
+            else if (labelY < 500 - 10) dominantBaseline = 'baseline';
 
             // Dividir texto largo en múltiples líneas
-            const maxCharsPerLine = 15;
+            const maxCharsPerLine = 25; // Aumentar caracteres por línea
             const words = point.name.split(' ');
             const lines = [];
             let currentLine = '';
@@ -343,10 +343,10 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             });
             if (currentLine) lines.push(currentLine);
             
-            // Si aún es muy largo, truncar la última línea
-            if (lines.length > 2) {
-              lines[1] = lines[1].length > 12 ? lines[1].substring(0, 12) + '...' : lines[1];
-              lines.splice(2);
+            // Permitir hasta 3 líneas sin truncar
+            if (lines.length > 3) {
+              lines[2] = lines[2].length > 20 ? lines[2].substring(0, 20) + '...' : lines[2];
+              lines.splice(3);
             }
 
             return (
@@ -356,7 +356,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                   <text
                     key={lineIndex}
                     x={labelX}
-                    y={labelY - 16 + (lineIndex * 32) - ((lines.length - 1) * 16)}
+                    y={labelY - 24 + (lineIndex * 28) - ((lines.length - 1) * 14)} // Mejor espaciado vertical
                     textAnchor={textAnchor}
                     dominantBaseline="middle"
                     className="text-2xl font-bold fill-white"
@@ -372,7 +372,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 {/* Porcentaje */}
                 <text
                   x={labelX}
-                  y={labelY + 16 + ((lines.length - 1) * 16)}
+                  y={labelY + 24 + ((lines.length - 1) * 14)} // Ajustar posición del porcentaje
                   textAnchor={textAnchor}
                   dominantBaseline="middle"
                   className="text-3xl font-bold fill-yellow-300"
