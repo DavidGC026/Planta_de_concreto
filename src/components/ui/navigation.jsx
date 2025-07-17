@@ -1,36 +1,25 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Home, Shield } from 'lucide-react';
-import permissionsService from '@/services/permissionsService';
+import apiService from '@/services/api';
 
 const Navigation = ({ currentScreen, currentEvaluation, onNavigate, onLogout, username }) => {
-  const [userPermissions, setUserPermissions] = React.useState(null);
+  const [isAdmin, setIsAdmin] = React.useState(false);
   
   React.useEffect(() => {
-    const loadUserPermissions = async () => {
-      try {
-        const user = JSON.parse(localStorage.getItem('imcyc_user') || '{}');
-        if (user.id) {
-          const permissions = await permissionsService.getPermissionsInfo(user.id);
-          setUserPermissions(permissions);
-        }
-      } catch (error) {
-        console.error('Error loading user permissions:', error);
-      }
-    };
-    
-    loadUserPermissions();
+    const user = apiService.getCurrentUser();
+    setIsAdmin(user && user.rol === 'admin');
   }, []);
 
-  // Función para manejar clics de navegación - SIEMPRE funcional
+  // Función para manejar clics de navegación - SIEMPRE permite navegación
   const handleNavigationClick = (itemId) => {
-    // Siempre permitir navegación al inicio
+    console.log('Navigation click:', itemId); // Debug log
     onNavigate(itemId);
   };
 
-  // Función para manejar logout - SIEMPRE funcional
+  // Función para manejar logout - SIEMPRE permite logout
   const handleLogoutClick = () => {
-    // Siempre permitir logout
+    console.log('Logout click'); // Debug log
     onLogout();
   };
 
@@ -70,7 +59,7 @@ const Navigation = ({ currentScreen, currentEvaluation, onNavigate, onLogout, us
                 <span className="text-sm text-gray-700 font-medium hidden sm:inline">
                   {username}
                 </span>
-                {userPermissions?.restrictedAccess && (
+                {!isAdmin && (
                   <div className="flex items-center space-x-1 bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
                     <Shield className="w-3 h-3" />
                     <span className="hidden md:inline">Acceso Restringido</span>
