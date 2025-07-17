@@ -351,32 +351,18 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
             return (
               <g key={index}>
-                {/* Fondo semi-transparente para mejor legibilidad */}
-                <rect
-                  x={labelX - 50}
-                  y={labelY - 20}
-                  width="100"
-                  height={lines.length * 16 + 20}
-                  fill="rgba(0,0,0,0.7)"
-                  rx="8"
-                  ry="8"
-                  style={{
-                    transform: `translate(${textAnchor === 'start' ? '0' : textAnchor === 'end' ? '-100px' : '-50px'}, ${dominantBaseline === 'hanging' ? '0' : dominantBaseline === 'baseline' ? `-${lines.length * 16 + 20}px` : `-${(lines.length * 16 + 20) / 2}px`})`
-                  }}
-                />
-                
                 {/* Texto del nombre de la sección en múltiples líneas */}
                 {lines.map((line, lineIndex) => (
                   <text
                     key={lineIndex}
                     x={labelX}
-                    y={labelY - 8 + (lineIndex * 16) - ((lines.length - 1) * 8)}
+                    y={labelY - 16 + (lineIndex * 32) - ((lines.length - 1) * 16)}
                     textAnchor={textAnchor}
                     dominantBaseline="middle"
-                    className="text-sm font-bold fill-white"
+                    className="text-2xl font-bold fill-white"
                     style={{
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
-                      filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.8))'
+                      textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
+                      filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
                     }}
                   >
                     {line}
@@ -386,13 +372,13 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                 {/* Porcentaje */}
                 <text
                   x={labelX}
-                  y={labelY + 8 + ((lines.length - 1) * 8)}
+                  y={labelY + 16 + ((lines.length - 1) * 16)}
                   textAnchor={textAnchor}
                   dominantBaseline="middle"
-                  className="text-lg font-bold fill-yellow-300"
+                  className="text-3xl font-bold fill-yellow-300"
                   style={{
-                    textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
-                    filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.8))'
+                    textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
+                    filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
                   }}
                 >
                   {Math.round(point.percentage)}%

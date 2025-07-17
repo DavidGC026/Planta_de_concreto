@@ -212,10 +212,10 @@ const SectionCompletionModal = ({
                   y={labelY - 8}
                   textAnchor={textAnchor}
                   dominantBaseline={dominantBaseline}
-                  className="text-sm font-bold fill-white"
+                  className="text-2xl font-bold fill-white"
                   style={{
-                    textShadow: '1px 1px 2px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8), 1px -1px 2px rgba(0,0,0,0.8), -1px 1px 2px rgba(0,0,0,0.8)',
-                    filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
+                    textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
+                    filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
                   }}
                 >
                   {truncatedName}
@@ -226,10 +226,10 @@ const SectionCompletionModal = ({
                   y={labelY + 8}
                   textAnchor={textAnchor}
                   dominantBaseline={dominantBaseline}
-                  className="text-lg font-bold fill-yellow-300"
+                  className="text-3xl font-bold fill-yellow-300"
                   style={{
-                    textShadow: '1px 1px 2px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8), 1px -1px 2px rgba(0,0,0,0.8), -1px 1px 2px rgba(0,0,0,0.8)',
-                    filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
+                    textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
+                    filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
                   }}
                 >
                   {Math.round(point.percentage)}%
