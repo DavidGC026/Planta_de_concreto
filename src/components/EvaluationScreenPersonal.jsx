@@ -595,7 +595,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         </div>
 
         <img
-          src="public/Concreton.png"
+          src="/Concreton.png"
           alt="Mascota Concreton"
           className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
         />

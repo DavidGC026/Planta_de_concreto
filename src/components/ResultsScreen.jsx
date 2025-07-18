@@ -863,11 +863,11 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         initial={{ opacity: 0, x: 100 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.8, delay: 0.5 }}
-        className="fixed bottom-8 right-8 z-20"
+        className="fixed bottom-0 right-0 md:right-8 z-20"
       >
         <img  
           alt="Mascota IMCYC trabajador de construcción"
-          className="w-24 h-24 drop-shadow-lg"
+          className="w-32 h-32 md:w-40 md:h-40 drop-shadow-lg"
           src="/Concreton.png" 
         />
       </motion.div>

@@ -50,10 +50,22 @@ class PermissionsService {
    */
   async getUserAllowedRoles(userId) {
     try {
+      // Log para debugging
+      console.log('Obteniendo roles permitidos para usuario:', userId);
+      
       const response = await apiService.request(`${this.rolesEndpoint}?usuario_id=${userId}`);
+      
+      console.log('Respuesta de roles permitidos:', response);
+      
+      if (!response.success) {
+        console.error('Error en respuesta de roles:', response.error);
+        return [];
+      }
+      
       return response.data || [];
     } catch (error) {
       console.error('Error getting user allowed roles:', error);
+      console.error('Error details:', error.message);
       return [];
     }
   }
@@ -63,6 +75,8 @@ class PermissionsService {
    */
   async getUserPermissions(userId) {
     try {
+      console.log('Verificando permisos generales para usuario:', userId);
+      
       const response = await apiService.request(this.baseEndpoint, {
         method: 'POST',
         body: JSON.stringify({
@@ -70,6 +84,8 @@ class PermissionsService {
         })
       });
 
+      console.log('Respuesta de permisos generales:', response);
+      
       return response.data || { permisos_resumen: {}, total_permisos: 0 };
     } catch (error) {
       console.error('Error getting user permissions:', error);
@@ -82,6 +98,8 @@ class PermissionsService {
    */
   async assignPermissions(userId, tipoEvaluacion, canEvaluate, canViewResults = true, roleCode = null) {
     try {
+      console.log('Asignando permisos:', { userId, tipoEvaluacion, canEvaluate, roleCode });
+      
       const requestData = {
         usuario_id: userId,
         tipo_evaluacion: tipoEvaluacion,
@@ -98,6 +116,7 @@ class PermissionsService {
         body: JSON.stringify(requestData)
       });
 
+      console.log('Respuesta de asignación de permisos:', response);
       return response.data;
     } catch (error) {
       console.error('Error assigning permissions:', error);
@@ -110,6 +129,8 @@ class PermissionsService {
    */
   async removePermissions(userId, tipoEvaluacion, roleCode = null) {
     try {
+      console.log('Eliminando permisos:', { userId, tipoEvaluacion, roleCode });
+      
       let endpoint = `${this.adminEndpoint}?usuario_id=${userId}&tipo_evaluacion=${tipoEvaluacion}`;
       
       if (roleCode) {
@@ -117,6 +138,7 @@ class PermissionsService {
       }
       
       const response = await apiService.request(endpoint, { method: 'DELETE' });
+      console.log('Respuesta de eliminación de permisos:', response);
       return response.data;
     } catch (error) {
       console.error('Error removing permissions:', error);
@@ -177,22 +199,30 @@ class PermissionsService {
    */
   async getPermissionsInfo(userId) {
     try {
+      console.log('Obteniendo información completa de permisos para usuario:', userId);
+      
       const [allowedRoles, permissions, hasFullPerms] = await Promise.all([
         this.getUserAllowedRoles(userId),
         this.getUserPermissions(userId),
         this.hasFullPermissions(userId)
       ]);
 
+      console.log('Datos obtenidos:', {
+        allowedRoles: allowedRoles.length,
+        permissions,
+        hasFullPerms
+      });
+      
       const permisos_resumen = permissions.permisos_resumen || {};
 
       return {
         allowedRoles,
         hasFullPermissions: hasFullPerms,
         totalAllowedRoles: allowedRoles.length,
-        canEvaluatePersonal: allowedRoles.some(role => role.codigo === 'jefe_planta') || hasFullPerms,
+        canEvaluatePersonal: allowedRoles.length > 0 || hasFullPerms,
         canEvaluateEquipo: permisos_resumen.equipo || hasFullPerms,
         canEvaluateOperacion: permisos_resumen.operacion || hasFullPerms,
-        restrictedAccess: !hasFullPerms && permissions.total_permisos < 3,
+        restrictedAccess: !hasFullPerms,
         permisos_resumen: permisos_resumen,
         total_permisos: permissions.total_permisos || 0
       };
@@ -217,20 +247,32 @@ class PermissionsService {
    */
   async checkEvaluationAccess(userId, tipoEvaluacion) {
     try {
+      console.log('Verificando acceso a evaluación:', { userId, tipoEvaluacion });
+      
       const permissionsInfo = await this.getPermissionsInfo(userId);
       
+      console.log('Información de permisos obtenida:', permissionsInfo);
+      
       if (permissionsInfo.hasFullPermissions) {
+        console.log('Usuario tiene permisos completos');
         return true;
       }
       
       switch (tipoEvaluacion) {
         case 'personal':
-          return permissionsInfo.canEvaluatePersonal;
+          const canEvaluatePersonal = permissionsInfo.canEvaluatePersonal;
+          console.log('Puede evaluar personal:', canEvaluatePersonal);
+          return canEvaluatePersonal;
         case 'equipo':
-          return permissionsInfo.canEvaluateEquipo;
+          const canEvaluateEquipo = permissionsInfo.canEvaluateEquipo;
+          console.log('Puede evaluar equipo:', canEvaluateEquipo);
+          return canEvaluateEquipo;
         case 'operacion':
-          return permissionsInfo.canEvaluateOperacion;
+          const canEvaluateOperacion = permissionsInfo.canEvaluateOperacion;
+          console.log('Puede evaluar operación:', canEvaluateOperacion);
+          return canEvaluateOperacion;
         default:
+          console.log('Tipo de evaluación no válido:', tipoEvaluacion);
           return false;
       }
     } catch (error) {
