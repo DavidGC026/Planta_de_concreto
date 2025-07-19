@@ -418,7 +418,7 @@ const EquipmentSectionSelector = ({
       <img
         src="/Concreton.png"
         alt="Mascota Concreton"
-        className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+        className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-40 drop-shadow-2xl pointer-events-none"
       />
     </div>
   );

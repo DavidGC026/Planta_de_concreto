@@ -473,6 +473,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       return {
         nombre: seccion.nombre,
         ponderacion: seccion.ponderacion || 0,
+        p_minimo_aprobacion: seccion.p_minimo_aprobacion,
         totalPreguntas: totalSectionQuestions,
         preguntasRespondidas: sectionAnswered,
         respuestasCorrectas: sectionCorrect,
@@ -597,7 +598,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         <img
           src="/Concreton.png"
           alt="Mascota Concreton"
-          className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+          className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-40 drop-shadow-2xl pointer-events-none"
         />
       </div>
     );
@@ -829,7 +830,8 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                         <thead>
                           <tr className="bg-gray-50">
                             <th className="text-left p-2 font-medium text-gray-700">Criterios de evaluación</th>
-                            <th className="text-center p-2 font-medium text-gray-700">Porcentaje</th>
+                            <th className="text-center p-2 font-medium text-gray-700">Ponderación</th>
+                            <th className="text-center p-2 font-medium text-gray-700">Mín. Aprobación</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -859,6 +861,11 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                               </td>
                               <td className="text-center p-2 text-xs font-medium">
                                 {section.ponderacion}
+                              </td>
+                              <td className="text-center p-2 text-xs font-medium text-red-600">
+                                {section.p_minimo_aprobacion !== null && section.p_minimo_aprobacion !== undefined
+                                  ? `${parseFloat(section.p_minimo_aprobacion).toFixed(1)}%`
+                                  : 'N/A'}
                               </td>
                             </tr>
                           ))}
@@ -968,7 +975,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       <img
         src="/Concreton.png"
         alt="Mascota Concreton"
-        className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+        className="w-32 h-40 drop-shadow-2xl"
       />
     </div>
   );

@@ -6,7 +6,7 @@ import AdminPermissionsPanel from '@/components/AdminPermissionsPanel';
 import apiService from '@/services/api';
 import permissionsService from '@/services/permissionsService';
 
-const MainMenu = ({ onSelectEvaluation }) => {
+const MainMenu = ({ onSelectEvaluation, onShowBlockedScreen }) => {
   const [showAdminPanel, setShowAdminPanel] = React.useState(false);
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [userPermissions, setUserPermissions] = React.useState(null);
@@ -63,6 +63,16 @@ const MainMenu = ({ onSelectEvaluation }) => {
     if (!user) return;
 
     try {
+      // Primero verificar si el usuario puede realizar exámenes (no está bloqueado)
+      const examAccess = await apiService.verificarAccesoExamen(user.id);
+      
+      if (!examAccess.puede_realizar_examenes) {
+        // Si está bloqueado, mostrar pantalla de bloqueo
+        onShowBlockedScreen();
+        return;
+      }
+      
+      // Luego verificar permisos específicos del tipo de evaluación
       const hasAccess = await permissionsService.checkEvaluationAccess(user.id, evaluationType);
       
       if (!hasAccess && !isAdmin) {
@@ -182,7 +192,7 @@ const MainMenu = ({ onSelectEvaluation }) => {
       >
         <img   
           alt="Concreton - Mascota IMCYC"
-          className="w-32 h-32 md:w-40 md:h-40 drop-shadow-xl" 
+          className="w-32 h-40 drop-shadow-2xl"
           src="/Concreton.png"
         />
       </motion.div>

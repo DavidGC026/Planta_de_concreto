@@ -5,8 +5,11 @@ import EvaluationScreenPersonal from '@/components/EvaluationScreenPersonal';
 import EvaluationScreenEquipo from '@/components/EvaluationScreenEquipo';
 import EvaluationScreenOperacion from '@/components/EvaluationScreenOperacion';
 import ResultsScreen from '@/components/ResultsScreen';
+import ExamBlockingManagement from '@/components/ExamBlockingManagement';
+import ExamBlockedScreen from '@/components/ExamBlockedScreen';
 import Navigation from '@/components/ui/navigation';
 import { Toaster } from '@/components/ui/toaster';
+import apiService from '@/services/api';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('login');
@@ -44,6 +47,12 @@ const App = () => {
     setCurrentEvaluation(evaluationType);
     setCurrentScreen('evaluation');
     setEvaluationResults(null); // Limpiar resultados previos
+  };
+
+  const handleShowBlockedScreen = () => {
+    setCurrentScreen('blocked');
+    setCurrentEvaluation(null);
+    setEvaluationResults(null);
   };
 
   const handleNavigate = (screenId) => {
@@ -137,12 +146,20 @@ const App = () => {
           {currentScreen === 'menu' && (
             <MainMenu 
               onSelectEvaluation={handleSelectEvaluation}
+              onShowBlockedScreen={handleShowBlockedScreen}
               onLogout={handleLogout}
               username={user}
             />
           )}
           
           {currentScreen === 'evaluation' && renderEvaluationScreen()}
+          
+          {currentScreen === 'blocked' && (
+            <ExamBlockedScreen
+              currentUser={apiService.getCurrentUser()}
+              onBack={handleBackToMenu}
+            />
+          )}
           
           {currentScreen === 'results' && (
             <ResultsScreen

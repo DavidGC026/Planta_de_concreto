@@ -2,17 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Calendar, ArrowRight, BarChart3 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import CalendarMaintenanceSystem from '@/components/CalendarMaintenanceSystem';
+import SeguimientoCalibraciones from './SeguimientoCalibraciones';
 
 const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, username }) => {
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showSeguimiento, setShowSeguimiento] = useState(false);
 
   // Si se está mostrando el calendario, renderizar solo el calendario
   if (showCalendar) {
     return <CalendarMaintenanceSystem onBack={() => setShowCalendar(false)} />;
+  }
+  if (showSeguimiento) {
+    return <SeguimientoCalibraciones />;
   }
 
   // Pantalla principal - solo mostrar acceso al calendario
@@ -60,6 +65,33 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
             </button>
           </motion.div>
 
+          {/* Botón para acceder a Seguimiento */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <button
+              onClick={() => setShowSeguimiento(true)}
+              className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-6 text-left border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 mt-4"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-gray-800 font-semibold text-xl block">
+                    Seguimiento
+                  </span>
+                  <span className="text-gray-600 text-sm">
+                    Calibraciones y verificaciones de operación
+                  </span>
+                </div>
+                <ArrowRight className="w-6 h-6 text-gray-400" />
+              </div>
+            </button>
+          </motion.div>
+
           {/* Información adicional */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -93,7 +125,7 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
       <img
         src="/Concreton.png"
         alt="Mascota Concreton"
-        className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
+        className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-40 drop-shadow-2xl pointer-events-none"
       />
     </div>
   );

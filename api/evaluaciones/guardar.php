@@ -112,6 +112,8 @@ try {
     $total_preguntas_normales = 0;
     $preguntas_trampa_respondidas = 0;
     $preguntas_trampa_incorrectas = 0;
+    $secciones_reprobadas = [];
+    $detalle_secciones = [];
     
     // Log para debugging
     error_log("=== CÁLCULO DE PUNTUACIÓN ===");
@@ -124,7 +126,8 @@ try {
                     s.id as seccion_id,
                     s.nombre as seccion_nombre,
                     s.ponderacion,
-                    s.es_trampa
+                    s.es_trampa,
+                    s.p_minimo_aprobacion
                   FROM secciones_evaluacion s
                   WHERE s.tipo_evaluacion_id = :tipo_evaluacion_id
                     AND s.activo = 1";
@@ -228,6 +231,33 @@ try {
             $porcentaje_seccion = $preguntas_normales_seccion > 0 ? 
                 ($respuestas_correctas_seccion / $preguntas_normales_seccion) * 100 : 0;
             
+            // Evaluar si la sección cumple con el porcentaje mínimo de aprobación
+            $p_minimo = $seccion['p_minimo_aprobacion'] ?? 90.00;
+            $seccion_aprobada = $porcentaje_seccion >= $p_minimo;
+            
+            // Registrar detalles de la sección
+            $detalle_secciones[] = [
+                'seccion_id' => $seccion['seccion_id'],
+                'seccion_nombre' => $seccion['seccion_nombre'],
+                'porcentaje_obtenido' => round($porcentaje_seccion, 2),
+                'porcentaje_minimo_requerido' => $p_minimo,
+                'aprobada' => $seccion_aprobada,
+                'preguntas_normales' => $preguntas_normales_seccion,
+                'respuestas_correctas' => $respuestas_correctas_seccion,
+                'ponderacion' => $seccion['ponderacion']
+            ];
+            
+            // Si la sección no cumple con el mínimo, agregarla a las reprobadas
+            if (!$seccion_aprobada) {
+                $secciones_reprobadas[] = [
+                    'seccion_nombre' => $seccion['seccion_nombre'],
+                    'porcentaje_obtenido' => round($porcentaje_seccion, 2),
+                    'porcentaje_minimo_requerido' => $p_minimo,
+                    'preguntas_correctas' => $respuestas_correctas_seccion,
+                    'total_preguntas' => $preguntas_normales_seccion
+                ];
+            }
+            
             // Calcular contribución ponderada de esta sección
             $contribucion_ponderada = ($porcentaje_seccion * $seccion['ponderacion']) / 100;
             $puntuacion_ponderada += $contribucion_ponderada;
@@ -238,6 +268,8 @@ try {
             error_log("  - Preguntas normales: {$preguntas_normales_seccion}");
             error_log("  - Respuestas correctas: {$respuestas_correctas_seccion}");
             error_log("  - Porcentaje sección: " . round($porcentaje_seccion, 2) . "%");
+            error_log("  - Porcentaje mínimo requerido: {$p_minimo}%");
+            error_log("  - Sección aprobada: " . ($seccion_aprobada ? 'SÍ' : 'NO'));
             error_log("  - Contribución ponderada: " . round($contribucion_ponderada, 2));
         }
     } else {
@@ -349,11 +381,16 @@ try {
     // Confirmar transacción
     $db->commit();
     
+    // Determinar si reprueba por secciones con porcentaje mínimo no alcanzado
+    $reprobado_por_secciones = count($secciones_reprobadas) > 0;
+    
     // Determinar resultado
     $resultado = 'REPROBADO';
     
     if ($reprobado_por_trampa) {
         $resultado = 'REPROBADO POR PREGUNTAS TRAMPA';
+    } elseif ($reprobado_por_secciones) {
+        $resultado = 'REPROBADO POR SECCIONES INSUFICIENTES';
     } elseif ($tipo_evaluacion === 'operacion') {
         if ($puntuacion_ponderada >= 80) $resultado = 'EXCELENTE';
         elseif ($puntuacion_ponderada >= 60) $resultado = 'BUENO';
@@ -366,6 +403,10 @@ try {
     }
     
     error_log("Resultado final: $resultado");
+    error_log("Secciones reprobadas: " . count($secciones_reprobadas));
+    if (count($secciones_reprobadas) > 0) {
+        error_log("Detalles de secciones reprobadas: " . json_encode($secciones_reprobadas));
+    }
     
     sendJsonResponse([
         'success' => true,
@@ -376,6 +417,9 @@ try {
             'resultado' => $resultado,
             'tipo_evaluacion' => $tipo_evaluacion,
             'reprobado_por_trampa' => $reprobado_por_trampa,
+            'reprobado_por_secciones' => $reprobado_por_secciones,
+            'secciones_reprobadas' => $secciones_reprobadas,
+            'detalle_secciones' => $detalle_secciones,
             'estadisticas' => [
                 'total_preguntas' => $total_preguntas_normales,
                 'preguntas_trampa_respondidas' => $preguntas_trampa_respondidas,
@@ -385,13 +429,17 @@ try {
                 'respuestas_na' => $respuestas_na,
                 'respuestas_a' => $respuestas_a,
                 'respuestas_b' => $respuestas_b,
-                'respuestas_c' => $respuestas_c
+                'respuestas_c' => $respuestas_c,
+                'total_secciones' => count($detalle_secciones),
+                'secciones_aprobadas' => count($detalle_secciones) - count($secciones_reprobadas),
+                'secciones_reprobadas' => count($secciones_reprobadas)
             ],
             'configuracion' => [
                 'tipo_planta' => $tipo_planta,
                 'categoria' => $categoria,
                 'rol_personal' => $rol_personal,
-                'sistema_ponderacion' => $tipo_evaluacion === 'personal' ? 'Por secciones de tabla secciones_evaluacion' : 'Cálculo simple'
+                'sistema_ponderacion' => $tipo_evaluacion === 'personal' ? 'Por secciones de tabla secciones_evaluacion' : 'Cálculo simple',
+                'criterio_aprobacion' => $tipo_evaluacion === 'personal' ? 'Porcentaje mínimo por sección definido en p_minimo_aprobacion' : 'Porcentaje global'
             ]
         ]
     ]);

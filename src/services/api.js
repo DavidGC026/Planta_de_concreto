@@ -253,6 +253,86 @@ class ApiService {
       return false;
     }
   }
+
+  /**
+   * Métodos para gestión de estado de exámenes
+   */
+  async verificarAccesoExamen(userId) {
+    try {
+      const response = await this.request(`gestion_estado_examenes.php/verificar/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking exam access:', error);
+      return { puede_realizar_examenes: true }; // Por defecto permitir
+    }
+  }
+
+  async obtenerEstadoExamen(userId) {
+    try {
+      const response = await this.request(`gestion_estado_examenes.php/usuario/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting exam status:', error);
+      return null;
+    }
+  }
+
+  async bloquearExamen(userId, motivo, bloqueadoPorUserId) {
+    try {
+      const response = await this.request('gestion_estado_examenes.php/bloquear', {
+        method: 'POST',
+        body: JSON.stringify({
+          usuario_id: userId,
+          motivo: motivo,
+          bloqueado_por_usuario_id: bloqueadoPorUserId
+        })
+      });
+      return response;
+    } catch (error) {
+      console.error('Error blocking exam:', error);
+      throw error;
+    }
+  }
+
+  async desbloquearExamen(userId, motivo, desbloqueadoPorUserId) {
+    try {
+      const response = await this.request('gestion_estado_examenes.php/desbloquear', {
+        method: 'POST',
+        body: JSON.stringify({
+          usuario_id: userId,
+          motivo: motivo,
+          desbloqueado_por_usuario_id: desbloqueadoPorUserId
+        })
+      });
+      return response;
+    } catch (error) {
+      console.error('Error unblocking exam:', error);
+      throw error;
+    }
+  }
+
+  async obtenerHistorialEstadoExamenes(userId = null) {
+    try {
+      const endpoint = userId 
+        ? `gestion_estado_examenes.php/historial/${userId}`
+        : 'gestion_estado_examenes.php/historial';
+      const response = await this.request(endpoint);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting exam history:', error);
+      return [];
+    }
+  }
+
+  async obtenerTodosLosEstadosExamenes() {
+    try {
+      const response = await this.request('gestion_estado_examenes.php/usuarios');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting all exam statuses:', error);
+      return [];
+    }
+  }
 }
 
 // Crear instancia singleton
