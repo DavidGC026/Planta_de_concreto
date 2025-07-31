@@ -30,6 +30,7 @@ Sistema web para la evaluación de plantas de concreto del Instituto Mexicano de
 ### Desarrollo
 - Node.js 18+
 - npm o yarn
+- PHP 8.0+ (para servidor de desarrollo local)
 
 ## 🚀 Instalación y Configuración
 
@@ -78,6 +79,61 @@ npm run build
 # Copiar archivos al servidor web
 cp -r dist/* /var/www/html/imcyc-frontend/
 ```
+
+## 💻 Desarrollo Local
+
+Para desarrollar localmente sin necesidad de configurar un servidor web completo:
+
+### Inicio Rápido
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/DavidGC026/Planta_de_concreto.git
+cd Planta_de_concreto
+
+# 2. Instalar dependencias
+npm install
+
+# 3. Configurar base de datos (una sola vez)
+# Ejecutar schema.sql en tu MySQL local
+
+# 4. Editar configuración de API
+# Verificar que api/config/database.php tenga las credenciales correctas
+
+# 5. Iniciar ambos servidores (frontend + backend)
+npm run start-all
+```
+
+### Comandos de Desarrollo
+
+```bash
+# Iniciar solo el frontend (React + Vite)
+npm run dev
+# ➜ http://localhost:5173
+
+# Iniciar solo el backend (PHP server)
+npm run start-php
+# ➜ http://localhost:8080
+
+# Iniciar ambos servidores simultáneamente (RECOMENDADO)
+npm run start-all
+# ➜ Frontend: http://localhost:5173
+# ➜ Backend API: http://localhost:8080
+```
+
+### Configuración Automática
+
+El script `start-all` utiliza:
+- **Vite dev server** para el frontend en puerto 5173
+- **PHP built-in server** para el backend en puerto 8080
+- **Concurrently** para ejecutar ambos con logs diferenciados por colores
+
+### Requisitos para Desarrollo Local
+
+- Node.js 18+
+- PHP 8.0+ (debe estar en PATH)
+- MySQL 8.0+ corriendo localmente
+- Base de datos `imcyc_evaluaciones` configurada
 
 ## 🗄️ Estructura de la Base de Datos
 
@@ -219,6 +275,32 @@ Si ves errores como "Table 'plantas_concreto.permisos_equipo' doesn't exist":
 mysql -u tu_usuario -p plantas_concreto < database/create_missing_permissions_tables.sql
 ```
 
+#### Error 404 en API (desarrollo local)
+Si ves errores 404 al hacer peticiones a la API:
+
+```bash
+# Verificar que ambos servidores estén corriendo
+npm run start-all
+
+# O iniciarlos por separado:
+npm run dev          # Frontend en :5173
+npm run start-php    # Backend en :8080
+```
+
+#### Error de conexión PHP
+Si el servidor PHP no inicia:
+
+```bash
+# Verificar que PHP esté instalado y disponible
+php --version
+
+# Verificar que el puerto 8080 esté libre
+lsof -i :8080
+
+# Iniciar manualmente para ver errores
+php -S localhost:8080 -t api/
+```
+
 #### Error 404 en imágenes
 Las imágenes deben estar en la carpeta `public/` y referenciarse con `/` al inicio:
 - ✅ Correcto: `src="/Concreton.png"`
@@ -227,8 +309,14 @@ Las imágenes deben estar en la carpeta `public/` y referenciarse con `/` al ini
 ### Comandos Útiles
 
 ```bash
-# Desarrollo frontend
+# Desarrollo completo (frontend + backend)
+npm run start-all
+
+# Desarrollo solo frontend
 npm run dev
+
+# Desarrollo solo backend (PHP)
+npm run start-php
 
 # Construir para producción
 npm run build
