@@ -8,8 +8,8 @@ class Database {
     // Configuración para base de datos existente
     private $host = 'localhost';
     private $db_name = 'plantas_concreto'; // Base de datos fija
-    private $username = 'root'; // Se actualizará por el script de deploy
-    private $password = ''; // Se actualizará por el script de deploy
+    private $username = 'admin'; // Se actualizará por el script de deploy
+    private $password = 'Imc590923cz4#'; // Se actualizará por el script de deploy
     private $charset = 'utf8mb4';
     private $conn;
 

@@ -101,9 +101,14 @@ fi
 log_info "🎨 Ajustando rutas de imágenes en CSS..."
 CSS_FILE=$(find "$WEB_DIR/assets" -name "index-*.css" 2>/dev/null | head -1)
 if [ -n "$CSS_FILE" ]; then
-    # Cambiar rutas de imágenes para que apunten a ../public/
-    sudo sed -i 's|url("public/|url("../public/|g' "$CSS_FILE"
-    sudo sed -i "s|url('public/|url('../public/|g" "$CSS_FILE"
+     # Ajustar las rutas para las imágenes\
+    sudo sed -i 's|/jefe_de_planta/assets/|./assets/|g' "$CSS_FILE"
+    sudo sed -i 's|jefe_de_planta/assets/|./assets/|g' "$CSS_FILE"
+  # Cambiar rutas de imágenes a relativas\
+    sudo sed -i 's|url("/public/|url("public/|g' "$CSS_FILE"
+    sudo sed -i "s|url('/public/|url('public/|g" "$CSS_FILE"
+    sudo sed -i 's|url("public/|url("public/|g' "$CSS_FILE"
+    sudo sed -i "s|url('public/|url('public/|g" "$CSS_FILE"
     log_info "✅ Rutas de imágenes ajustadas en CSS: $(basename "$CSS_FILE")"
 else
     log_warning "⚠️ No se encontró archivo CSS en assets/"
@@ -114,9 +119,14 @@ log_info "⚡ Ajustando rutas de imágenes en archivos JS..."
 JS_FILES=$(find "$WEB_DIR/assets" -name "index-*.js" 2>/dev/null)
 if [ -n "$JS_FILES" ]; then
     for JS_FILE in $JS_FILES; do
-        # Cambiar rutas de imágenes en archivos JS
-        sudo sed -i 's|"public/|"public/|g' "$JS_FILE"
-        sudo sed -i "s|'public/|'public/|g" "$JS_FILE"
+        # Quitar referencias a jefe_de_planta
+        sudo sed -i 's|/jefe_de_planta/assets/|./assets/|g' "$JS_FILE"
+        sudo sed -i 's|jefe_de_planta/assets/|./assets/|g' "$JS_FILE"
+        # Cambiar rutas absolutas a relativas en archivos JS
+        sudo sed -i 's|"/public/|"public/|g' "$JS_FILE"
+        sudo sed -i "s|'/public/|'public/|g" "$JS_FILE"
+        sudo sed -i 's|"/assets/|"./assets/|g' "$JS_FILE"
+        sudo sed -i "s|'/assets/|'./assets/|g" "$JS_FILE"
         log_info "✅ Rutas ajustadas en JS: $(basename "$JS_FILE")"
     done
 else
@@ -125,8 +135,17 @@ fi
 # Ajustar rutas en index.html para hacer rutas relativas
 log_info "📄 Ajustando rutas en index.html..."
 if [ -f "$WEB_DIR/index.html" ]; then
+    # Quitar referencias a jefe_de_planta
+    sudo sed -i 's|/jefe_de_planta/assets/|./assets/|g' "$WEB_DIR/index.html"
+    sudo sed -i 's|jefe_de_planta/assets/|./assets/|g' "$WEB_DIR/index.html"
     # Cambiar /assets/ a ./assets/ para rutas relativas
     sudo sed -i 's|/assets/|./assets/|g' "$WEB_DIR/index.html"
+    # Ajustar las rutas para las imágenes
+    sudo sed -i 's|"/public/|"public/|g' "$WEB_DIR/index.html"
+    sudo sed -i "s|'/public/|'public/|g" "$WEB_DIR/index.html"
+    # Asegurar que las rutas de favicon y otros recursos sean relativas
+    sudo sed -i 's|href="/|href="./|g' "$WEB_DIR/index.html"
+    sudo sed -i 's|src="/|src="./|g' "$WEB_DIR/index.html"
     log_info "✅ Rutas ajustadas en index.html"
 else
     log_warning "⚠️ No se encontró index.html"
@@ -272,6 +291,7 @@ RewriteRule ^evaluaciones/guardar/?$ evaluaciones/guardar.php [L,QSA]
 RewriteRule ^evaluaciones/historial/?$ evaluaciones/historial.php [L,QSA]
 RewriteRule ^evaluaciones/progreso-seccion/?$ evaluaciones/progreso-seccion.php [L,QSA]
 RewriteRule ^evaluaciones/progreso-secciones/?$ evaluaciones/progreso-secciones.php [L,QSA]
+RewriteRule ^evaluaciones/resultados-personal/?$ evaluaciones/resultados-personal.php [L,QSA]
 
 # Rutas de reportes
 RewriteRule ^reportes/generar/?$ reportes/generar.php [L,QSA]

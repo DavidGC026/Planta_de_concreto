@@ -35,6 +35,7 @@ logger.error = (msg, options) => {
 
 export default defineConfig({
 	customLogger: logger,
+	base: '/jefe_de_planta/',
 	plugins: [
 		...(isDev ? [inlineEditPlugin(), editModeDevPlugin()] : []),
 		react(),

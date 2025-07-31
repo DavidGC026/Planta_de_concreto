@@ -134,6 +134,7 @@ try {
                               s.orden as seccion_orden,
                               s.ponderacion as seccion_ponderacion,
                               s.preguntas_trampa_por_seccion,
+                              s.p_minimo_aprobacion,
                               te.codigo as tipo_codigo,
                               rp.codigo as rol_codigo
                             FROM secciones_evaluacion s
@@ -250,6 +251,7 @@ try {
                 'nombre' => $seccion['seccion_nombre'],
                 'orden' => $seccion['seccion_orden'],
                 'ponderacion' => $seccion['seccion_ponderacion'],
+                'p_minimo_aprobacion' => $seccion['p_minimo_aprobacion'] ?? 90.00,
                 'preguntas' => $preguntas_finales
             ];
             

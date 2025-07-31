@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación de Personal - IMCYC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .logo {
+            color: #0055A5;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .title {
+            color: #002D72;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        
+        .description {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        
+        .embed-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 30px 0;
+            border: 2px dashed #dee2e6;
+            min-height: 600px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .embed-placeholder {
+            color: #6c757d;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        .instructions {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 5px;
+            text-align: left;
+        }
+        
+        .instructions h3 {
+            color: #0066cc;
+            margin-bottom: 15px;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+            color: #555;
+        }
+        
+        .instructions li {
+            margin: 10px 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            text-align: left;
+        }
+        
+        .demo-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        
+        .demo-button:hover {
+            background: #218838;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">IMCYC</div>
+        <div class="title">Evaluación de Personal</div>
+        <div class="description">
+            Esta página permite realizar evaluaciones de personal sin necesidad de inicio de sesión. 
+            Los datos del usuario se obtienen a través de un embed de otra página.
+        </div>
+        
+        <div class="embed-container" id="evaluation-container">
+            <div class="embed-placeholder">
+                <h3>Área de Evaluación</h3>
+                <p>Aquí se cargará el componente de evaluación</p>
+                <button class="demo-button" onclick="loadDemo()">Cargar Demo</button>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 Instrucciones de Implementación</h3>
+            <ul>
+                <li><strong>Componente:</strong> <code>PersonalEvaluationStandalone</code></li>
+                <li><strong>Ubicación:</strong> <code>src/components/EvaluationPersonalPage.jsx</code></li>
+                <li><strong>Características:</strong>
+                    <ul>
+                        <li>Sin inicio de sesión requerido</li>
+                        <li>Datos de usuario por embed</li>
+                        <li>Roles dinámicos desde base de datos</li>
+                        <li>Evaluación con ponderación por secciones</li>
+                        <li>Resultados con gráficos interactivos</li>
+                    </ul>
+                </li>
+            </ul>
+            
+            <h3>🔧 Uso del Componente</h3>
+            <div class="code-block">
+import PersonalEvaluationStandalone from './components/EvaluationPersonalPage';
+
+// Ejemplo de uso
+const embedUser = {
+    id: 123,
+    nombre: "Juan Pérez",
+    username: "jperez",
+    email: "juan.perez@empresa.com"
+};
+
+&lt;PersonalEvaluationStandalone embedUser={embedUser} /&gt;
+            </div>
+            
+            <h3>🗄️ Estructura de Base de Datos</h3>
+            <div class="code-block">
+-- Tablas principales utilizadas:
+- roles_personal: Roles disponibles (jefe_planta, laboratorista, etc.)
+- secciones_evaluacion: Secciones con ponderación
+- preguntas: Preguntas por sección y rol
+- evaluaciones: Registro de evaluaciones completadas
+- respuestas_evaluacion: Respuestas individuales
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 IMCYC - Instituto Mexicano del Cemento y del Concreto A.C.</p>
+            <p>Sistema de Evaluación de Personal</p>
+        </div>
+    </div>
+
+    <script>
+        function loadDemo() {
+            const container = document.getElementById('evaluation-container');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <h2 style="color: #0066cc; margin-bottom: 20px;">🎯 Demo Cargado</h2>
+                    <p style="color: #666; margin-bottom: 20px;">
+                        El componente PersonalEvaluationStandalone se cargaría aquí con los datos del usuario embebido.
+                    </p>
+                    <div style="background: #f0f9ff; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                        <h3 style="color: #0066cc; margin-bottom: 10px;">Datos del Usuario Demo</h3>
+                        <p><strong>ID:</strong> 123</p>
+                        <p><strong>Nombre:</strong> Juan Pérez</p>
+                        <p><strong>Usuario:</strong> jperez</p>
+                        <p><strong>Email:</strong> juan.perez@empresa.com</p>
+                    </div>
+                    <p style="color: #666; font-size: 14px;">
+                        Para ver la evaluación completa, integre este componente en su aplicación React
+                    </p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

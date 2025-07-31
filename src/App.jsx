@@ -5,14 +5,18 @@ import EvaluationScreenPersonal from '@/components/EvaluationScreenPersonal';
 import EvaluationScreenEquipo from '@/components/EvaluationScreenEquipo';
 import EvaluationScreenOperacion from '@/components/EvaluationScreenOperacion';
 import ResultsScreen from '@/components/ResultsScreen';
+import ExamBlockingManagement from '@/components/ExamBlockingManagement';
+import ExamBlockedScreen from '@/components/ExamBlockedScreen';
 import Navigation from '@/components/ui/navigation';
 import { Toaster } from '@/components/ui/toaster';
+import apiService from '@/services/api';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('login');
   const [user, setUser] = useState(null);
   const [currentEvaluation, setCurrentEvaluation] = useState(null);
   const [evaluationResults, setEvaluationResults] = useState(null);
+  const [isPageVisible, setIsPageVisible] = useState(true);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -26,6 +30,30 @@ const App = () => {
     document.head.appendChild(favicon);
 
     document.title = "IMCYC - Sistema de Evaluación de Plantas de Concreto";
+  }, []);
+
+  // Efecto para manejar la visibilidad de la página
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsPageVisible(!document.hidden);
+    };
+
+    // Listener para detectar cambios de visibilidad
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // También detectar cuando la ventana pierde o gana foco
+    const handleWindowBlur = () => setIsPageVisible(false);
+    const handleWindowFocus = () => setIsPageVisible(true);
+
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
   }, []);
 
   const handleLogin = (username) => {
@@ -44,6 +72,12 @@ const App = () => {
     setCurrentEvaluation(evaluationType);
     setCurrentScreen('evaluation');
     setEvaluationResults(null); // Limpiar resultados previos
+  };
+
+  const handleShowBlockedScreen = () => {
+    setCurrentScreen('blocked');
+    setCurrentEvaluation(null);
+    setEvaluationResults(null);
   };
 
   const handleNavigate = (screenId) => {
@@ -119,7 +153,7 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className={`min-h-screen transition-all duration-300 ${!isPageVisible ? 'blur-md opacity-75' : ''}`}>
       {currentScreen === 'login' && (
         <LoginScreen onLogin={handleLogin} />
       )}
@@ -137,12 +171,20 @@ const App = () => {
           {currentScreen === 'menu' && (
             <MainMenu 
               onSelectEvaluation={handleSelectEvaluation}
+              onShowBlockedScreen={handleShowBlockedScreen}
               onLogout={handleLogout}
               username={user}
             />
           )}
           
           {currentScreen === 'evaluation' && renderEvaluationScreen()}
+          
+          {currentScreen === 'blocked' && (
+            <ExamBlockedScreen
+              currentUser={apiService.getCurrentUser()}
+              onBack={handleBackToMenu}
+            />
+          )}
           
           {currentScreen === 'results' && (
             <ResultsScreen
@@ -155,6 +197,22 @@ const App = () => {
       )}
       
       <Toaster />
+      
+      {/* Overlay de blur cuando la página pierde el foco */}
+      {!isPageVisible && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 pointer-events-none transition-all duration-300">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-white/90 backdrop-blur-sm rounded-lg px-6 py-4 shadow-lg border border-gray-200">
+              <p className="text-gray-800 font-medium text-center">
+                La página está fuera de foco
+              </p>
+              <p className="text-gray-600 text-sm text-center mt-1">
+                Haz clic aquí para continuar
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

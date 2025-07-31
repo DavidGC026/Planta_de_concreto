@@ -9,5 +9,44 @@
 	<body>
 		<div id="root"></div>
 		<script type="module" src="/src/main.jsx"></script>
+		<script>
+			// Bloquear clic derecho
+			document.addEventListener('contextmenu', event => event.preventDefault());
+			
+			// Bloquear selección y copia de texto
+			document.addEventListener('selectstart', event => event.preventDefault());
+			document.addEventListener('copy', event => event.preventDefault());
+			document.addEventListener('cut', event => event.preventDefault());
+			
+			// Bloquear atajos de teclado comunes para copiar
+			document.addEventListener('keydown', function(event) {
+				// Ctrl+C, Ctrl+A, Ctrl+V, Ctrl+S, Ctrl+U, F12
+				if (event.ctrlKey && (event.key === 'c' || event.key === 'a' || event.key === 'v' || event.key === 's' || event.key === 'u')) {
+					event.preventDefault();
+				}
+				// F12 (DevTools)
+				if (event.key === 'F12') {
+					event.preventDefault();
+				}
+				// Ctrl+Shift+I (DevTools)
+				if (event.ctrlKey && event.shiftKey && event.key === 'I') {
+					event.preventDefault();
+				}
+			});
+			
+			// Opacar la página cuando se pierde el foco
+			window.addEventListener('blur', function() {
+				document.body.style.opacity = '0.3';
+				document.body.style.transition = 'opacity 0.3s ease';
+			});
+			
+			// Restaurar opacidad cuando se recupera el foco
+			window.addEventListener('focus', function() {
+				document.body.style.opacity = '1';
+			});
+			
+			// Prevenir arrastrar imágenes
+			document.addEventListener('dragstart', event => event.preventDefault());
+		</script>
 	</body>
 </html>

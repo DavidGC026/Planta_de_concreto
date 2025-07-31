@@ -6,7 +6,9 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"start-php": "php -S localhost:8080 -t api/",
+		"start-all": "concurrently \"npm run dev\" \"npm run start-php\" --names \"VITE,PHP\" --prefix-colors \"cyan,yellow\""
 	},
 	"dependencies": {
 		"@radix-ui/react-alert-dialog": "^1.0.5",
@@ -34,6 +36,7 @@
 		"@babel/parser": "^7.27.0",
 		"@babel/traverse": "^7.27.0",
 		"@babel/types": "^7.27.0",
+		"concurrently": "^8.2.2",
 		"@types/node": "^20.8.3",
 		"@types/react": "^18.2.15",
 		"@types/react-dom": "^18.2.7",
