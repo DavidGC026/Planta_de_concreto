@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -8,4 +9,16 @@
 
 <IfModule mod_headers.c>
   Header set X-Powered-By "IMCYC - Sistema de Evaluación de Plantas de Concreto"
+=======
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header set X-Powered-By "IMCYC - Sistema de Evaluación de Plantas de Concreto"
+>>>>>>> 03f330083664a924fa75f79be9e8bf095aaf26bb
 </IfModule>

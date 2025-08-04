@@ -1,0 +1,35 @@
+# Configuración Apache para API de Jefe de Planta
+# IMCYC - Sistema de Evaluación de Plantas de Concreto
+
+# Habilitar reescritura de URLs
+RewriteEngine On
+
+# Permitir CORS para todas las APIs
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+
+# Manejar preflight requests
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Redireccionar URLs amigables
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Rutas de autenticación
+RewriteRule ^login/?$ auth/login.php [L,QSA]
+
+# Rutas de evaluaciones
+RewriteRule ^evaluaciones/preguntas/?$ evaluaciones/preguntas.php [L,QSA]
+RewriteRule ^evaluaciones/guardar/?$ evaluaciones/guardar.php [L,QSA]
+
+# Configuración de seguridad
+<Files "*.php">
+    Order allow,deny
+    Allow from all
+</Files>
+
+# Configuración de errores
+ErrorDocument 404 "API endpoint not found"
+ErrorDocument 500 "Internal server error"
