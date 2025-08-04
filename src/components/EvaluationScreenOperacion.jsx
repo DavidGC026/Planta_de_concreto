@@ -8,12 +8,14 @@ import apiService from '@/services/api';
 import CalendarMaintenanceSystem from '@/components/CalendarMaintenanceSystem';
 import SeguimientoCalibraciones from './SeguimientoCalibraciones';
 import ViewPersonalResults from './ViewPersonalResults';
+import ParametrosOperacion from './ParametrosOperacion';
 
 const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, username }) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSeguimiento, setShowSeguimiento] = useState(false);
   const [showPersonalResults, setShowPersonalResults] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+const [isAdmin, setIsAdmin] = useState(false);
+  const [showParametrosOperacion, setShowParametrosOperacion] = useState(false);
 
   useEffect(() => {
     // Verificar si el usuario es administrador
@@ -37,8 +39,11 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
   if (showSeguimiento) {
     return <SeguimientoCalibraciones />;
   }
-  if (showPersonalResults) {
+if (showPersonalResults) {
     return <ViewPersonalResults onBack={() => setShowPersonalResults(false)} username={username} />;
+  }
+  if (showParametrosOperacion) {
+    return <ParametrosOperacion onBack={() => setShowParametrosOperacion(false)} />;
   }
 
   // Pantalla principal - solo mostrar acceso al calendario
@@ -112,8 +117,32 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
               </div>
             </button>
           </motion.div>
-
-          {/* Botón para Visualizar Resultados - Solo para administradores */}
+          {/* Botón para acceder a Parámetros de Operación */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <button
+              onClick={() => setShowParametrosOperacion(true)}
+              className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-6 text-left border border-gray-200 hover:border-orange-300 hover:bg-orange-50/50 mt-4"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-gray-800 font-semibold text-xl block">
+                    Parámetros de Operación
+                  </span>
+                  <span className="text-gray-600 text-sm">
+                    Gestión de volumen de producción diaria
+                  </span>
+                </div>
+                <ArrowRight className="w-6 h-6 text-gray-400" />
+              </div>
+            </button>
+          </motion.div>
           {isAdmin && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}

@@ -49,9 +49,9 @@ export default defineConfig({
 		allowedHosts: true,
 		proxy: {
 			'/api': {
-				target: 'http://localhost',
+				target: 'http://localhost:8080',
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/api/, '/imcyc/api')
+				rewrite: (path) => path.replace(/^\/api/, '')
 			}
 		}
 	},

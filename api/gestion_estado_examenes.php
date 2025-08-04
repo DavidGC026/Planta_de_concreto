@@ -1,6 +1,5 @@
 <?php
-require_once 'conexion_db.php';
-require_once 'funciones_comunes.php';
+require_once 'config/database.php';
 
 // Establecer headers para CORS y tipo de contenido
 header('Content-Type: application/json');
@@ -186,7 +185,8 @@ function verificarAccesoExamen($conexion, $usuario_id) {
 
 // Manejo de las peticiones HTTP
 try {
-    $conexion = obtenerConexionDB();
+    $database = new Database();
+    $conexion = $database->getConnection();
     
     $method = $_SERVER['REQUEST_METHOD'];
     $path = $_SERVER['PATH_INFO'] ?? '';

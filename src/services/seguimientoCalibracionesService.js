@@ -1,20 +1,32 @@
-const API_URL = '/imcyc/api/evaluaciones/seguimiento_calibraciones.php';
+const API_URL = '/api/evaluaciones/seguimiento_calibraciones.php';
 
 const seguimientoCalibracionesService = {
-  async getAll() {
-    const res = await fetch(API_URL);
+  async getSecciones() {
+    const res = await fetch('/api/evaluaciones/secciones_operacion.php');
     const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error al obtener calibraciones');
+    if (!data.success) throw new Error(data.error || 'Error al obtener secciones');
     return data.data;
   },
-  async save(calibracion) {
+  async getParametrosBySeccion(seccionId) {
+    const res = await fetch(`${API_URL}?seccion_id=${seccionId}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al obtener parámetros');
+    return data.data;
+  },
+  async getAllParametros() {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al obtener todos los parámetros');
+    return data.data;
+  },
+  async updateObservaciones(parametroId, observaciones) {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(calibracion)
+      body: JSON.stringify({ id: parametroId, observaciones })
     });
     const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Error al guardar calibración');
+    if (!data.success) throw new Error(data.error || 'Error al actualizar observaciones');
     return { id: data.id, action: data.action };
   }
 };
