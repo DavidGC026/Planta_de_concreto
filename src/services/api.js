@@ -4,7 +4,7 @@
  */
 
 // Configuración base de la API - AJUSTAR SEGÚN TU SUBPÁGINA
-const API_BASE_URL = 'http://localhost:8080'; // Servidor PHP local
+const API_BASE_URL = '/plantaconcreto/api'; // Ruta relativa para producción
 
 class ApiService {
   constructor() {
