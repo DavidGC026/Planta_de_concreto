@@ -15,12 +15,30 @@ const ViewPersonalResults = ({ onBack, username }) => {
   const [expandedEvaluations, setExpandedEvaluations] = useState({});
 
   useEffect(() => {
+    // Verificar si el usuario es admin antes de cargar datos
+    const user = apiService.getCurrentUser();
+    if (!user || user.rol !== 'admin') {
+      toast({
+        title: "Access Denied",
+        description: "Esta función está disponible solo para administradores.",
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
+    }
+    
     fetchPersonalResults();
   }, []);
 
   const fetchPersonalResults = async () => {
     try {
       setLoading(true);
+      
+      // Verificar nuevamente el rol del usuario
+      const user = apiService.getCurrentUser();
+      if (!user || user.rol !== 'admin') {
+        throw new Error('Acceso denegado: Solo administradores pueden ver esta información');
+      }
       
       // Obtener datos reales de la API
       const data = await apiService.getResultadosPersonal();
