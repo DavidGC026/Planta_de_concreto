@@ -81,29 +81,39 @@ function obtenerPermisos($db) {
         $stmt->execute([':usuario_id' => $usuario_id]);
         $permisos = $stmt->fetchAll() ?: [];
     } else {
-        // Obtener todos los permisos con información consolidada
-        $query = "SELECT DISTINCT
+        // Obtener todos los permisos con información detallada
+        $query = "SELECT 
                     u.id as usuario_id,
                     u.username,
                     u.nombre_completo,
                     u.rol as rol_sistema,
                     u.permisos_completos,
                     
-                    -- Contar permisos de personal
-                    (SELECT COUNT(*) FROM permisos_usuario pu2 
-                     WHERE pu2.usuario_id = u.id AND pu2.puede_evaluar = 1) as total_roles_personal,
+                    -- Permisos de personal (roles específicos)
+                    rp.id as rol_personal_id,
+                    rp.codigo as rol_codigo,
+                    rp.nombre as rol_nombre,
+                    pu.puede_evaluar as puede_evaluar_personal,
+                    pu.puede_ver_resultados as puede_ver_resultados_personal,
+                    pu.fecha_creacion as fecha_asignacion_personal,
                     
                     -- Permisos de equipo
-                    COALESCE(pe.puede_evaluar, 0) as puede_evaluar_equipo,
+                    pe.puede_evaluar as puede_evaluar_equipo,
+                    pe.puede_ver_resultados as puede_ver_resultados_equipo,
+                    pe.fecha_creacion as fecha_asignacion_equipo,
                     
                     -- Permisos de operación
-                    COALESCE(po.puede_evaluar, 0) as puede_evaluar_operacion
+                    po.puede_evaluar as puede_evaluar_operacion,
+                    po.puede_ver_resultados as puede_ver_resultados_operacion,
+                    po.fecha_creacion as fecha_asignacion_operacion
                     
                   FROM usuarios u
+                  LEFT JOIN permisos_usuario pu ON u.id = pu.usuario_id
+                  LEFT JOIN roles_personal rp ON pu.rol_personal_id = rp.id
                   LEFT JOIN permisos_equipo pe ON u.id = pe.usuario_id
                   LEFT JOIN permisos_operacion po ON u.id = po.usuario_id
                   WHERE u.activo = 1
-                  ORDER BY u.username";
+                  ORDER BY u.username, rp.nombre";
         
         $stmt = $db->prepare($query);
         $stmt->execute();
