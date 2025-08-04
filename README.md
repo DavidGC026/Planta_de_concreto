@@ -368,7 +368,7 @@ npm run preview
 
 ## 📝 Licencia
 
-© 2024 Instituto Mexicano del Cemento y del Concreto A.C. - Todos los derechos reservados.
+© 2025 Instituto Mexicano del Cemento y del Concreto A.C. - Todos los derechos reservados.
 
 ## 🤝 Soporte
 
