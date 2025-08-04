@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { IMAGES } from '@/utils/paths';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
