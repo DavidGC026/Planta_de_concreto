@@ -524,7 +524,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url("public/Fondo.png")`,
+            backgroundImage: `url("${IMAGES.FONDO}")`,
           }}
         />
         <div className="absolute inset-0 bg-black/20" />
@@ -630,7 +630,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url("public/Fondo.png")`,
+          backgroundImage: `url("${IMAGES.FONDO}")`,
         }}
       />
       <div className="absolute inset-0 bg-black/20" />
