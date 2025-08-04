@@ -1,8 +1,10 @@
-const API_URL = '/api/evaluaciones/seguimiento_calibraciones.php';
+import { API_ENDPOINTS } from '@/utils/paths';
+
+const API_URL = API_ENDPOINTS.EVALUACIONES.SEGUIMIENTO_CALIBRACIONES;
 
 const seguimientoCalibracionesService = {
   async getSecciones() {
-    const res = await fetch('/api/evaluaciones/secciones_operacion.php');
+    const res = await fetch(API_ENDPOINTS.EVALUACIONES.SECCIONES_OPERACION);
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Error al obtener secciones');
     return data.data;

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { User, Lock, AlertCircle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
+import { IMAGES } from '@/utils/paths';
 
 const LoginScreen = ({ onLogin }) => {
   const [credentials, setCredentials] = useState({
@@ -170,7 +171,7 @@ const LoginScreen = ({ onLogin }) => {
         <img
           alt="Concreton - Mascota IMCYC"
           className="w-32 h-40 drop-shadow-2xl"
-          src="/Concreton.png"
+          src={IMAGES.CONCRETON}
         />
       </motion.div>
     </div>

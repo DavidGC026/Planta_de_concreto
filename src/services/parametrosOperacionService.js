@@ -1,4 +1,6 @@
-const API_URL = '/api/evaluaciones/parametros_operacion.php';
+import { API_ENDPOINTS } from '@/utils/paths';
+
+const API_URL = API_ENDPOINTS.EVALUACIONES.PARAMETROS_OPERACION;
 
 const parametrosOperacionService = {
   // Obtener todos los datos de volumen
