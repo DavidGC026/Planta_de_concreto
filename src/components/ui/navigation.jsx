@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Home, Shield } from 'lucide-react';
 import apiService from '@/services/api';
+import { IMAGES } from '@/utils/paths';
 
 const Navigation = ({ currentScreen, currentEvaluation, onNavigate, onLogout, username }) => {
   const [isAdmin, setIsAdmin] = React.useState(false);
@@ -30,7 +31,7 @@ const Navigation = ({ currentScreen, currentEvaluation, onNavigate, onLogout, us
           {/* Logo y título */}
           <div className="flex items-center space-x-4">
             <img 
-              src="/Logo_imcyc.png" 
+              src={IMAGES.LOGO_IMCYC} 
               alt="Logo IMCYC" 
               className="h-12 w-auto" 
             />

@@ -69,7 +69,7 @@ const LoginScreen = ({ onLogin }) => {
               <img
                 alt="Logo IMCYC"
                 className="h-16 w-auto"
-                src="public/Logo_imcyc.png"
+                src={IMAGES.LOGO_IMCYC}
               />
             </motion.div>
 
