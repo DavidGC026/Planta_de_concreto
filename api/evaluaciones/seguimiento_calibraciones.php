@@ -1,70 +1,3 @@
-<<<<<<< HEAD
-<?php
-require_once '../config/database.php';
-
-setCorsHeaders();
-
-$database = new Database();
-$db = $database->getConnection();
-
-switch ($_SERVER['REQUEST_METHOD']) {
-    case 'POST':
-        $input = json_decode(file_get_contents('php://input'), true);
-        if (!$input || !isset($input['parametro'], $input['frecuencia_sugerida'])) {
-            handleError('Faltan campos obligatorios', 400);
-        }
-        $parametro = sanitizeInput($input['parametro']);
-        $frecuencia = sanitizeInput($input['frecuencia_sugerida']);
-        $observaciones = isset($input['observaciones']) ? sanitizeInput($input['observaciones']) : null;
-        $referencia = isset($input['referencia_normativa']) ? sanitizeInput($input['referencia_normativa']) : null;
-        
-        try {
-            // Si se proporciona un ID, actualizar; si no, crear nuevo
-            if (isset($input['id']) && !empty($input['id'])) {
-                $id = (int) $input['id'];
-                $query = "UPDATE seguimiento_calibraciones SET parametro = :parametro, frecuencia_sugerida = :frecuencia, observaciones = :observaciones, referencia_normativa = :referencia WHERE id = :id";
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(':parametro', $parametro);
-                $stmt->bindParam(':frecuencia', $frecuencia);
-                $stmt->bindParam(':observaciones', $observaciones);
-                $stmt->bindParam(':referencia', $referencia);
-                $stmt->bindParam(':id', $id);
-                $stmt->execute();
-                
-                if ($stmt->rowCount() > 0) {
-                    sendJsonResponse(['success' => true, 'id' => $id, 'action' => 'updated']);
-                } else {
-                    handleError('No se encontró el registro para actualizar', 404);
-                }
-            } else {
-                // Crear nuevo registro
-                $query = "INSERT INTO seguimiento_calibraciones (parametro, frecuencia_sugerida, observaciones, referencia_normativa) VALUES (:parametro, :frecuencia, :observaciones, :referencia)";
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(':parametro', $parametro);
-                $stmt->bindParam(':frecuencia', $frecuencia);
-                $stmt->bindParam(':observaciones', $observaciones);
-                $stmt->bindParam(':referencia', $referencia);
-                $stmt->execute();
-                sendJsonResponse(['success' => true, 'id' => $db->lastInsertId(), 'action' => 'created']);
-            }
-        } catch (Exception $e) {
-            handleError('Error al guardar calibración: ' . $e->getMessage(), 500);
-        }
-        break;
-    case 'GET':
-        try {
-            $query = "SELECT id, parametro, frecuencia_sugerida, observaciones, referencia_normativa, created_at FROM seguimiento_calibraciones ORDER BY created_at DESC";
-            $stmt = $db->query($query);
-            $result = $stmt->fetchAll();
-            sendJsonResponse(['success' => true, 'data' => $result]);
-        } catch (Exception $e) {
-            handleError('Error al obtener calibraciones: ' . $e->getMessage(), 500);
-        }
-        break;
-    default:
-        handleError('Método no permitido', 405);
-}
-=======
 <?php
 require_once '../config/database.php';
 
@@ -109,11 +42,11 @@ switch ($_SERVER['REQUEST_METHOD']) {
             
             if ($seccion_id) {
                 // Obtener parámetros de una sección específica
-                $query = "SELECT p.id, p.parametro, p.frecuencia_sugerida, p.lectura, p.observaciones, p.referencia_normativa, 
+                $query = "SELECT p.id, p.parametro, p.frecuencia_sugerida, p.observaciones, p.referencia_normativa, 
                                 s.nombre as seccion_nombre, s.descripcion as seccion_descripcion
                          FROM parametros_seguimiento p 
                          INNER JOIN secciones_operacion s ON p.seccion_id = s.id 
-                         WHERE p.seccion_id = :seccion_id AND p.activo = 1 AND s.activo = 1
+                         WHERE p.seccion_id = :seccion_id AND p.activo = 1 AND s.activa = 1
                          ORDER BY p.orden_en_seccion ASC";
                 $stmt = $db->prepare($query);
                 $stmt->bindParam(':seccion_id', $seccion_id);
@@ -121,11 +54,11 @@ switch ($_SERVER['REQUEST_METHOD']) {
             } else {
                 // Obtener todas las secciones con sus parámetros
                 $query = "SELECT s.id as seccion_id, s.nombre as seccion_nombre, s.descripcion as seccion_descripcion,
-                                p.id, p.parametro, p.frecuencia_sugerida, p.lectura, p.observaciones, p.referencia_normativa
+                                p.id, p.parametro, p.frecuencia_sugerida, p.observaciones, p.referencia_normativa
                          FROM secciones_operacion s 
                          LEFT JOIN parametros_seguimiento p ON s.id = p.seccion_id AND p.activo = 1
-                         WHERE s.activo = 1
-                         ORDER BY s.orden ASC, p.orden_en_seccion ASC";
+                         WHERE s.activa = 1
+                         ORDER BY s.orden_visualizacion ASC, p.orden_en_seccion ASC";
                 $stmt = $db->query($query);
             }
             
@@ -139,4 +72,4 @@ switch ($_SERVER['REQUEST_METHOD']) {
     default:
         handleError('Método no permitido', 405);
 }
->>>>>>> 03f330083664a924fa75f79be9e8bf095aaf26bb
+?>
