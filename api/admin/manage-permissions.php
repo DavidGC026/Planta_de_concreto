@@ -13,6 +13,9 @@ try {
     $database = new Database();
     $db = $database->getConnection();
     
+    // Asegurar que las tablas existan
+    inicializarTablas($db);
+    
     $method = $_SERVER['REQUEST_METHOD'];
     
     switch ($method) {
@@ -149,7 +152,9 @@ function asignarPermisos($db) {
     $puede_ver_resultados = (bool)($input['puede_ver_resultados'] ?? true);
     
     try {
+        error_log("DEBUG: Iniciando transacción");
         $db->beginTransaction();
+        error_log("DEBUG: Transacción iniciada exitosamente");
         
         if ($tipo_evaluacion === 'personal') {
             // Para evaluación de personal, requiere rol_codigo
@@ -185,19 +190,6 @@ function asignarPermisos($db) {
             ]);
             
         } elseif ($tipo_evaluacion === 'equipo') {
-            // Crear tabla si no existe
-            $create_table = "CREATE TABLE IF NOT EXISTS permisos_equipo (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                usuario_id INT NOT NULL,
-                puede_evaluar BOOLEAN DEFAULT TRUE,
-                puede_ver_resultados BOOLEAN DEFAULT TRUE,
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-                UNIQUE KEY unique_user_equipo (usuario_id)
-            )";
-            $db->exec($create_table);
-            
             // Insertar o actualizar permisos de equipo
             $query = "INSERT INTO permisos_equipo (usuario_id, puede_evaluar, puede_ver_resultados)
                       VALUES (:usuario_id, :puede_evaluar, :puede_ver_resultados)
@@ -214,19 +206,6 @@ function asignarPermisos($db) {
             ]);
             
         } elseif ($tipo_evaluacion === 'operacion') {
-            // Crear tabla si no existe
-            $create_table = "CREATE TABLE IF NOT EXISTS permisos_operacion (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                usuario_id INT NOT NULL,
-                puede_evaluar BOOLEAN DEFAULT TRUE,
-                puede_ver_resultados BOOLEAN DEFAULT TRUE,
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-                UNIQUE KEY unique_user_operacion (usuario_id)
-            )";
-            $db->exec($create_table);
-            
             // Insertar o actualizar permisos de operación
             $query = "INSERT INTO permisos_operacion (usuario_id, puede_evaluar, puede_ver_resultados)
                       VALUES (:usuario_id, :puede_evaluar, :puede_ver_resultados)
@@ -260,7 +239,14 @@ function asignarPermisos($db) {
         ]);
         
     } catch (Exception $e) {
-        $db->rollback();
+        error_log("DEBUG: Error capturado: " . $e->getMessage());
+        // Solo hacer rollback si hay una transacción activa
+        if ($db->inTransaction()) {
+            error_log("DEBUG: Haciendo rollback de transacción");
+            $db->rollback();
+        } else {
+            error_log("DEBUG: No hay transacción activa para rollback");
+        }
         handleError('Error al asignar permisos: ' . $e->getMessage());
     }
 }
@@ -335,5 +321,36 @@ function eliminarPermisos($db) {
         $db->rollback();
         handleError('Error al eliminar permisos: ' . $e->getMessage());
     }
+}
+
+/**
+ * Inicializar tablas necesarias para el sistema de permisos
+ */
+function inicializarTablas($db) {
+    // Crear tabla permisos_equipo si no existe
+    $create_equipo = "CREATE TABLE IF NOT EXISTS permisos_equipo (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        puede_evaluar BOOLEAN DEFAULT TRUE,
+        puede_ver_resultados BOOLEAN DEFAULT TRUE,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_user_equipo (usuario_id)
+    )";
+    $db->exec($create_equipo);
+    
+    // Crear tabla permisos_operacion si no existe
+    $create_operacion = "CREATE TABLE IF NOT EXISTS permisos_operacion (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        puede_evaluar BOOLEAN DEFAULT TRUE,
+        puede_ver_resultados BOOLEAN DEFAULT TRUE,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_user_operacion (usuario_id)
+    )";
+    $db->exec($create_operacion);
 }
 ?>
