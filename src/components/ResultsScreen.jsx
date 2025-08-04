@@ -1,4 +1,5 @@
 import React from 'react';
+import { IMAGES } from '@/utils/paths';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
@@ -868,7 +869,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
         <img  
           alt="Mascota IMCYC trabajador de construcción"
           className="w-32 h-40 drop-shadow-2xl"
-          src="/Concreton.png" 
+          src={IMAGES.CONCRETON} 
         />
       </motion.div>
     </div>

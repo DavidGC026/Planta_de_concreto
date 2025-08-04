@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { IMAGES } from '@/utils/paths';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -205,7 +206,7 @@ if (showPersonalResults) {
       </div>
 
       <img
-        src="/Concreton.png"
+        src={IMAGES.CONCRETON}
         alt="Mascota Concreton"
         className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-40 drop-shadow-2xl pointer-events-none"
       />
