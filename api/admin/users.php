@@ -1,6 +1,6 @@
 <?php
 /**
- * API para obtener usuarios del sistema (solo para administradores)
+ * API de administración - Lista de usuarios
  * IMCYC - Sistema de Evaluación de Plantas de Concreto
  */
 
@@ -16,31 +16,36 @@ try {
     $database = new Database();
     $db = $database->getConnection();
     
-    // Obtener todos los usuarios activos
+    // Consultar todos los usuarios activos
     $query = "SELECT 
                 id,
                 username,
                 nombre_completo,
                 email,
                 rol,
-                permisos_completos,
                 activo,
-                fecha_creacion
+                fecha_creacion,
+                fecha_actualizacion,
+                CASE 
+                    WHEN rol = 'admin' OR rol = 'superadmin' THEN 1 
+                    ELSE permisos_completos 
+                END as permisos_completos
               FROM usuarios 
-              WHERE activo = 1 
-              ORDER BY nombre_completo";
+              WHERE activo = 1
+              ORDER BY nombre_completo ASC";
     
     $stmt = $db->prepare($query);
     $stmt->execute();
     
-    $usuarios = $stmt->fetchAll() ?: [];
+    $users = $stmt->fetchAll();
     
+    // Respuesta exitosa
     sendJsonResponse([
         'success' => true,
-        'data' => $usuarios
+        'data' => $users
     ]);
     
 } catch (Exception $e) {
-    handleError('Error al obtener usuarios: ' . $e->getMessage());
+    handleError('Error interno del servidor: ' . $e->getMessage());
 }
 ?>

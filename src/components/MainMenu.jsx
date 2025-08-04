@@ -5,6 +5,7 @@ import { Shield, UserCheck, Settings, ClipboardCheck } from 'lucide-react';
 import AdminPermissionsPanel from '@/components/AdminPermissionsPanel';
 import apiService from '@/services/api';
 import permissionsService from '@/services/permissionsService';
+import { IMAGES } from '@/utils/paths';
 
 const MainMenu = ({ onSelectEvaluation, onShowBlockedScreen }) => {
   const [showAdminPanel, setShowAdminPanel] = React.useState(false);
@@ -193,7 +194,7 @@ const MainMenu = ({ onSelectEvaluation, onShowBlockedScreen }) => {
         <img   
           alt="Concreton - Mascota IMCYC"
           className="w-32 h-40 drop-shadow-2xl"
-          src="/Concreton.png"
+          src={IMAGES.CONCRETON}
         />
       </motion.div>
     </div>

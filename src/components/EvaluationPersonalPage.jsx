@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+<<<<<<< HEAD
+=======
+import { IMAGES } from '@/utils/paths';
+>>>>>>> 03f330083664a924fa75f79be9e8bf095aaf26bb
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -284,7 +288,11 @@ const PersonalEvaluationStandalone = ({ embedUser }) => {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
+<<<<<<< HEAD
             backgroundImage: `url("/public/Fondo.png")`,
+=======
+            backgroundImage: `url("/${IMAGES.FONDO}")`,
+>>>>>>> 03f330083664a924fa75f79be9e8bf095aaf26bb
           }}
         />
         <div className="absolute inset-0 bg-black/20" />
@@ -343,7 +351,11 @@ const PersonalEvaluationStandalone = ({ embedUser }) => {
         </div>
 
         <img
+<<<<<<< HEAD
           src="/Concreton.png"
+=======
+          src={IMAGES.CONCRETON}
+>>>>>>> 03f330083664a924fa75f79be9e8bf095aaf26bb
           alt="Mascota Concreton"
           className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-40 drop-shadow-2xl pointer-events-none"
         />
@@ -376,7 +388,11 @@ const PersonalEvaluationStandalone = ({ embedUser }) => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
+<<<<<<< HEAD
           backgroundImage: `url("/public/Fondo.png")`,
+=======
+          backgroundImage: `url("/${IMAGES.FONDO}")`,
+>>>>>>> 03f330083664a924fa75f79be9e8bf095aaf26bb
         }}
       />
       <div className="absolute inset-0 bg-black/20" />
@@ -511,7 +527,11 @@ const PersonalEvaluationStandalone = ({ embedUser }) => {
       </div>
 
       <img
+<<<<<<< HEAD
         src="/Concreton.png"
+=======
+        src={IMAGES.CONCRETON}
+>>>>>>> 03f330083664a924fa75f79be9e8bf095aaf26bb
         alt="Mascota Concreton"
         className="w-32 h-40 drop-shadow-2xl"
       />

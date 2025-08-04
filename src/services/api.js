@@ -4,7 +4,7 @@
  */
 
 // Configuración base de la API - AJUSTAR SEGÚN TU SUBPÁGINA
-const API_BASE_URL = '/imcyc/api'; // Cambia 'imcyc' por el nombre de tu carpeta
+const API_BASE_URL = '/plantaconcreto/api'; // Ruta relativa para producción
 
 class ApiService {
   constructor() {
@@ -218,6 +218,16 @@ class ApiService {
       return response.data;
     } catch (error) {
       console.error('Error getting evaluation history:', error);
+      throw error;
+    }
+  }
+
+  async getResultadosPersonal() {
+    try {
+      const response = await this.request('evaluaciones/resultados-personal.php');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting personal results:', error);
       throw error;
     }
   }

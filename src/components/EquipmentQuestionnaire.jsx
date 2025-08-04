@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { IMAGES } from '@/utils/paths';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Zap, Loader2, CheckCircle, XCircle, MinusCircle, BarChart3 } from 'lucide-react';
@@ -408,7 +409,7 @@ const EquipmentQuestionnaire = ({
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url("public/Fondo.png")`,
+          backgroundImage: `url("${IMAGES.FONDO}")`,
         }}
       />
       <div className="absolute inset-0 bg-black/20" />
@@ -749,7 +750,7 @@ const EquipmentQuestionnaire = ({
       />
 
       <img
-        src="/Concreton.png"
+        src={IMAGES.CONCRETON}
         alt="Mascota Concreton"
         className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-32 md:w-40 md:h-40 pointer-events-none"
       />

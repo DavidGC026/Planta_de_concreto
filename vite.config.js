@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+	customLogger: logger,
+	base: '/plantaconcreto/',
 	plugins: [
 		react()
 	],
@@ -14,9 +16,9 @@ export default defineConfig({
 		allowedHosts: true,
 		proxy: {
 			'/api': {
-				target: 'http://localhost',
+				target: 'http://localhost:8080',
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/api/, '/imcyc/api')
+				rewrite: (path) => path.replace(/^\/api/, '')
 			}
 		}
 	},
