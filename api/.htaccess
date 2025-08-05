@@ -43,6 +43,9 @@ RewriteRule ^evaluaciones/progreso-equipo/?$ evaluaciones/progreso-equipo.php [L
 # Rutas de reportes
 RewriteRule ^reportes/generar/?$ reportes/generar.php [L,QSA]
 
+# Rutas de evaluaciones de jefe de planta
+RewriteRule ^evaluaciones-jefe/usuarios-con-evaluacion/?$ evaluaciones-jefe/usuarios-con-evaluacion.php [L,QSA]
+
 # Configuración de seguridad
 <Files "*.php">
     Order allow,deny

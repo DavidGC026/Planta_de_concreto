@@ -27,7 +27,7 @@ try {
     $password = $input['password'];
     
     // Buscar usuario en la base de datos
-    $query = "SELECT id, username, password_hash, nombre_completo, email, rol, activo 
+    $query = "SELECT id, username, password_hash, nombre_completo, email, rol, activo, puede_hacer_examen 
               FROM usuarios 
               WHERE username = :username AND activo = 1";
     
@@ -58,7 +58,8 @@ try {
                 'username' => $user['username'],
                 'nombre_completo' => $user['nombre_completo'],
                 'email' => $user['email'],
-                'rol' => $user['rol']
+                'rol' => $user['rol'],
+                'puede_hacer_examen' => $user['puede_hacer_examen']
             ],
             'token' => $token
         ]

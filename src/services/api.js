@@ -4,7 +4,9 @@
  */
 
 // Configuración base de la API - AJUSTAR SEGÚN TU SUBPÁGINA
-const API_BASE_URL = '/plantaconcreto/api'; // Ruta relativa para producción
+const API_BASE_URL = (window.location.hostname === 'localhost' && window.location.port !== '')
+  ? '/api' // Para desarrollo local (usa el proxy de Vite)
+  : '/plantaconcreto/api'; // Ruta relativa para producción
 
 class ApiService {
   constructor() {
