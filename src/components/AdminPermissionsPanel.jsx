@@ -874,6 +874,220 @@ const AdminPermissionsPanel = ({ onBack }) => {
           </div>
         </div>
 
+        {/* Modal para crear usuario */}
+        {showCreateUserModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              {/* Background overlay */}
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowCreateUserModal(false)}></div>
+              
+              {/* Center modal */}
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">​</span>
+              
+              {/* Modal panel */}
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl leading-6 font-semibold text-gray-900 flex items-center" id="modal-title">
+                          <UserPlus className="w-6 h-6 mr-2 text-green-600" />
+                          Crear Nuevo Usuario
+                        </h3>
+                        <button
+                          onClick={() => setShowCreateUserModal(false)}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </div>
+                      
+                      {/* Formulario */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de usuario</label>
+                          <Input
+                            type="text"
+                            value={createUserForm.username}
+                            onChange={(e) => setCreateUserForm(prev => ({ ...prev, username: e.target.value }))}
+                            placeholder="Ingrese el nombre de usuario"
+                            className="w-full"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
+                          <Input
+                            type="text"
+                            value={createUserForm.nombre_completo}
+                            onChange={(e) => setCreateUserForm(prev => ({ ...prev, nombre_completo: e.target.value }))}
+                            placeholder="Ingrese el nombre completo"
+                            className="w-full"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                          <Input
+                            type="email"
+                            value={createUserForm.email}
+                            onChange={(e) => setCreateUserForm(prev => ({ ...prev, email: e.target.value }))}
+                            placeholder="Ingrese el email"
+                            className="w-full"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                          <select
+                            value={createUserForm.rol}
+                            onChange={(e) => setCreateUserForm(prev => ({ ...prev, rol: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="usuario">Usuario</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                          <Input
+                            type="password"
+                            value={createUserForm.password}
+                            onChange={(e) => setCreateUserForm(prev => ({ ...prev, password: e.target.value }))}
+                            placeholder="Ingrese la contraseña (mín. 6 caracteres)"
+                            className="w-full"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
+                          <Input
+                            type="password"
+                            value={createUserForm.confirmPassword}
+                            onChange={(e) => setCreateUserForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                            placeholder="Confirme la contraseña"
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Footer */}
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <Button
+                    onClick={handleCreateUser}
+                    className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                    disabled={loading}
+                  >
+                    {loading ? 'Creando...' : 'Crear Usuario'}
+                  </Button>
+                  <Button
+                    onClick={() => setShowCreateUserModal(false)}
+                    variant="outline"
+                    className="w-full sm:w-auto sm:mr-3 mt-3 sm:mt-0"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Modal para cambiar contraseña */}
+        {showChangePasswordModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              {/* Background overlay */}
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowChangePasswordModal(false)}></div>
+              
+              {/* Center modal */}
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">​</span>
+              
+              {/* Modal panel */}
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl leading-6 font-semibold text-gray-900 flex items-center" id="modal-title">
+                          <Key className="w-6 h-6 mr-2 text-blue-600" />
+                          Cambiar Contraseña
+                        </h3>
+                        <button
+                          onClick={() => setShowChangePasswordModal(false)}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </div>
+                      
+                      {selectedUserForPassword && (
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            <strong>Usuario:</strong> {selectedUserForPassword.nombre_completo || selectedUserForPassword.username}
+                          </p>
+                          <p className="text-sm text-blue-600">
+                            {selectedUserForPassword.email}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Formulario */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña</label>
+                          <Input
+                            type="password"
+                            value={changePasswordForm.newPassword}
+                            onChange={(e) => setChangePasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                            placeholder="Ingrese la nueva contraseña (mín. 6 caracteres)"
+                            className="w-full"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar nueva contraseña</label>
+                          <Input
+                            type="password"
+                            value={changePasswordForm.confirmPassword}
+                            onChange={(e) => setChangePasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                            placeholder="Confirme la nueva contraseña"
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Footer */}
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <Button
+                    onClick={handleChangePassword}
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+                    disabled={loading}
+                  >
+                    {loading ? 'Actualizando...' : 'Cambiar Contraseña'}
+                  </Button>
+                  <Button
+                    onClick={() => setShowChangePasswordModal(false)}
+                    variant="outline"
+                    className="w-full sm:w-auto sm:mr-3 mt-3 sm:mt-0"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Modal para usuarios de jefe de planta */}
         {showPlantManagerUsers && (
           <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
