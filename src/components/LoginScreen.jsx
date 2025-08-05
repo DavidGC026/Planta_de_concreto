@@ -22,7 +22,7 @@ const LoginScreen = ({ onLogin }) => {
     setError('');
 
     if (!credentials.username || !credentials.password) {
-      setError('Por favor ingresa usuario y contraseña');
+      setError('Por favor ingresa usuario/email y contraseña');
       return;
     }
 
@@ -39,7 +39,7 @@ const LoginScreen = ({ onLogin }) => {
       onLogin(user.username);
     } catch (error) {
       console.error('Login error:', error);
-      setError('Usuario o contraseña incorrectos');
+      setError('Usuario/email o contraseña incorrectos');
 
       toast({
         title: "❌ Error de autenticación",
@@ -93,14 +93,14 @@ const LoginScreen = ({ onLogin }) => {
 
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-sm font-medium text-gray-700">
-                  Usuario
+                  Usuario o Email
                 </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <Input
                     id="username"
                     type="text"
-                    placeholder="Nombre de usuario"
+                    placeholder="Usuario o email"
                     value={credentials.username}
                     onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
                     className="pl-10 h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg text-base"
@@ -143,11 +143,6 @@ const LoginScreen = ({ onLogin }) => {
               </motion.div>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-xs text-gray-500">
-                Usuario de prueba: <strong>admin</strong> | Contraseña: <strong>admin123</strong>
-              </p>
-            </div>
           </CardContent>
         </Card>
 

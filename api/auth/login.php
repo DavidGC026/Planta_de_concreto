@@ -20,19 +20,20 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     if (!isset($input['username']) || !isset($input['password'])) {
-        handleError('Usuario y contraseña son requeridos', 400);
+        handleError('Usuario/email y contraseña son requeridos', 400);
     }
     
-    $username = trim($input['username']);
+    $loginField = trim($input['username']); // Puede ser username o email
     $password = $input['password'];
     
-    // Buscar usuario en la base de datos
+    // Buscar usuario en la base de datos por username o email
     $query = "SELECT id, username, password_hash, nombre_completo, email, rol, activo, puede_hacer_examen 
               FROM usuarios 
-              WHERE username = :username AND activo = 1";
+              WHERE (username = :username OR email = :email) AND activo = 1";
     
     $stmt = $db->prepare($query);
-    $stmt->bindParam(':username', $username);
+    $stmt->bindParam(':username', $loginField);
+    $stmt->bindParam(':email', $loginField);
     $stmt->execute();
     
     $user = $stmt->fetch();

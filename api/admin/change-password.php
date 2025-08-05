@@ -13,15 +13,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
+    // Log para debug
+    error_log("change-password.php: Iniciando proceso");
+    
     $database = new Database();
     $db = $database->getConnection();
     
     // Obtener datos del request
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input_raw = file_get_contents('php://input');
+    error_log("change-password.php: Input raw: " . $input_raw);
+    
+    $input = json_decode($input_raw, true);
     
     if (!$input) {
+        error_log("change-password.php: Error decodificando JSON: " . json_last_error_msg());
         handleError('Datos JSON inválidos', 400);
     }
+    
+    error_log("change-password.php: Input decodificado: " . json_encode($input));
     
     // Validar datos requeridos
     $requiredFields = ['user_id', 'new_password'];
@@ -53,11 +62,14 @@ try {
     // Hash de la nueva contraseña
     $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
     
-    // Actualizar la contraseña
-    $updateQuery = "UPDATE usuarios SET password = :password, fecha_actualizacion = NOW() WHERE id = :user_id";
+    // Actualizar la contraseña (usar password_hash como nombre de columna)
+    $updateQuery = "UPDATE usuarios SET password_hash = :password_hash WHERE id = :user_id";
     $updateStmt = $db->prepare($updateQuery);
-    $updateStmt->bindParam(':password', $hashedPassword);
+    $updateStmt->bindParam(':password_hash', $hashedPassword);
     $updateStmt->bindParam(':user_id', $userId);
+    
+    error_log("change-password.php: Ejecutando query: " . $updateQuery);
+    error_log("change-password.php: Para usuario ID: " . $userId);
     
     if ($updateStmt->execute()) {
         // Respuesta exitosa

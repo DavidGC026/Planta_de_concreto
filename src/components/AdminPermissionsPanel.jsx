@@ -27,7 +27,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
     confirmPassword: '',
     nombre_completo: '',
     email: '',
-    rol: 'usuario'
+    rol: 'evaluador'
   });
   const [changePasswordForm, setChangePasswordForm] = useState({
     newPassword: '',
@@ -447,7 +447,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
           confirmPassword: '',
           nombre_completo: '',
           email: '',
-          rol: 'usuario'
+          rol: 'evaluador'
         });
 
         setShowCreateUserModal(false);
@@ -945,7 +945,8 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             onChange={(e) => setCreateUserForm(prev => ({ ...prev, rol: e.target.value }))}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
-                            <option value="usuario">Usuario</option>
+                            <option value="evaluador">Evaluador</option>
+                            <option value="supervisor">Supervisor</option>
                             <option value="admin">Admin</option>
                           </select>
                         </div>

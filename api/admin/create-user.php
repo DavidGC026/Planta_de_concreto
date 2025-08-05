@@ -70,13 +70,19 @@ try {
     // Hash de la contraseña
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
-    // Insertar nuevo usuario
-    $insertQuery = "INSERT INTO usuarios (username, password, nombre_completo, email, rol, activo, fecha_creacion, fecha_actualizacion) 
-                    VALUES (:username, :password, :nombre_completo, :email, :rol, 1, NOW(), NOW())";
+    // Validar rol permitido
+    $rolesPermitidos = ['admin', 'evaluador', 'supervisor'];
+    if (!in_array($rol, $rolesPermitidos)) {
+        $rol = 'evaluador'; // Valor por defecto
+    }
+    
+    // Insertar nuevo usuario (usar password_hash como nombre de columna)
+    $insertQuery = "INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol, activo) 
+                    VALUES (:username, :password_hash, :nombre_completo, :email, :rol, 1)";
     
     $insertStmt = $db->prepare($insertQuery);
     $insertStmt->bindParam(':username', $username);
-    $insertStmt->bindParam(':password', $hashedPassword);
+    $insertStmt->bindParam(':password_hash', $hashedPassword);
     $insertStmt->bindParam(':nombre_completo', $nombre_completo);
     $insertStmt->bindParam(':email', $email);
     $insertStmt->bindParam(':rol', $rol);
