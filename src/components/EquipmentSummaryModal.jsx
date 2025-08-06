@@ -14,29 +14,41 @@ const EquipmentSummaryModal = ({
   const [radarData, setRadarData] = useState(null);
 
   useEffect(() => {
-    if (progressData && evaluationData) {
+    if (evaluationData) {
       generateRadarData();
     }
   }, [progressData, evaluationData]);
 
   const generateRadarData = () => {
-    if (!progressData?.secciones || !evaluationData?.secciones) {
+    if (!evaluationData?.secciones) {
       return;
     }
 
-    // Preparar datos para el radar chart
+    console.log('=== DEBUG RADAR DATA ===');
+    console.log('evaluationData.secciones:', evaluationData.secciones);
+    console.log('progressData:', progressData);
+
+    // Preparar datos para el radar chart usando TODAS las secciones de evaluación
     const categories = evaluationData.secciones.map(section => {
-      const progressSection = progressData.secciones.find(
+      const progressSection = progressData?.secciones?.find(
         p => p.seccion_id === section.id
       );
 
+      const score = progressSection?.puntaje_porcentaje || 0;
+      const completed = progressSection?.completada || false;
+      const weight = parseFloat(section.ponderacion) || 0;
+
+      console.log(`Sección ${section.nombre}: score=${score}, completed=${completed}, weight=${weight}`);
+
       return {
         category: section.nombre,
-        score: progressSection?.puntaje_porcentaje || 0,
-        weight: parseFloat(section.ponderacion) || 0,
-        completed: progressSection?.completada || false
+        score: score,
+        weight: weight,
+        completed: completed
       };
     });
+
+    console.log('categories para radar:', categories);
 
     setRadarData({
       categories,
@@ -45,7 +57,7 @@ const EquipmentSummaryModal = ({
   };
 
   const calculateOverallStats = () => {
-    if (!progressData?.secciones || !evaluationData?.secciones) {
+    if (!evaluationData?.secciones) {
       return {
         completedSections: 0,
         totalSections: 0,
@@ -55,7 +67,8 @@ const EquipmentSummaryModal = ({
       };
     }
 
-    const completedSections = progressData.secciones.filter(s => s.completada).length;
+    const completedSections = progressData?.secciones ? 
+      progressData.secciones.filter(s => s.completada).length : 0;
     const totalSections = evaluationData.secciones.length;
     
     let weightedScore = 0;
@@ -64,7 +77,7 @@ const EquipmentSummaryModal = ({
     let sectionsWithScores = 0;
 
     evaluationData.secciones.forEach(section => {
-      const progressSection = progressData.secciones.find(
+      const progressSection = progressData?.secciones?.find(
         p => p.seccion_id === section.id
       );
 
@@ -97,7 +110,7 @@ const EquipmentSummaryModal = ({
     console.log('Descargar resumen...');
   };
 
-  if (!isOpen || !progressData || !evaluationData) {
+  if (!isOpen || !evaluationData) {
     return null;
   }
 
@@ -187,7 +200,7 @@ const EquipmentSummaryModal = ({
             <CardContent>
               <div className="space-y-3">
                 {evaluationData.secciones.map((section) => {
-                  const progressSection = progressData.secciones.find(
+                  const progressSection = progressData?.secciones?.find(
                     p => p.seccion_id === section.id
                   );
                   
