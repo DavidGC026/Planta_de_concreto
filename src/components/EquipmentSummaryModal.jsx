@@ -41,8 +41,10 @@ const EquipmentSummaryModal = ({
       console.log(`Sección ${section.nombre}: score=${score}, completed=${completed}, weight=${weight}`);
 
       return {
-        category: section.nombre,
-        score: score,
+        name: section.nombre,          // RadarChart espera 'name'
+        value: score,                  // RadarChart espera 'value'
+        category: section.nombre,      // Mantener para compatibilidad
+        score: score,                  // Mantener para compatibilidad
         weight: weight,
         completed: completed
       };
@@ -184,8 +186,8 @@ const EquipmentSummaryModal = ({
                 <div className="flex justify-center">
                   <RadarChart 
                     data={radarData.categories}
-                    size={400}
-                    title="Evaluación"
+                    width={500}
+                    height={500}
                   />
                 </div>
               </CardContent>
