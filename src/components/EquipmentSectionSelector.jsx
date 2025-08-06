@@ -7,6 +7,7 @@ import { ArrowLeft, Settings, Zap, Loader2, Play, BarChart3, CheckCircle, Clock 
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
+import EquipmentSummaryModal from './EquipmentSummaryModal';
 
 const EquipmentSectionSelector = ({ 
   selectedPlantType, 
@@ -17,6 +18,7 @@ const EquipmentSectionSelector = ({
   const [loading, setLoading] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
   const [progressData, setProgressData] = useState(null);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   useEffect(() => {
     if (selectedPlantType) {
@@ -223,7 +225,7 @@ const EquipmentSectionSelector = ({
             </Button>
 
             <Button
-              onClick={() => {/* Implementar ver resumen final */}}
+              onClick={() => setShowSummaryModal(true)}
               variant="outline"
               size="sm"
               className="bg-green-100 border-green-400 text-green-800 hover:bg-green-200 flex items-center space-x-2"
@@ -420,6 +422,15 @@ const EquipmentSectionSelector = ({
         src={IMAGES.CONCRETON}
         alt="Mascota Concreton"
         className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-40 drop-shadow-2xl pointer-events-none"
+      />
+      
+      {/* Modal de resumen */}
+      <EquipmentSummaryModal
+        isOpen={showSummaryModal}
+        onClose={() => setShowSummaryModal(false)}
+        progressData={progressData}
+        evaluationData={evaluationData}
+        selectedPlantType={selectedPlantType}
       />
     </div>
   );

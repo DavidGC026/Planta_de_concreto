@@ -8,7 +8,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"start-php": "php -S localhost:8080 -t api/",
-		"start-all": "concurrently \"npm run dev\" \"npm run start-php\" --names \"VITE,PHP\" --prefix-colors \"cyan,yellow\""
+		"start-all": "concurrently \"npm run dev\" \"npm run start-php\" --names \"VITE,PHP\" --prefix-colors \"cyan,yellow\"",
+		"deploy": "./deploy.sh"
 	},
 	"dependencies": {
 		"@radix-ui/react-alert-dialog": "^1.0.5",

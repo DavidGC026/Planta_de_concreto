@@ -63,16 +63,18 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
 
   const StatusIcon = statusIcon;
 
-  // Función mejorada para generar gráfica radar con anillos SVG
+  // Función mejorada para generar gráfica radar con anillos SVG - NUEVO DISEÑO
   const generateRadarChart = () => {
     if (!sections || sections.length === 0) {
       return generateSimpleCircularChart();
     }
 
-    const centerX = 400;
-    const centerY = 400;
-    const maxRadius = 180; // Aumentar el radio máximo
-    const minRadius = 40; // Aumentar el radio mínimo
+    const width = 800;
+    const height = 800;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const maxRadius = Math.min(width, height) / 2 - 230; // Margen optimizado para textos
+    const minRadius = 50;
     
     // Calcular datos de las secciones para el radar - MEJORADO
     const sectionData = sections.map((section, index) => {
@@ -187,10 +189,24 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
     const radarPoints = sectionData.map(section => {
       const angle = (section.angle - 90) * (Math.PI / 180); // -90 para empezar arriba
       const radius = minRadius + (section.percentage / 100) * (maxRadius - minRadius);
-      const x = 500 + radius * Math.cos(angle); // Usar coordenadas del nuevo centro
-      const y = 500 + radius * Math.sin(angle);
+      const x = centerX + radius * Math.cos(angle); // Usar coordenadas del nuevo centro
+      const y = centerY + radius * Math.sin(angle);
       return { x, y, ...section };
     });
+
+    // Función para limpiar y normalizar texto para SVG
+    const cleanText = (text) => {
+      if (!text) return 'Sin nombre';
+      // Normalizar caracteres Unicode y asegurar que los acentos se muestren correctamente
+      let cleanedText = text.toString().trim();
+      
+      // Normalizar Unicode si está disponible
+      if (cleanedText.normalize) {
+        cleanedText = cleanedText.normalize('NFC');
+      }
+      
+      return cleanedText;
+    };
 
     // Crear path del polígono
     const pathData = radarPoints.map((point, index) => 
@@ -198,9 +214,17 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
     ).join(' ') + ' Z';
 
     return (
-      <div className="relative flex items-center justify-center mb-6">
-        <svg width="1000" height="1000" className="drop-shadow-lg"> {/* Aumentar tamaño del SVG para más espacio */}
-          {/* Definir gradientes para los anillos */}
+      <div className="relative flex flex-col items-center justify-center mb-6 p-4 overflow-visible">
+        <svg 
+          width={width} 
+          height={height} 
+          className="drop-shadow-lg" 
+          viewBox={`0 0 ${width} ${height}`} 
+          style={{ maxWidth: '100%', height: 'auto' }}
+          xmlnsXlink="http://www.w3.org/1999/xlink"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Define gradients for the rings */}
           <defs>
             <radialGradient id="redGradient" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
@@ -216,46 +240,45 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             </radialGradient>
           </defs>
 
-          {/* Anillos de fondo con colores */}
-          {/* Anillo exterior - Verde (86-100%) */}
-          {/* Centrar en el nuevo tamaño */}
+          {/* Background rings with colors */}
+          {/* Outer ring - Green (86-100%) */}
           <circle
-            cx={500}
-            cy={500}
+            cx={centerX}
+            cy={centerY}
             r={maxRadius + 20}
             fill="url(#greenGradient)"
             stroke="#16a34a"
             strokeWidth="2"
           />
-          
-          {/* Anillo medio - Amarillo (61-85%) */}
+
+          {/* Middle ring - Yellow (61-85%) */}
           <circle
-            cx={500}
-            cy={500}
+            cx={centerX}
+            cy={centerY}
             r={maxRadius - 20}
             fill="url(#yellowGradient)"
             stroke="#ca8a04"
             strokeWidth="2"
           />
-          
-          {/* Anillo interior - Rojo (0-60%) */}
+
+          {/* Inner ring - Red (0-60%) */}
           <circle
-            cx={500}
-            cy={500}
+            cx={centerX}
+            cy={centerY}
             r={maxRadius - 60}
             fill="url(#redGradient)"
             stroke="#dc2626"
             strokeWidth="2"
           />
 
-          {/* Líneas de la cuadrícula radial */}
+          {/* Radial grid lines */}
           {[20, 40, 60, 80, 100].map(percent => {
             const radius = minRadius + (percent / 100) * (maxRadius - minRadius);
             return (
               <circle
                 key={percent}
-                cx={500}
-                cy={500}
+                cx={centerX}
+                cy={centerY}
                 r={radius}
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.6)"
@@ -265,17 +288,17 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             );
           })}
 
-          {/* Líneas radiales desde el centro */}
+          {/* Radial lines from center */}
           {sectionData.map((section, index) => {
             const angle = (section.angle - 90) * (Math.PI / 180);
-            const endX = 500 + (maxRadius + 15) * Math.cos(angle);
-            const endY = 500 + (maxRadius + 15) * Math.sin(angle);
-            
+            const endX = centerX + (maxRadius + 15) * Math.cos(angle);
+            const endY = centerY + (maxRadius + 15) * Math.sin(angle);
+
             return (
               <line
                 key={index}
-                x1={500}
-                y1={500}
+                x1={centerX}
+                y1={centerY}
                 x2={endX}
                 y2={endY}
                 stroke="rgba(255, 255, 255, 0.7)"
@@ -284,7 +307,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             );
           })}
 
-          {/* Polígono de datos */}
+          {/* Data polygon */}
           <path
             d={pathData}
             fill="rgba(59, 130, 246, 0.4)"
@@ -296,7 +319,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             }}
           />
 
-          {/* Puntos de datos */}
+          {/* Data points */}
           {radarPoints.map((point, index) => (
             <circle
               key={index}
@@ -312,43 +335,57 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             />
           ))}
 
-          {/* Etiquetas de las secciones */}
+          {/* Section labels */}
           {radarPoints.map((point, index) => {
             const angle = (point.angle - 90) * (Math.PI / 180);
-            const labelRadius = maxRadius + 80; // Reducir distancia para que quede más cerca
-            const labelX = 500 + labelRadius * Math.cos(angle);
-            const labelY = 500 + labelRadius * Math.sin(angle);
+            const labelRadius = maxRadius + 70;
+            const labelX = centerX + labelRadius * Math.cos(angle);
+            const labelY = centerY + labelRadius * Math.sin(angle);
             
-            // Ajustar posición del texto según el ángulo
+            // Adjust text position based on angle
             let textAnchor = 'middle';
             let dominantBaseline = 'middle';
-            
-            if (labelX > 500 + 10) textAnchor = 'start';
-            else if (labelX < 500 - 10) textAnchor = 'end';
-            
-            if (labelY > 500 + 10) dominantBaseline = 'hanging';
-            else if (labelY < 500 - 10) dominantBaseline = 'baseline';
 
-            // Dividir texto largo en múltiples líneas
-            const maxCharsPerLine = 35; // Aumentar caracteres por línea
-            const words = point.name.split(' ');
+            if (labelX > centerX + 10) textAnchor = 'start';
+            else if (labelX < centerX - 10) textAnchor = 'end';
+
+            if (labelY > centerY + 10) dominantBaseline = 'hanging';
+            else if (labelY < centerY - 10) dominantBaseline = 'baseline';
+
+            // Split long text into multiple lines with intelligent wrapping
+            const words = cleanText(point.name).split(' ');
             const lines = [];
             let currentLine = '';
             
+            // Calcular caracteres máximos basado en la posición del texto
+            let maxCharsPerLine;
+            const distanceFromCenter = Math.abs(labelX - centerX);
+            const distanceFromEdge = Math.min(labelX, width - labelX);
+            
+            // Si está cerca de los bordes, usar menos caracteres
+            if (distanceFromEdge < 100) {
+              maxCharsPerLine = 8;
+            } else if (distanceFromEdge < 150) {
+              maxCharsPerLine = 12;
+            } else {
+              maxCharsPerLine = 14;
+            }
+
             words.forEach(word => {
-              if ((currentLine + word).length <= maxCharsPerLine) {
-                currentLine += (currentLine ? ' ' : '') + word;
+              const testLine = currentLine + (currentLine ? ' ' : '') + word;
+              if (testLine.length <= maxCharsPerLine) {
+                currentLine = testLine;
               } else {
                 if (currentLine) lines.push(currentLine);
                 currentLine = word;
               }
             });
             if (currentLine) lines.push(currentLine);
-            
-            // Permitir hasta 4 líneas para textos más largos
-            if (lines.length > 4) {
-              lines[3] = lines[3].length > 30 ? lines[3].substring(0, 30) + '...' : lines[3];
-              lines.splice(4);
+
+            // Allow up to 3 lines
+            if (lines.length > 3) {
+              lines[2] = lines[2].length > 18 ? lines[2].substring(0, 18) + '...' : lines[2];
+              lines.splice(3);
             }
 
             return (
@@ -363,7 +400,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                     dominantBaseline="middle"
                     className="text-sm font-bold fill-white"
                     style={{
-                      fontSize: '14px',
+                      fontSize: '18px',
                       textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
                       filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
                     }}
@@ -380,7 +417,7 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
                   dominantBaseline="middle"
                   className="text-lg font-bold fill-yellow-300"
                   style={{
-                    fontSize: '18px',
+                    fontSize: '22px',
                     textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
                     filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
                   }}
@@ -391,6 +428,22 @@ const ResultsScreen = ({ results, onBack, onNewEvaluation }) => {
             );
           })}
 
+          {/* Center title */}
+          <text
+            x={centerX}
+            y={centerY}
+            fontSize="18"
+            fontWeight="bold"
+            fill="white"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            style={{
+              textShadow: '2px 2px 4px rgba(0,0,0,0.9), -2px -2px 4px rgba(0,0,0,0.9), 2px -2px 4px rgba(0,0,0,0.9), -2px 2px 4px rgba(0,0,0,0.9)',
+              filter: 'drop-shadow(3px 3px 6px rgba(0,0,0,0.9))'
+            }}
+          >
+            Evaluación
+          </text>
         </svg>
       </div>
     );
