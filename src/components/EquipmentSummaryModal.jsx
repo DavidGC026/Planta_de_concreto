@@ -186,8 +186,8 @@ const EquipmentSummaryModal = ({
                 <div className="flex justify-center">
                   <RadarChart 
                     data={radarData.categories}
-                    width={500}
-                    height={500}
+                    width={700}
+                    height={700}
                   />
                 </div>
               </CardContent>

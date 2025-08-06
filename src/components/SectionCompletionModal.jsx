@@ -118,7 +118,8 @@ const SectionCompletionModal = ({
               <div className="flex justify-center mt-6">
                 <CircularChart
                   percentage={overallPercentage}
-                  size={150}
+                  size={200}
+                  strokeWidth={12}
                   title={`Evaluación: ${sectionName}`}
                   subtitle={`${totalCorrect}/${totalQuestions} correctas`}
                 />
@@ -141,8 +142,8 @@ const SectionCompletionModal = ({
                       {radarData.length > 0 && (
                         <RadarChart 
                           data={radarData}
-                          width={300}
-                          height={300}
+                          width={500}
+                          height={500}
                         />
                       )}
                     </div>
@@ -155,6 +156,8 @@ const SectionCompletionModal = ({
                       <BarChart 
                         data={barData}
                         title=""
+                        width={500}
+                        height={400}
                       />
                     )}
                   </div>
