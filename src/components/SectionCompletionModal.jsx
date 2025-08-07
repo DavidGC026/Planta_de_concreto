@@ -142,8 +142,8 @@ const SectionCompletionModal = ({
                       {radarData.length > 0 && (
                         <RadarChart 
                           data={radarData}
-                          width={500}
-                          height={500}
+                          width={700}
+                          height={700}
                         />
                       )}
                     </div>

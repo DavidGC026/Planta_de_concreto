@@ -26,10 +26,10 @@ const App = () => {
 
     const favicon = document.createElement('link');
     favicon.rel = 'icon';
-    favicon.href = '/logo_imcyc_favicon.png';
+    favicon.href = '/logo_planta_favicon.png';
     document.head.appendChild(favicon);
 
-    document.title = "IMCYC - Sistema de Evaluación de Plantas de Concreto";
+    document.title = "Sistema de Evaluación de Plantas de Concreto";
   }, []);
 
   // Efecto para manejar la visibilidad de la página
