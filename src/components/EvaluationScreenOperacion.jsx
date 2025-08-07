@@ -58,7 +58,7 @@ if (showPersonalResults) {
       />
       <div className="absolute inset-0 bg-black/20" />
 
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8 pt-24">
         <div className="w-full max-w-lg space-y-4">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-white mb-4">Gestión de Operación</h2>

@@ -269,7 +269,7 @@ const CalendarMaintenanceSystem = ({ onBack }) => {
       />
       <div className="absolute inset-0 bg-black/20" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
+      <div className="relative z-10 max-w-6xl mx-auto p-6 pt-24">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">

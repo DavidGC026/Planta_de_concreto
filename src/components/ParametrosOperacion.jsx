@@ -118,7 +118,7 @@ const ParametrosOperacion = ({ onBack }) => {
   }));
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 relative">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 relative pt-20">
       <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url('${IMAGES.FONDO}')` }} />
       <div className="absolute inset-0 bg-black/20" />
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 py-8">
