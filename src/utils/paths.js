@@ -34,7 +34,7 @@ export const getApiPath = (endpoint) => {
 export const IMAGES = {
   CONCRETON: getAssetPath('Concreton.png'),
   FONDO: getAssetPath('Fondo.png'),
-  LOGO_IMCYC: getAssetPath('logo_planta.png')
+  LOGO_IMCYC: getAssetPath('Logo_imcyc.png')
 };
 
 /**

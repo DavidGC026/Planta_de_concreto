@@ -103,49 +103,39 @@ try {
     $resultados = [];
     
     foreach ($evaluaciones as $evaluacion) {
-        // Obtener resultados por sección
+        // Obtener resultados por sección desde progreso_secciones
         $query_secciones = "SELECT 
-                              s.id as seccion_id,
-                              s.nombre as seccion_nombre,
+                              ps.seccion_nombre,
                               s.ponderacion,
                               s.p_minimo_aprobacion,
-                              COUNT(CASE WHEN p.es_trampa = 0 THEN 1 END) as total_preguntas_normales,
-                              COUNT(CASE WHEN p.es_trampa = 0 AND re.respuesta = p.respuesta_correcta THEN 1 END) as respuestas_correctas
-                            FROM secciones_evaluacion s
-                            LEFT JOIN preguntas p ON s.id = p.seccion_id AND p.activo = 1
-                            LEFT JOIN respuestas_evaluacion re ON p.id = re.pregunta_id AND re.evaluacion_id = :evaluacion_id
-                            WHERE s.tipo_evaluacion_id = (
-                              SELECT id FROM tipos_evaluacion WHERE codigo = 'personal'
-                            )
-                            AND s.rol_personal_id = (
-                              SELECT rol_personal_id FROM evaluaciones WHERE id = :evaluacion_id2
-                            )
-                            AND s.activo = 1
-                            AND s.es_trampa = 0
-                            GROUP BY s.id, s.nombre, s.ponderacion, s.p_minimo_aprobacion
-                            ORDER BY s.orden";
+                              ps.puntaje_porcentaje as porcentaje,
+                              ps.puntaje_seccion,
+                              ps.respuestas_correctas,
+                              ps.total_preguntas
+                            FROM progreso_secciones ps
+                            LEFT JOIN secciones_evaluacion s ON ps.seccion_nombre = s.nombre
+                            WHERE ps.evaluacion_id = :evaluacion_id
+                            AND ps.tipo_evaluacion = 'personal'
+
+                            ORDER BY ps.seccion_orden";
+        
         
         $stmt_secciones = $db->prepare($query_secciones);
         $stmt_secciones->bindParam(':evaluacion_id', $evaluacion['id']);
-        $stmt_secciones->bindParam(':evaluacion_id2', $evaluacion['id']);
         $stmt_secciones->execute();
         $secciones = $stmt_secciones->fetchAll();
         
-        // Calcular puntuación por sección
+        // Preparar datos de secciones
         $secciones_detalle = [];
         foreach ($secciones as $seccion) {
-            $porcentaje = $seccion['total_preguntas_normales'] > 0 
-                ? ($seccion['respuestas_correctas'] / $seccion['total_preguntas_normales']) * 100 
-                : 0;
-            
             $secciones_detalle[] = [
                 'nombre' => $seccion['seccion_nombre'],
-                'ponderacion' => floatval($seccion['ponderacion']),
-                'puntuacion' => round($porcentaje * $seccion['ponderacion'] / 100, 1),
-                'porcentaje' => round($porcentaje, 1),
-                'p_minimo_aprobacion' => floatval($seccion['p_minimo_aprobacion']),
-                'total_preguntas' => intval($seccion['total_preguntas_normales']),
-                'respuestas_correctas' => intval($seccion['respuestas_correctas'])
+                'ponderacion' => floatval($seccion['ponderacion'] ?: 10),
+                'puntuacion' => round(floatval($seccion['puntaje_seccion'] ?: 0), 1),
+                'porcentaje' => round(floatval($seccion['porcentaje'] ?: 0), 1),
+                'p_minimo_aprobacion' => floatval($seccion['p_minimo_aprobacion'] ?: 90),
+                'total_preguntas' => intval($seccion['total_preguntas'] ?: 0),
+                'respuestas_correctas' => intval($seccion['respuestas_correctas'] ?: 0)
             ];
         }
         

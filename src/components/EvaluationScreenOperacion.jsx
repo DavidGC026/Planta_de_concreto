@@ -3,13 +3,14 @@ import { IMAGES } from '@/utils/paths';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, ArrowRight, BarChart3, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, ArrowRight, BarChart3, Users, TrendingUp } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import CalendarMaintenanceSystem from '@/components/CalendarMaintenanceSystem';
 import SeguimientoCalibraciones from './SeguimientoCalibraciones';
 import ViewPersonalResults from './ViewPersonalResults';
 import ParametrosOperacion from './ParametrosOperacion';
+import VisualizacionAvanzadaResultados from './VisualizacionAvanzadaResultados';
 
 const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, username }) => {
   const [showCalendar, setShowCalendar] = useState(false);
@@ -17,6 +18,7 @@ const EvaluationScreenOperacion = ({ onBack, onComplete, onSkipToResults, userna
   const [showPersonalResults, setShowPersonalResults] = useState(false);
 const [isAdmin, setIsAdmin] = useState(false);
   const [showParametrosOperacion, setShowParametrosOperacion] = useState(false);
+  const [showVisualizacionAvanzada, setShowVisualizacionAvanzada] = useState(false);
 
   useEffect(() => {
     // Verificar si el usuario es administrador
@@ -42,6 +44,9 @@ const [isAdmin, setIsAdmin] = useState(false);
   }
 if (showPersonalResults) {
     return <ViewPersonalResults onBack={() => setShowPersonalResults(false)} username={username} />;
+  }
+  if (showVisualizacionAvanzada) {
+    return <VisualizacionAvanzadaResultados onBack={() => setShowVisualizacionAvanzada(false)} username={username} />;
   }
   if (showParametrosOperacion) {
     return <ParametrosOperacion onBack={() => setShowParametrosOperacion(false)} />;
@@ -167,6 +172,38 @@ if (showPersonalResults) {
                     </span>
                     <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full mt-1">
                       Solo Administradores
+                    </span>
+                  </div>
+                  <ArrowRight className="w-6 h-6 text-gray-400" />
+                </div>
+              </button>
+            </motion.div>
+          )}
+
+          {/* Visualización Avanzada - Solo Administradores */}
+          {isAdmin && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <button
+                onClick={() => setShowVisualizacionAvanzada(true)}
+                className="w-full bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 p-6 text-left border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 mt-4"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-gray-800 font-semibold text-xl block">
+                      Visualización Avanzada
+                    </span>
+                    <span className="text-gray-600 text-sm">
+                      Gráficos radar, histogramas y reportes detallados
+                    </span>
+                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full mt-1">
+                      Panel Administrativo Avanzado
                     </span>
                   </div>
                   <ArrowRight className="w-6 h-6 text-gray-400" />

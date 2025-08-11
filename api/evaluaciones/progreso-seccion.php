@@ -38,11 +38,13 @@ try {
     $tipo_planta = $input['tipo_planta'] ?? null;
     $categoria = $input['categoria'] ?? null;
     
+    $evaluacion_id = $input['evaluacion_id'] ?? null;
     // Crear tabla si no existe
     $create_table_query = "
         CREATE TABLE IF NOT EXISTS progreso_secciones (
             id INT AUTO_INCREMENT PRIMARY KEY,
             usuario_id INT NOT NULL,
+            evaluacion_id INT NULL,
             tipo_evaluacion VARCHAR(50) NOT NULL,
             seccion_nombre VARCHAR(200) NOT NULL,
             seccion_orden INT NOT NULL,
@@ -55,7 +57,7 @@ try {
             fecha_completada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-            UNIQUE KEY unique_progreso (usuario_id, tipo_evaluacion, seccion_orden, tipo_planta, categoria)
+            UNIQUE KEY unique_progreso (usuario_id, evaluacion_id, tipo_evaluacion, seccion_orden, tipo_planta, categoria)
         )
     ";
     
@@ -63,11 +65,11 @@ try {
     
     // Insertar o actualizar progreso de sección
     $query = "INSERT INTO progreso_secciones 
-              (usuario_id, tipo_evaluacion, seccion_nombre, seccion_orden, 
+              (usuario_id, evaluacion_id, tipo_evaluacion, seccion_nombre, seccion_orden, 
                puntaje_seccion, puntaje_porcentaje, respuestas_correctas, total_preguntas,
                tipo_planta, categoria, fecha_completada)
               VALUES 
-              (:usuario_id, :tipo_evaluacion, :seccion_nombre, :seccion_orden,
+              (:usuario_id, :evaluacion_id, :tipo_evaluacion, :seccion_nombre, :seccion_orden,
                :puntaje_seccion, :puntaje_porcentaje, :respuestas_correctas, :total_preguntas,
                :tipo_planta, :categoria, NOW())
               ON DUPLICATE KEY UPDATE
@@ -81,6 +83,7 @@ try {
     $stmt = $db->prepare($query);
     $stmt->execute([
         ':usuario_id' => $usuario_id,
+        ':evaluacion_id' => $evaluacion_id,
         ':tipo_evaluacion' => $tipo_evaluacion,
         ':seccion_nombre' => $seccion_nombre,
         ':seccion_orden' => $seccion_orden,

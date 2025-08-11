@@ -215,8 +215,8 @@ const ViewPersonalResults = ({ onBack, username }) => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-600">Puntuación Total</p>
-                      <p className="text-lg font-semibold text-gray-800">{evaluation.puntuacion_total}</p>
+                      <p className="text-sm text-gray-600">Puntuación Ponderada</p>
+                      <p className="text-lg font-semibold text-gray-800">{evaluation.puntuacion_ponderada}</p>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <p className="text-sm text-gray-600">Fecha de Inicio</p>
@@ -245,13 +245,13 @@ const ViewPersonalResults = ({ onBack, username }) => {
                                   {seccion.nombre.length > 30 ? seccion.nombre.substring(0, 30) + '...' : seccion.nombre}
                                 </p>
                                 <span className="text-sm font-semibold text-blue-600">
-                                  {seccion.puntuacion}/{seccion.ponderacion}
+                                  {seccion.porcentaje}%
                                 </span>
                               </div>
                               <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                                 <div
                                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${(seccion.puntuacion / seccion.ponderacion) * 100}%` }}
+                                  style={{ width: `${seccion.porcentaje}%` }}
                                 />
                               </div>
                             </div>
@@ -292,7 +292,7 @@ const ViewPersonalResults = ({ onBack, username }) => {
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Puntuación promedio:</span>
                       <span className="font-medium text-gray-800">
-                        {(evaluations.reduce((sum, ev) => sum + ev.puntuacion_total, 0) / evaluations.length).toFixed(1)}
+                        {(evaluations.reduce((sum, ev) => sum + ev.puntuacion_ponderada, 0) / evaluations.length).toFixed(1)}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
