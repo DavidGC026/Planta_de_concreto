@@ -901,9 +901,9 @@ const AdminPermissionsPanel = ({ onBack }) => {
                         <td className="p-3 text-slate-700 text-sm">{u.empresa || '—'}</td>
                         <td className="p-3 text-center">
                           {parseInt(u.permiso, 10) === 1 ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">Bloqueado</span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">No puede hacer examen</span>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">Permitido</span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">Puede hacer examen</span>
                           )}
                         </td>
                         <td className="p-3 text-center">
@@ -914,14 +914,14 @@ const AdminPermissionsPanel = ({ onBack }) => {
                               const nuevo = parseInt(u.permiso, 10) === 1 ? 0 : 1;
                               try {
                                 await apiService.actualizarResultadosPermiso(u.id, nuevo);
-                                toast({ title: '✅ Guardado', description: 'Permiso actualizado' });
+                                toast({ title: '✅ Guardado', description: 'Permiso de Jefe de Planta actualizado' });
                                 await loadResultadosUsers();
                               } catch (e) {
-                                toast({ title: '❌ Error', description: 'No se pudo actualizar' });
+                                toast({ title: '❌ Error', description: 'No se pudo actualizar el permiso' });
                               }
                             }}
                           >
-                            {parseInt(u.permiso, 10) === 1 ? 'Desbloquear' : 'Bloquear'}
+                            {parseInt(u.permiso, 10) === 1 ? 'Permitir examen' : 'Bloquear examen'}
                           </Button>
                         </td>
                       </tr>
