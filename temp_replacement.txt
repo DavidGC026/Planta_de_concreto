@@ -1,0 +1,37 @@
+        // Obtener resultados por sección desde progreso_secciones
+        $query_secciones = "SELECT 
+                              ps.seccion_nombre,
+                              s.ponderacion,
+                              s.p_minimo_aprobacion,
+                              ps.puntaje_porcentaje as porcentaje,
+                              ps.puntaje_seccion,
+                              ps.respuestas_correctas,
+                              ps.total_preguntas
+                            FROM progreso_secciones ps
+                            LEFT JOIN secciones_evaluacion s ON ps.seccion_nombre = s.nombre
+                            WHERE ps.usuario_id = (SELECT usuario_id FROM evaluaciones WHERE id = :evaluacion_id)
+                            AND ps.tipo_evaluacion = 'personal'
+                            AND ps.fecha_completada >= (SELECT fecha_inicio FROM evaluaciones WHERE id = :evaluacion_id2)
+                            AND ps.fecha_completada <= (SELECT fecha_finalizacion FROM evaluaciones WHERE id = :evaluacion_id3)
+                            ORDER BY ps.seccion_orden";
+        
+        $stmt_secciones = $db->prepare($query_secciones);
+        $stmt_secciones->bindParam(':evaluacion_id', $evaluacion['id']);
+        $stmt_secciones->bindParam(':evaluacion_id2', $evaluacion['id']);
+        $stmt_secciones->bindParam(':evaluacion_id3', $evaluacion['id']);
+        $stmt_secciones->execute();
+        $secciones = $stmt_secciones->fetchAll();
+        
+        // Preparar datos de secciones
+        $secciones_detalle = [];
+        foreach ($secciones as $seccion) {
+            $secciones_detalle[] = [
+                'nombre' => $seccion['seccion_nombre'],
+                'ponderacion' => floatval($seccion['ponderacion'] ?: 10), // Default a 10 si es null
+                'puntuacion' => round(floatval($seccion['puntaje_seccion'] ?: 0), 1),
+                'porcentaje' => round(floatval($seccion['porcentaje'] ?: 0), 1),
+                'p_minimo_aprobacion' => floatval($seccion['p_minimo_aprobacion'] ?: 90),
+                'total_preguntas' => intval($seccion['total_preguntas'] ?: 0),
+                'respuestas_correctas' => intval($seccion['respuestas_correctas'] ?: 0)
+            ];
+        }

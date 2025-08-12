@@ -1,0 +1,181 @@
+<?php
+/**
+ * API para obtener resultados de evaluaciones de personal
+ * Solo para administradores
+ * IMCYC - Sistema de Evaluación de Plantas de Concreto
+ */
+
+require_once '../config/database.php';
+
+setCorsHeaders();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    handleError('Método no permitido', 405);
+}
+
+try {
+    $database = new Database();
+    $db = $database->getConnection();
+    
+    // === DEBUGGING: Verificar token y usuario ===
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? (getallheaders()['Authorization'] ?? '');
+    
+    if (empty($authHeader)) {
+        handleError('DEBUG: No se recibió el header de autorización', 401);
+        exit();
+    }
+
+    $token = str_replace('Bearer ', '', $authHeader);
+    $decoded = base64_decode($token);
+    $parts = explode(':', $decoded);
+
+    if (count($parts) < 3) {
+        handleError('DEBUG: El formato del token es inválido', 401);
+        exit();
+    }
+    
+    // El token tiene formato: id:timestamp:username
+    $userId = $parts[0];
+    $timestamp = $parts[1];
+    $username = $parts[2];
+    
+    // Verificar que el token no haya expirado (opcional)
+    // $tokenAge = time() - $timestamp;
+    // if ($tokenAge > 86400) { // 24 horas
+    //     handleError('Token expirado', 401);
+    //     exit();
+    // }
+    
+    $query = "SELECT id, rol, nombre_completo, activo FROM usuarios WHERE id = :user_id AND username = :username";
+    $stmt = $db->prepare($query);
+    $stmt->bindParam(':user_id', $userId);
+    $stmt->bindParam(':username', $username);
+    $stmt->execute();
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$user) {
+        handleError('DEBUG: Usuario no encontrado en la BD: ' . $username, 404);
+        exit();
+    }
+
+    if ($user['rol'] !== 'admin') {
+        handleError('DEBUG: El usuario existe pero no es admin. Rol encontrado: ' . $user['rol'], 403);
+        exit();
+    }
+
+    // Si la validación es exitosa, proceder a obtener los datos
+    // ... (el resto del código para obtener los resultados sigue aquí)
+    
+    // Obtener evaluaciones de personal completadas
+    $query = "SELECT 
+                e.id,
+                e.usuario_id,
+                u.username,
+                u.nombre_completo,
+                r.codigo as rol_codigo,
+                r.nombre as rol_nombre,
+                e.puntuacion_total,
+                e.puntuacion_ponderada,
+                e.estado,
+                e.fecha_inicio,
+                e.fecha_finalizacion,
+                e.observaciones,
+                e.total_preguntas,
+                e.respuestas_si,
+                e.respuestas_no,
+                e.respuestas_na,
+                e.preguntas_trampa_respondidas,
+                e.preguntas_trampa_incorrectas
+              FROM evaluaciones e
+              JOIN usuarios u ON e.usuario_id = u.id
+              LEFT JOIN roles_personal r ON e.rol_personal_id = r.id
+              JOIN tipos_evaluacion t ON e.tipo_evaluacion_id = t.id
+              WHERE t.codigo = 'personal'
+                AND e.estado = 'completada'
+              ORDER BY e.fecha_inicio DESC
+              LIMIT 50";
+    
+    $stmt = $db->prepare($query);
+    $stmt->execute();
+    $evaluaciones = $stmt->fetchAll();
+    
+    // Para cada evaluación, obtener el detalle de secciones
+    $resultados = [];
+    
+    foreach ($evaluaciones as $evaluacion) {
+        // Obtener resultados por sección desde progreso_secciones
+        $query_secciones = "SELECT 
+                              ps.seccion_nombre,
+                              s.ponderacion,
+                              s.p_minimo_aprobacion,
+                              ps.puntaje_porcentaje as porcentaje,
+                              ps.puntaje_seccion,
+                              ps.respuestas_correctas,
+                              ps.total_preguntas
+                            FROM progreso_secciones ps
+                            LEFT JOIN secciones_evaluacion s ON ps.seccion_nombre = s.nombre
+                            WHERE ps.usuario_id = (SELECT usuario_id FROM evaluaciones WHERE id = :evaluacion_id)
+                            AND ps.tipo_evaluacion = 'personal'
+                            AND ps.fecha_completada >= (SELECT fecha_inicio FROM evaluaciones WHERE id = :evaluacion_id2)
+                            AND ps.fecha_completada <= (SELECT fecha_finalizacion FROM evaluaciones WHERE id = :evaluacion_id3)
+                            ORDER BY ps.seccion_orden";
+        
+        $stmt_secciones = $db->prepare($query_secciones);
+        $stmt_secciones->bindParam(':evaluacion_id', $evaluacion['id']);
+        $stmt_secciones->bindParam(':evaluacion_id2', $evaluacion['id']);
+        $stmt_secciones->bindParam(':evaluacion_id3', $evaluacion['id']);
+        $stmt_secciones->execute();
+        $secciones = $stmt_secciones->fetchAll();
+        
+        // Preparar datos de secciones
+        $secciones_detalle = [];
+        foreach ($secciones as $seccion) {
+            $secciones_detalle[] = [
+                'nombre' => $seccion['seccion_nombre'],
+                'ponderacion' => floatval($seccion['ponderacion'] ?: 10),
+                'puntuacion' => round(floatval($seccion['puntaje_seccion'] ?: 0), 1),
+                'porcentaje' => round(floatval($seccion['porcentaje'] ?: 0), 1),
+                'p_minimo_aprobacion' => floatval($seccion['p_minimo_aprobacion'] ?: 90),
+                'total_preguntas' => intval($seccion['total_preguntas'] ?: 0),
+                'respuestas_correctas' => intval($seccion['respuestas_correctas'] ?: 0)
+            ];
+        }
+        
+        $resultados[] = [
+            'id' => intval($evaluacion['id']),
+            'username' => $evaluacion['username'],
+            'nombre_completo' => $evaluacion['nombre_completo'],
+            'rol' => $evaluacion['rol_nombre'] ?: 'Sin rol especificado',
+            'rol_codigo' => $evaluacion['rol_codigo'],
+            'puntuacion_total' => floatval($evaluacion['puntuacion_total']),
+            'puntuacion_ponderada' => floatval($evaluacion['puntuacion_ponderada']),
+            'estado' => $evaluacion['estado'],
+            'fecha_inicio' => $evaluacion['fecha_inicio'],
+            'fecha_finalizacion' => $evaluacion['fecha_finalizacion'],
+            'observaciones' => $evaluacion['observaciones'],
+            'estadisticas' => [
+                'total_preguntas' => intval($evaluacion['total_preguntas']),
+                'respuestas_si' => intval($evaluacion['respuestas_si']),
+                'respuestas_no' => intval($evaluacion['respuestas_no']),
+                'respuestas_na' => intval($evaluacion['respuestas_na']),
+                'preguntas_trampa_respondidas' => intval($evaluacion['preguntas_trampa_respondidas']),
+                'preguntas_trampa_incorrectas' => intval($evaluacion['preguntas_trampa_incorrectas'])
+            ],
+            'secciones' => $secciones_detalle
+        ];
+    }
+    
+    sendJsonResponse([
+        'success' => true,
+        'data' => $resultados,
+        'total' => count($resultados),
+        'mensaje' => 'Resultados de evaluaciones de personal obtenidos exitosamente'
+    ]);
+    
+} catch (Exception $e) {
+    error_log("Error en resultados-personal.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
+    handleError('Error al obtener resultados de evaluaciones: ' . $e->getMessage());
+}
+?>
