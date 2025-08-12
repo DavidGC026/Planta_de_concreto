@@ -8,6 +8,7 @@ import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
 import EquipmentSectionSelector from '@/components/EquipmentSectionSelector';
 import EquipmentQuestionnaire from '@/components/EquipmentQuestionnaire';
+import permissionsService from '@/services/permissionsService';
 
 const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username }) => {
   const [currentSection, setCurrentSection] = useState(0);
@@ -16,12 +17,27 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
   const [evaluationStarted, setEvaluationStarted] = useState(false);
   const [sectionSelectionMode, setSectionSelectionMode] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
+  const [canUseSimulation, setCanUseSimulation] = useState(false);
 
   useEffect(() => {
     if (sectionSelectionMode) {
       loadEvaluationData();
     }
   }, [sectionSelectionMode, selectedPlantType]);
+
+  useEffect(() => {
+    const init = async () => {
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+      try {
+        const info = await permissionsService.getPermissionsInfo(user.id);
+        setCanUseSimulation(user?.rol === 'admin' || user?.rol === 'supervisor' || info.hasFullPermissions);
+      } catch (e) {
+        setCanUseSimulation(false);
+      }
+    };
+    init();
+  }, []);
 
   const loadEvaluationData = async () => {
     try {
@@ -190,18 +206,20 @@ const EvaluationScreenEquipo = ({ onBack, onComplete, onSkipToResults, username 
               <p className="text-white/80">Selecciona el tipo de planta a evaluar</p>
             </div>
 
-            {/* Botón para saltar a resultados simulados */}
-            <div className="mb-6 flex justify-center">
-              <Button
-                onClick={handleSkipToResults}
-                variant="outline"
-                size="lg"
-                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
-              >
-                <Zap className="w-5 h-5" />
-                <span>Ver Evaluación Simulada</span>
-              </Button>
-            </div>
+            {/* Botón para saltar a resultados simulados (solo admin/supervisor) */}
+            {canUseSimulation && (
+              <div className="mb-6 flex justify-center">
+                <Button
+                  onClick={handleSkipToResults}
+                  variant="outline"
+                  size="lg"
+                  className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
+                >
+                  <Zap className="w-5 h-5" />
+                  <span>Ver Evaluación Simulada</span>
+                </Button>
+              </div>
+            )}
 
             {['pequena', 'mediana', 'grande'].map((plantType, index) => (
               <motion.div

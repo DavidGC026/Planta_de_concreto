@@ -8,17 +8,19 @@ import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
 import equipmentProgressService from '@/services/equipmentProgressService';
 import EquipmentSummaryModal from './EquipmentSummaryModal';
+import permissionsService from '@/services/permissionsService';
 
-const EquipmentSectionSelector = ({ 
-  selectedPlantType, 
-  onBack, 
-  onSectionSelect, 
-  onSkipToResults 
+const EquipmentSectionSelector = ({
+  selectedPlantType,
+  onBack,
+  onSectionSelect,
+  onSkipToResults
 }) => {
   const [loading, setLoading] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
   const [progressData, setProgressData] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [canUseSimulation, setCanUseSimulation] = useState(false);
 
   useEffect(() => {
     if (selectedPlantType) {
@@ -26,6 +28,20 @@ const EquipmentSectionSelector = ({
       loadExistingProgress();
     }
   }, [selectedPlantType]);
+
+  useEffect(() => {
+    const init = async () => {
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+      try {
+        const info = await permissionsService.getPermissionsInfo(user.id);
+        setCanUseSimulation(user?.rol === 'admin' || user?.rol === 'supervisor' || info.hasFullPermissions);
+      } catch (e) {
+        setCanUseSimulation(false);
+      }
+    };
+    init();
+  }, []);
 
   const loadEvaluationData = async () => {
     try {
@@ -62,11 +78,11 @@ const EquipmentSectionSelector = ({
 
   const getSectionStatus = (sectionId) => {
     if (!progressData?.secciones) {
-      return { 
-        status: 'pending', 
-        icon: Play, 
-        color: 'text-blue-600', 
-        bg: 'bg-blue-50', 
+      return {
+        status: 'pending',
+        icon: Play,
+        color: 'text-blue-600',
+        bg: 'bg-blue-50',
         border: 'border-blue-200',
         textColor: 'text-blue-800',
         buttonColor: 'bg-blue-600 hover:bg-blue-700'
@@ -74,13 +90,13 @@ const EquipmentSectionSelector = ({
     }
 
     const section = progressData.secciones.find(s => s.seccion_id === sectionId);
-    
+
     if (section?.completada) {
-      return { 
-        status: 'completed', 
-        icon: CheckCircle, 
-        color: 'text-green-600', 
-        bg: 'bg-green-50', 
+      return {
+        status: 'completed',
+        icon: CheckCircle,
+        color: 'text-green-600',
+        bg: 'bg-green-50',
         border: 'border-green-200',
         textColor: 'text-green-800',
         buttonColor: 'bg-green-600 hover:bg-green-700'
@@ -88,22 +104,22 @@ const EquipmentSectionSelector = ({
     }
 
     if (section?.subsecciones_completadas > 0) {
-      return { 
-        status: 'partial', 
-        icon: Clock, 
-        color: 'text-yellow-600', 
-        bg: 'bg-yellow-50', 
+      return {
+        status: 'partial',
+        icon: Clock,
+        color: 'text-yellow-600',
+        bg: 'bg-yellow-50',
         border: 'border-yellow-200',
         textColor: 'text-yellow-800',
         buttonColor: 'bg-yellow-600 hover:bg-yellow-700'
       };
     }
 
-    return { 
-      status: 'pending', 
-      icon: Play, 
-      color: 'text-blue-600', 
-      bg: 'bg-blue-50', 
+    return {
+      status: 'pending',
+      icon: Play,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
       border: 'border-blue-200',
       textColor: 'text-blue-800',
       buttonColor: 'bg-blue-600 hover:bg-blue-700'
@@ -139,7 +155,7 @@ const EquipmentSectionSelector = ({
     progressData.secciones.forEach(section => {
       correctAnswers += section.respuestas_correctas || 0;
       totalEvaluated += section.total_preguntas || 0;
-      
+
       // Si la sección está completada, sumar su ponderación
       if (section.completada) {
         // Buscar la ponderación de esta sección en evaluationData
@@ -177,7 +193,7 @@ const EquipmentSectionSelector = ({
   }
 
   const generalStats = calculateGeneralStats();
-  
+
   // Usar progreso ponderado en lugar de conteo simple
   const progressPercentage = generalStats.totalWeight > 0 ?
     Math.round((generalStats.weightedProgress / generalStats.totalWeight) * 100) : 0;
@@ -214,15 +230,17 @@ const EquipmentSectionSelector = ({
           </Button>
 
           <div className="flex space-x-2">
-            <Button
-              onClick={onSkipToResults}
-              variant="outline"
-              size="sm"
-              className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
-            >
-              <Zap className="w-4 h-4" />
-              <span>Ver Simulación</span>
-            </Button>
+            {canUseSimulation && (
+              <Button
+                onClick={onSkipToResults}
+                variant="outline"
+                size="sm"
+                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
+              >
+                <Zap className="w-4 h-4" />
+                <span>Ver Simulación</span>
+              </Button>
+            )}
 
             <Button
               onClick={() => setShowSummaryModal(true)}
@@ -259,7 +277,7 @@ const EquipmentSectionSelector = ({
                       <div className="absolute top-3 right-3">
                         <sectionStatus.icon className={`w-6 h-6 ${sectionStatus.color}`} />
                       </div>
-                      
+
                       <div className="flex items-start justify-between">
                         <div className="flex-1 pr-8">
                           <CardTitle className="text-lg font-semibold text-gray-800 mb-1">
@@ -268,7 +286,7 @@ const EquipmentSectionSelector = ({
                           <div className={`text-sm ${sectionStatus.textColor} mb-2 font-medium`}>
                             Peso: {section.ponderacion}%
                           </div>
-                          
+
                           {/* Mostrar progreso si existe */}
                           {progressInfo && (
                             <div className="mb-2">
@@ -284,7 +302,7 @@ const EquipmentSectionSelector = ({
                               )}
                             </div>
                           )}
-                          
+
                           <div className="text-sm text-gray-600">
                             {totalSubsections} subsecciones
                           </div>
@@ -306,8 +324,8 @@ const EquipmentSectionSelector = ({
                                 sectionStatus.status === 'completed' ? 'bg-green-500' :
                                 sectionStatus.status === 'partial' ? 'bg-yellow-500' : 'bg-gray-300'
                               }`}
-                              style={{ 
-                                width: `${totalSubsections > 0 ? (completedSubsections / totalSubsections) * 100 : 0}%` 
+                              style={{
+                                width: `${totalSubsections > 0 ? (completedSubsections / totalSubsections) * 100 : 0}%`
                               }}
                             />
                           </div>
@@ -322,7 +340,7 @@ const EquipmentSectionSelector = ({
                             <div key={subIndex} className="flex items-center text-xs text-gray-600">
                               <div className={`w-2 h-2 rounded-full mr-2 ${
                                 // Verificar si esta subsección específica está completada
-                                progressInfo?.subsecciones?.some(sub => 
+                                progressInfo?.subsecciones?.some(sub =>
                                   sub.subseccion_id === subsection.id && sub.completada
                                 ) ? 'bg-green-500' : 'bg-gray-400'
                               }`}></div>
@@ -423,7 +441,7 @@ const EquipmentSectionSelector = ({
         alt="Mascota Concreton"
         className="fixed bottom-0 right-0 md:right-8 z-20 w-32 h-40 drop-shadow-2xl pointer-events-none"
       />
-      
+
       {/* Modal de resumen */}
       <EquipmentSummaryModal
         isOpen={showSummaryModal}

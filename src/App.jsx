@@ -10,6 +10,8 @@ import ExamBlockedScreen from '@/components/ExamBlockedScreen';
 import Navigation from '@/components/ui/navigation';
 import { Toaster } from '@/components/ui/toaster';
 import apiService from '@/services/api';
+import WatermarkOverlay from '@/components/ui/WatermarkOverlay';
+import permissionsService from '@/services/permissionsService';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('login');
@@ -83,7 +85,7 @@ const App = () => {
   const handleNavigate = (screenId) => {
     // Limpiar estados al navegar
     setEvaluationResults(null);
-    
+
     if (screenId === 'menu') {
       setCurrentScreen('menu');
       setCurrentEvaluation(null);
@@ -110,8 +112,20 @@ const App = () => {
     setEvaluationResults(null);
   };
 
-  // Función para saltar a resultados con puntuación perfecta (solo para desarrollo)
-  const handleSkipToResults = () => {
+  // Función para saltar a resultados (simulación) restringida a admin/supervisor
+  const handleSkipToResults = async () => {
+    const currentUser = apiService.getCurrentUser();
+    if (!currentUser) return;
+    try {
+      const info = await permissionsService.getPermissionsInfo(currentUser.id);
+      const allowed = currentUser?.rol === 'admin' || currentUser?.rol === 'supervisor' || info.hasFullPermissions;
+      if (!allowed) {
+        return; // No permitir
+      }
+    } catch (e) {
+      return;
+    }
+
     const mockResults = {
       answers: {},
       score: 100,
@@ -154,38 +168,42 @@ const App = () => {
 
   return (
     <div className={`min-h-screen transition-all duration-300 ${!isPageVisible ? 'blur-md opacity-75' : ''}`}>
+      {/* Watermark para desalentar capturas: usuario + sello de tiempo */}
+      {currentScreen === 'evaluation' && (
+        <WatermarkOverlay text={`Usuario: ${apiService.getCurrentUser()?.username || 'N/A'}`} />
+      )}
       {currentScreen === 'login' && (
         <LoginScreen onLogin={handleLogin} />
       )}
-      
+
       {currentScreen !== 'login' && (
         <>
-          <Navigation 
+          <Navigation
             currentScreen={currentScreen}
             currentEvaluation={currentEvaluation}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
             username={user}
           />
-          
+
           {currentScreen === 'menu' && (
-            <MainMenu 
+            <MainMenu
               onSelectEvaluation={handleSelectEvaluation}
               onShowBlockedScreen={handleShowBlockedScreen}
               onLogout={handleLogout}
               username={user}
             />
           )}
-          
+
           {currentScreen === 'evaluation' && renderEvaluationScreen()}
-          
+
           {currentScreen === 'blocked' && (
             <ExamBlockedScreen
               currentUser={apiService.getCurrentUser()}
               onBack={handleBackToMenu}
             />
           )}
-          
+
           {currentScreen === 'results' && (
             <ResultsScreen
               results={evaluationResults}
@@ -195,9 +213,9 @@ const App = () => {
           )}
         </>
       )}
-      
+
       <Toaster />
-      
+
       {/* Overlay de blur cuando la página pierde el foco */}
       {!isPageVisible && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 pointer-events-none transition-all duration-300">

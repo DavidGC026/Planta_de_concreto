@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Zap, Loader2, CheckCircle, XCircle, MinusCircle, BarChart3 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import apiService from '@/services/api';
+import permissionsService from '@/services/permissionsService';
 import equipmentProgressService from '@/services/equipmentProgressService';
 import SectionCompletionModal from '@/components/SectionCompletionModal';
 
-const EquipmentQuestionnaire = ({ 
+const EquipmentQuestionnaire = ({
   selectedPlantType,
   evaluationData,
   currentSection,
@@ -24,6 +25,7 @@ const EquipmentQuestionnaire = ({
   const [completedSubsections, setCompletedSubsections] = useState(new Set());
   const [showSectionModal, setShowSectionModal] = useState(false);
   const [sectionModalData, setSectionModalData] = useState(null);
+  const [canUseSimulation, setCanUseSimulation] = useState(false);
 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
@@ -37,6 +39,20 @@ const EquipmentQuestionnaire = ({
       });
     }
   }, [currentSection, currentSubsection]);
+
+  useEffect(() => {
+    const init = async () => {
+      const user = apiService.getCurrentUser();
+      if (!user) return;
+      try {
+        const info = await permissionsService.getPermissionsInfo(user.id);
+        setCanUseSimulation(user?.rol === 'admin' || user?.rol === 'supervisor' || info.hasFullPermissions);
+      } catch (e) {
+        setCanUseSimulation(false);
+      }
+    };
+    init();
+  }, []);
 
   const totalSections = evaluationData?.secciones?.length || 0;
   const currentSectionData = evaluationData?.secciones?.[currentSection];
@@ -427,15 +443,17 @@ const EquipmentQuestionnaire = ({
             Volver a Secciones
           </Button>
 
-          <Button
-            onClick={onSkipToResults}
-            variant="outline"
-            size="sm"
-            className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
-          >
-            <Zap className="w-4 h-4" />
-            <span>Saltar a Resultados (Simulado)</span>
-          </Button>
+          {canUseSimulation && (
+            <Button
+              onClick={onSkipToResults}
+              variant="outline"
+              size="sm"
+              className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2"
+            >
+              <Zap className="w-4 h-4" />
+              <span>Saltar a Resultados (Simulado)</span>
+            </Button>
+          )}
         </div>
 
         {/* Barra de progreso */}
@@ -607,7 +625,7 @@ const EquipmentQuestionnaire = ({
                           {evaluationData.secciones?.map((section, index) => {
                             const isCurrentSection = index === currentSection;
                             const isCompleted = completedSections.has(section.id);
-                            
+
                             return (
                               <tr
                                 key={section.id}

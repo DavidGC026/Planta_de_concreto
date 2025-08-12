@@ -18,6 +18,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   const [evaluationData, setEvaluationData] = useState(null);
   const [allowedRoles, setAllowedRoles] = useState([]);
   const [hasPermissionRestrictions, setHasPermissionRestrictions] = useState(false);
+  const [canUseSimulation, setCanUseSimulation] = useState(false);
 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
@@ -42,7 +43,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   const loadRoles = async () => {
     try {
       setLoading(true);
-      
+
       const user = apiService.getCurrentUser();
       if (!user) {
         throw new Error('Usuario no autenticado');
@@ -50,7 +51,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       // Obtener roles permitidos para este usuario específico
       const allowedRolesData = await permissionsService.getUserAllowedRoles(user.id);
-      
+
       if (!Array.isArray(allowedRolesData) || allowedRolesData.length === 0) {
         // Si no tiene roles permitidos, mostrar mensaje de error
         toast({
@@ -62,11 +63,11 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
         setHasPermissionRestrictions(true);
         return;
       }
-      
+
       setRoles(allowedRolesData);
       setAllowedRoles(allowedRolesData);
       setHasPermissionRestrictions(allowedRolesData.length < 4); // Menos de 4 roles = permisos restringidos
-      
+
     } catch (error) {
       console.error('Error loading roles:', error);
       toast({
@@ -88,10 +89,13 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       const permissionsInfo = await permissionsService.getPermissionsInfo(user.id);
       setHasPermissionRestrictions(permissionsInfo.restrictedAccess);
-      
+      setCanUseSimulation(
+        (user?.rol === 'admin' || user?.rol === 'supervisor' || permissionsInfo.hasFullPermissions)
+      );
+
       // Log para debugging
       console.log('Información de permisos:', permissionsInfo);
-      
+
     } catch (error) {
       console.error('Error checking permissions:', error);
     }
@@ -543,25 +547,27 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
               )}
             </div>
 
-            {/* Botón para saltar a resultados simulados */}
-            <div className="mb-6 flex justify-center">
-              <Button
-                onClick={handleSkipToResults}
-                variant="outline"
-                size="lg"
-                className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
-              >
-                <Zap className="w-5 h-5" />
-                <span>Ver Evaluación Simulada</span>
-              </Button>
-            </div>
+            {/* Botón para saltar a resultados simulados (solo admin/supervisor) */}
+            {canUseSimulation && (
+              <div className="mb-6 flex justify-center">
+                <Button
+                  onClick={handleSkipToResults}
+                  variant="outline"
+                  size="lg"
+                  className="bg-yellow-100 border-yellow-400 text-yellow-800 hover:bg-yellow-200 flex items-center space-x-2 px-6 py-3"
+                >
+                  <Zap className="w-5 h-5" />
+                  <span>Ver Evaluación Simulada</span>
+                </Button>
+              </div>
+            )}
 
             {roles.length === 0 ? (
               <div className="text-center py-8">
                 <div className="bg-red-100 border border-red-400 text-red-800 px-4 py-3 rounded-lg">
                   <h3 className="font-semibold mb-2">Sin permisos de evaluación</h3>
                   <p className="text-sm">
-                    No tienes permisos para realizar evaluaciones de personal. 
+                    No tienes permisos para realizar evaluaciones de personal.
                     Contacta al administrador para solicitar acceso.
                   </p>
                 </div>
@@ -637,7 +643,7 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 pt-24" ref={evaluationContentRef}>
         {/* Botón de desarrollo para saltar a resultados - solo en primera sección */}
-        {currentSection === 0 && (
+        {currentSection === 0 && canUseSimulation && (
           <div className="mb-4 flex justify-end">
             <Button
               onClick={handleSkipToResults}
@@ -896,21 +902,6 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                       </div>
                     </div>
 
-                    {/* Puntuación estimada */}
-                    <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Puntuación estimada</h4>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {enhancedStats.currentScore}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          puntos acumulados
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {enhancedStats.correctAnswers} correctas de {enhancedStats.answeredQuestions} respondidas
-                        </div>
-                      </div>
-                    </div>
 
                     {/* Estadísticas de respuestas */}
                     <div className="border-t pt-3">
