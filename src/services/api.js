@@ -19,7 +19,7 @@ class ApiService {
    */
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}/${endpoint}`;
-    
+
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -35,11 +35,11 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
 
       if (!data.success) {
@@ -73,6 +73,33 @@ class ApiService {
       throw new Error('Error en el login');
     } catch (error) {
       console.error('Login error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Login SSO por email (token firmado opcional)
+   * params: { email, ts?, signature? }
+   */
+  async ssoLogin({ email, ts, signature }) {
+    try {
+      const body = { email };
+      if (ts) body.ts = ts;
+      if (signature) body.signature = signature;
+      const response = await this.request('auth/sso-login.php', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+
+      if (response.success) {
+        this.token = response.data.token;
+        localStorage.setItem('imcyc_token', this.token);
+        localStorage.setItem('imcyc_user', JSON.stringify(response.data.user));
+        return response.data.user;
+      }
+      throw new Error('Error en SSO');
+    } catch (error) {
+      console.error('SSO login error:', error);
       throw error;
     }
   }
@@ -118,15 +145,15 @@ class ApiService {
   async getPreguntas(params = {}) {
     try {
       const queryParams = new URLSearchParams();
-      
+
       // Añadir parámetros básicos
       if (params.tipo) queryParams.append('tipo', params.tipo);
       if (params.rol) queryParams.append('rol', params.rol);
-      
+
       // Añadir parámetros adicionales para evaluación de equipo
       if (params.tipoPlanta) queryParams.append('tipo_planta', params.tipoPlanta);
       if (params.categoria) queryParams.append('categoria', params.categoria);
-      
+
       const response = await this.request(`evaluaciones/preguntas.php?${queryParams}`);
       return response.data || { secciones: [] };
     } catch (error) {
@@ -154,7 +181,7 @@ class ApiService {
   async guardarProgresoSeccion(progresoData) {
     try {
       // Determinar qué endpoint usar según el tipo de evaluación
-      const endpoint = progresoData.tipo_evaluacion === 'equipo' 
+      const endpoint = progresoData.tipo_evaluacion === 'equipo'
         ? 'evaluaciones/progreso-subseccion.php'
         : 'evaluaciones/progreso-seccion.php';
 
@@ -191,7 +218,7 @@ class ApiService {
         : 'evaluaciones/progreso-secciones.php';
 
       const params = new URLSearchParams();
-      
+
       Object.keys(filtros).forEach(key => {
         if (filtros[key] !== null && filtros[key] !== undefined) {
           params.append(key, filtros[key]);
@@ -209,7 +236,7 @@ class ApiService {
   async getHistorialEvaluaciones(filtros = {}) {
     try {
       const params = new URLSearchParams();
-      
+
       Object.keys(filtros).forEach(key => {
         if (filtros[key] !== null && filtros[key] !== undefined) {
           params.append(key, filtros[key]);
@@ -251,6 +278,23 @@ class ApiService {
       console.error('Error generating report:', error);
       throw error;
     }
+  }
+
+  // Gestión de tokens permanentes (Admin)
+  async listarTokensPermanentes() {
+    const res = await this.request('admin/manage-permanent-tokens.php');
+    return res.data || [];
+  }
+  async crearTokenPermanente(pageSlug, tipoEvaluacion = null, expiresInDays = null, expiresAt = null) {
+    const res = await this.request('admin/manage-permanent-tokens.php', {
+      method: 'POST',
+      body: JSON.stringify({ page_slug: pageSlug, tipo_evaluacion: tipoEvaluacion, expires_in_days: expiresInDays, expires_at: expiresAt }),
+    });
+    return res.data;
+  }
+  async desactivarTokenPermanente(token) {
+    const res = await this.request(`admin/manage-permanent-tokens.php?token=${encodeURIComponent(token)}`, { method: 'DELETE' });
+    return res.data;
   }
 
   /**
@@ -325,7 +369,7 @@ class ApiService {
 
   async obtenerHistorialEstadoExamenes(userId = null) {
     try {
-      const endpoint = userId 
+      const endpoint = userId
         ? `gestion_estado_examenes.php/historial/${userId}`
         : 'gestion_estado_examenes.php/historial';
       const response = await this.request(endpoint);

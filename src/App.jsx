@@ -60,7 +60,15 @@ const App = () => {
 
   const handleLogin = (username) => {
     setUser(username);
-    setCurrentScreen('menu');
+    // Si hay intención de evaluación vía URL, redirigir
+    const params = new URLSearchParams(window.location.search);
+    const desired = params.get('type');
+    if (desired && ['personal', 'equipo', 'operacion'].includes(desired)) {
+      setCurrentEvaluation(desired);
+      setCurrentScreen('evaluation');
+    } else {
+      setCurrentScreen('menu');
+    }
   };
 
   const handleLogout = () => {

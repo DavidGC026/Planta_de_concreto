@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ const LoginScreen = ({ onLogin }) => {
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [ssoAttempted, setSsoAttempted] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
@@ -49,6 +50,34 @@ const LoginScreen = ({ onLogin }) => {
       setIsLoading(false);
     }
   };
+
+  // Intento de SSO por URL: ?sso=1&email=...&ts=...&signature=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ssoFlag = params.get('sso');
+    const emailParam = params.get('email');
+    const tsParam = params.get('ts');
+    const sigParam = params.get('signature');
+
+    const trySso = async () => {
+      if (ssoAttempted) return;
+      if (!ssoFlag || !emailParam) return;
+      try {
+        setSsoAttempted(true);
+        const user = await apiService.ssoLogin({
+          email: decodeURIComponent(emailParam),
+          ts: tsParam ? parseInt(tsParam, 10) : undefined,
+          signature: sigParam || undefined,
+        });
+        toast({ title: '✅ Acceso SSO', description: `Bienvenido, ${user.nombre_completo}` });
+        onLogin(user.username);
+      } catch (e) {
+        toast({ title: '❌ SSO fallido', description: 'No fue posible validar el acceso automático' });
+      }
+    };
+
+    trySso();
+  }, [onLogin, ssoAttempted]);
 
   return (
     <div className="min-h-screen custom-bg flex items-center justify-center p-4">

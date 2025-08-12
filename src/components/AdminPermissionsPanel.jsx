@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
-import { Shield, Users, Check, X, Plus, AlertTriangle, Settings, ClipboardCheck, UserCheck, GraduationCap, UserPlus, Search, Filter } from 'lucide-react';
+import { Shield, Users, Check, X, Plus, AlertTriangle, Settings, ClipboardCheck, UserCheck, GraduationCap, UserPlus, Search, Filter, Link as LinkIcon, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import permissionsService from '@/services/permissionsService';
 import apiService from '@/services/api';
@@ -34,10 +34,53 @@ const AdminPermissionsPanel = ({ onBack }) => {
   });
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [tokens, setTokens] = useState([]);
+  const [newTokenForm, setNewTokenForm] = useState({ page_slug: '', tipo_evaluacion: 'equipo', expires_in_days: '', expires_at: '' });
 
   useEffect(() => {
     loadData();
   }, []);
+  const loadTokens = async () => {
+    try {
+      const list = await apiService.listarTokensPermanentes();
+      setTokens(Array.isArray(list) ? list : []);
+    } catch (e) {
+      setTokens([]);
+    }
+  };
+
+  useEffect(() => {
+    loadTokens();
+  }, []);
+
+  const handleCreatePermanentToken = async () => {
+    if (!newTokenForm.page_slug.trim()) {
+      toast({ title: '❌ Error', description: 'Ingresa el nombre de la página' });
+      return;
+    }
+    try {
+      const res = await apiService.crearTokenPermanente(
+        newTokenForm.page_slug.trim(),
+        newTokenForm.tipo_evaluacion,
+        newTokenForm.expires_in_days ? parseInt(newTokenForm.expires_in_days, 10) : null,
+        newTokenForm.expires_at || null
+      );
+      await loadTokens();
+      toast({ title: '✅ Token creado', description: 'Enlace permanente generado' });
+    } catch (e) {
+      toast({ title: '❌ Error', description: 'No se pudo crear el token' });
+    }
+  };
+
+  const handleDisablePermanentToken = async (token) => {
+    try {
+      await apiService.desactivarTokenPermanente(token);
+      await loadTokens();
+      toast({ title: '✅ Token desactivado' });
+    } catch (e) {
+      toast({ title: '❌ Error', description: 'No se pudo desactivar el token' });
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -700,6 +743,108 @@ const AdminPermissionsPanel = ({ onBack }) => {
                   })}
                 </tbody>
               </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tokens permanentes SSO */}
+        <Card className="mt-8 border border-slate-200 shadow-sm">
+          <CardHeader className="border-b bg-white/70 backdrop-blur">
+            <CardTitle>Enlaces permanentes de acceso (SSO)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre de la página (slug)</label>
+                    <Input value={newTokenForm.page_slug} onChange={(e) => setNewTokenForm(prev => ({ ...prev, page_slug: e.target.value }))} placeholder="ej. cursos-imcyc" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de evaluación</label>
+                    <select value={newTokenForm.tipo_evaluacion} onChange={(e)=> setNewTokenForm(prev => ({ ...prev, tipo_evaluacion: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-sm">
+                      <option value="equipo">Equipo</option>
+                      <option value="personal">Personal</option>
+                      <option value="operacion">Operación</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Expira en (días)</label>
+                      <Input type="number" min="1" placeholder="opcional" value={newTokenForm.expires_in_days} onChange={(e)=> setNewTokenForm(prev=> ({ ...prev, expires_in_days: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Expira el (fecha/hora)</label>
+                      <Input type="datetime-local" value={newTokenForm.expires_at} onChange={(e)=> setNewTokenForm(prev => ({ ...prev, expires_at: e.target.value }))} />
+                    </div>
+                  </div>
+                  <Button onClick={handleCreatePermanentToken} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <LinkIcon className="w-4 h-4 mr-2" /> Crear enlace permanente
+                  </Button>
+                  <p className="text-xs text-slate-500">El enlace permitirá acceso vía SSO sin firma. Recomendado vincular desde dominios de confianza.</p>
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b bg-slate-50">
+                        <th className="text-left p-3 text-sm font-semibold">Página</th>
+                        <th className="text-left p-3 text-sm font-semibold">Tipo</th>
+                        <th className="text-left p-3 text-sm font-semibold">URL</th>
+                        <th className="text-left p-3 text-sm font-semibold">Expira</th>
+                        <th className="text-center p-3 text-sm font-semibold">Estado</th>
+                        <th className="text-center p-3 text-sm font-semibold">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tokens.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-slate-500">Sin enlaces creados</td>
+                        </tr>
+                      ) : (
+                        tokens.map((t) => {
+                          const url = `${window.location.origin}/plantaconcreto/?sso=1&perm=${encodeURIComponent(t.token)}&type=${encodeURIComponent(t.tipo_evaluacion || 'equipo')}`;
+                          return (
+                            <tr key={t.token} className="border-b hover:bg-slate-50">
+                              <td className="p-3 text-slate-800 font-medium">{t.page_slug}</td>
+                              <td className="p-3 text-slate-700">{t.tipo_evaluacion || 'equipo'}</td>
+                              <td className="p-3">
+                                <div className="text-xs break-all bg-slate-50 border border-slate-200 rounded px-2 py-1 flex items-center justify-between gap-2">
+                                  <span className="truncate">{url}</span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="text-slate-700 border-slate-200 hover:bg-slate-100 h-7 px-2"
+                                    onClick={async () => { try { await navigator.clipboard.writeText(url); toast({ title: '📋 Copiado', description: 'URL copiada al portapapeles' }); } catch(e) {} }}
+                                  >
+                                    Copiar
+                                  </Button>
+                                </div>
+                              </td>
+                              <td className="p-3 text-slate-700 text-sm">{t.expires_at ? new Date(t.expires_at).toLocaleString() : '—'}</td>
+                              <td className="p-3 text-center">
+                                {parseInt(t.activo, 10) === 1 ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">Activo</span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">Inactivo</span>
+                                )}
+                              </td>
+                              <td className="p-3 text-center">
+                                {parseInt(t.activo, 10) === 1 && (
+                                  <Button onClick={() => handleDisablePermanentToken(t.token)} variant="outline" className="text-red-700 border-red-200 hover:bg-red-50">
+                                    <Trash2 className="w-4 h-4 mr-2" /> Desactivar
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
