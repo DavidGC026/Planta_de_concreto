@@ -169,7 +169,7 @@ const App = () => {
   return (
     <div className={`min-h-screen transition-all duration-300 ${!isPageVisible ? 'blur-md opacity-75' : ''}`}>
       {/* Watermark para desalentar capturas: usuario + sello de tiempo */}
-      {currentScreen === 'evaluation' && (
+      {(currentScreen === 'evaluation' || currentScreen === 'results') && (
         <WatermarkOverlay text={`Usuario: ${apiService.getCurrentUser()?.username || 'N/A'}`} />
       )}
       {currentScreen === 'login' && (

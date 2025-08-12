@@ -19,6 +19,8 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   const [allowedRoles, setAllowedRoles] = useState([]);
   const [hasPermissionRestrictions, setHasPermissionRestrictions] = useState(false);
   const [canUseSimulation, setCanUseSimulation] = useState(false);
+  // Mantener orden aleatorio estable por pregunta para opciones de selección múltiple
+  const optionsOrderRef = useRef({});
 
   // Ref para scroll al inicio
   const evaluationContentRef = useRef(null);
@@ -39,6 +41,17 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
       });
     }
   }, [currentSection]);
+
+  // Advertencia al cerrar/recargar si la evaluación está en curso
+  useEffect(() => {
+    if (!evaluationStarted) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [evaluationStarted]);
 
   const loadRoles = async () => {
     try {
@@ -239,6 +252,21 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
   const handleAnswer = (questionIndex, selectedOption) => {
     const key = `${selectedRole}-${currentSection}-${questionIndex}`;
     setAnswers(prev => ({ ...prev, [key]: selectedOption }));
+  };
+
+  // Obtener opciones A/B/C con texto disponible y orden aleatorio estable por pregunta
+  const getShuffledOptionsForQuestion = (question, key) => {
+    const available = ['a', 'b', 'c'].filter(letter => !!question[`opcion_${letter}`]);
+    if (!optionsOrderRef.current[key]) {
+      // Fisher–Yates sobre copia
+      const arr = [...available];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      optionsOrderRef.current[key] = arr;
+    }
+    return optionsOrderRef.current[key];
   };
 
   const saveCurrentSectionProgress = async () => {
@@ -723,9 +751,8 @@ const EvaluationScreenPersonal = ({ onBack, onComplete, onSkipToResults, usernam
                             {question.tipo_pregunta === 'seleccion_multiple' ? (
                               // Pregunta de selección múltiple
                               <div className="space-y-2">
-                                {['a', 'b', 'c'].map((option) => {
+                                {getShuffledOptionsForQuestion(question, key).map((option) => {
                                   const optionText = question[`opcion_${option}`];
-                                  if (!optionText) return null;
 
                                   return (
                                     <label

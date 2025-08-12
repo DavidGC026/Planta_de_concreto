@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
-import { Shield, Users, Check, X, Plus, AlertTriangle, Settings, ClipboardCheck, UserCheck } from 'lucide-react';
+import { Shield, Users, Check, X, Plus, AlertTriangle, Settings, ClipboardCheck, UserCheck, GraduationCap, UserPlus, Search, Filter } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import permissionsService from '@/services/permissionsService';
 import apiService from '@/services/api';
@@ -32,6 +32,8 @@ const AdminPermissionsPanel = ({ onBack }) => {
     newPassword: "",
     confirmPassword: ""
   });
+  const [searchText, setSearchText] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
 
   useEffect(() => {
     loadData();
@@ -40,17 +42,17 @@ const AdminPermissionsPanel = ({ onBack }) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       const [usersData, rolesData, permissionsData] = await Promise.all([
         apiService.request('admin/users.php').catch(() => ({ data: [] })),
         apiService.getRolesPersonal(),
         permissionsService.getAllPermissions()
       ]);
-      
+
       setUsers(Array.isArray(usersData?.data) ? usersData.data : []);
       setRoles(Array.isArray(rolesData) ? rolesData : []);
       setPermissions(Array.isArray(permissionsData) ? permissionsData : []);
-      
+
     } catch (error) {
       console.error('Error loading admin data:', error);
       toast({
@@ -68,14 +70,14 @@ const AdminPermissionsPanel = ({ onBack }) => {
   const handleAssignPersonalPermission = async (userId, roleCode) => {
     try {
       await permissionsService.assignPermissions(userId, 'personal', true, true, roleCode);
-      
+
       toast({
         title: "✅ Permiso de personal asignado",
         description: "El permiso se ha asignado exitosamente"
       });
-      
+
       await loadData();
-      
+
     } catch (error) {
       console.error('Error assigning personal permission:', error);
       toast({
@@ -88,14 +90,14 @@ const AdminPermissionsPanel = ({ onBack }) => {
   const handleRemovePersonalPermission = async (userId, roleCode) => {
     try {
       await permissionsService.removePermissions(userId, 'personal', roleCode);
-      
+
       toast({
         title: "✅ Permiso de personal eliminado",
         description: "El permiso se ha eliminado exitosamente"
       });
-      
+
       await loadData();
-      
+
     } catch (error) {
       console.error('Error removing personal permission:', error);
       toast({
@@ -120,9 +122,9 @@ const AdminPermissionsPanel = ({ onBack }) => {
           description: "El permiso se ha asignado exitosamente"
         });
       }
-      
+
       await loadData();
-      
+
     } catch (error) {
       console.error('Error toggling equipment permission:', error);
       toast({
@@ -147,9 +149,9 @@ const AdminPermissionsPanel = ({ onBack }) => {
           description: "El permiso se ha asignado exitosamente"
         });
       }
-      
+
       await loadData();
-      
+
     } catch (error) {
       console.error('Error toggling operation permission:', error);
       toast({
@@ -163,9 +165,9 @@ const AdminPermissionsPanel = ({ onBack }) => {
     if (!Array.isArray(permissions)) {
       return [];
     }
-    return permissions.filter(p => 
-      p.usuario_id === userId && 
-      p.puede_evaluar_personal && 
+    return permissions.filter(p =>
+      p.usuario_id === userId &&
+      p.puede_evaluar_personal &&
       p.rol_codigo
     );
   };
@@ -174,9 +176,9 @@ const AdminPermissionsPanel = ({ onBack }) => {
     if (!Array.isArray(permissions)) {
       return false;
     }
-    return permissions.some(p => 
-      p.usuario_id === userId && 
-      p.rol_codigo === roleCode && 
+    return permissions.some(p =>
+      p.usuario_id === userId &&
+      p.rol_codigo === roleCode &&
       p.puede_evaluar_personal
     );
   };
@@ -185,8 +187,8 @@ const AdminPermissionsPanel = ({ onBack }) => {
     if (!Array.isArray(permissions)) {
       return false;
     }
-    return permissions.some(p => 
-      p.usuario_id === userId && 
+    return permissions.some(p =>
+      p.usuario_id === userId &&
       p.puede_evaluar_equipo
     );
   };
@@ -195,7 +197,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
     if (!Array.isArray(permissions)) {
       return false;
     }
-    return permissions.some(p => 
+    return permissions.some(p =>
       p.usuario_id === userId &&
       p.puede_evaluar_operacion
     );
@@ -210,22 +212,22 @@ const AdminPermissionsPanel = ({ onBack }) => {
         usersWithoutAccess: 0
       };
     }
-    
+
     const totalUsers = users.length;
     const usersWithFullAccess = users.filter(user => user.rol === 'admin' || (user.permisos_completos && user.rol !== 'supervisor')).length;
-    
+
     const usersWithRestrictions = users.filter(user => {
       // Si tiene permisos completos o es admin, no es restringido
       if (user.rol === 'admin' || (user.permisos_completos && user.rol !== 'supervisor')) return false;
-      
+
       const personalPerms = getUserPersonalPermissions(user.id).length;
       const equipmentPerm = hasEquipmentPermission(user.id);
       const operationPerm = hasOperationPermission(user.id);
-      
+
       // Incluir supervisores y usuarios con permisos específicos
       return user.rol === 'supervisor' || personalPerms > 0 || equipmentPerm || operationPerm;
     }).length;
-    
+
     return {
       totalUsers,
       usersWithRestrictions,
@@ -244,12 +246,12 @@ const AdminPermissionsPanel = ({ onBack }) => {
       const response = await apiService.request("evaluaciones-jefe/usuarios-con-evaluacion.php");
       setPlantManagerUsers(Array.isArray(response?.data) ? response.data : []);
       setShowPlantManagerUsers(true);
-      
+
       toast({
         title: "✅ Datos cargados",
         description: "Se han cargado los usuarios que han realizado evaluaciones de jefe de planta"
       });
-      
+
     } catch (error) {
       console.error("Error loading plant manager users:", error);
       toast({
@@ -384,37 +386,40 @@ const AdminPermissionsPanel = ({ onBack }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 pt-24">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-100 p-6 pt-24">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-                <Shield className="w-8 h-8 mr-3 text-blue-600" />
-                Panel de Permisos de Usuario
-              </h1>
-              <p className="text-gray-600 mt-2">
-                Gestiona los permisos de acceso a evaluaciones para cada usuario
-              </p>
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50" />
+            <div className="relative px-6 py-6 flex items-center justify-between">
+              <div className="flex items-start">
+                <div className="p-3 rounded-xl bg-blue-600/10 border border-blue-200">
+                  <Shield className="w-7 h-7 text-blue-700" />
+                </div>
+                <div className="ml-4">
+                  <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">Panel de Permisos de Usuario</h1>
+                  <p className="text-slate-600 mt-1">Gestiona accesos y roles para evaluaciones</p>
+                </div>
+              </div>
+              <Button onClick={onBack} variant="outline" className="bg-white/70 backdrop-blur border-slate-300">
+                Volver al Menú
+              </Button>
             </div>
-            <Button onClick={onBack} variant="outline">
-              Volver al Menú
-            </Button>
           </div>
         </div>
 
         {/* Botones de administración de usuarios */}
-        <div className="mb-6 flex flex-wrap gap-4">
-          <Button 
+        <div className="mb-6 flex flex-wrap gap-3">
+          <Button
             onClick={loadPlantManagerUsers}
             className="bg-orange-600 hover:bg-orange-700 text-white"
           >
             <GraduationCap className="w-4 h-4 mr-2" />
             Ver Usuarios con Evaluaciones de Jefe de Planta
           </Button>
-          
-          <Button 
+
+          <Button
             onClick={() => setShowCreateUserModal(true)}
             className="bg-green-600 hover:bg-green-700 text-white"
           >
@@ -425,49 +430,57 @@ const AdminPermissionsPanel = ({ onBack }) => {
 
         {/* Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="bg-white/90 border border-slate-200 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Users className="w-8 h-8 text-blue-600" />
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <Users className="w-6 h-6 text-blue-700" />
+                </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Usuarios</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                  <p className="text-sm font-medium text-slate-600">Total Usuarios</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.totalUsers}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 border border-slate-200 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <Shield className="w-8 h-8 text-green-600" />
+                <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                  <Shield className="w-6 h-6 text-green-700" />
+                </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Acceso Completo</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.usersWithFullAccess}</p>
+                  <p className="text-sm font-medium text-slate-600">Acceso Completo</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.usersWithFullAccess}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 border border-slate-200 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <AlertTriangle className="w-8 h-8 text-yellow-600" />
+                <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+                  <AlertTriangle className="w-6 h-6 text-yellow-700" />
+                </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Acceso Restringido</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.usersWithRestrictions}</p>
+                  <p className="text-sm font-medium text-slate-600">Acceso Restringido</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.usersWithRestrictions}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-white/90 border border-slate-200 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center">
-                <X className="w-8 h-8 text-red-600" />
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                  <X className="w-6 h-6 text-red-700" />
+                </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Sin Acceso</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.usersWithoutAccess}</p>
+                  <p className="text-sm font-medium text-slate-600">Sin Acceso</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.usersWithoutAccess}</p>
                 </div>
               </div>
             </CardContent>
@@ -475,18 +488,44 @@ const AdminPermissionsPanel = ({ onBack }) => {
         </div>
 
         {/* Tabla de permisos */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Matriz de Permisos por Usuario</CardTitle>
+        <Card className="border border-slate-200 shadow-sm">
+          <CardHeader className="border-b bg-white/70 backdrop-blur">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <CardTitle>Matriz de Permisos por Usuario</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Input
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    placeholder="Buscar por nombre o usuario"
+                    className="pl-9 w-64"
+                  />
+                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-slate-500" />
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-md bg-white text-sm"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="admin">Admin</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="evaluador">Evaluador</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b">
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b bg-slate-50/80 backdrop-blur">
                     <th className="text-left p-4 font-semibold">Usuario</th>
                     <th className="text-center p-4 font-semibold">Tipo</th>
-                    
+
                     {/* Columnas de Personal */}
                     <th className="text-center p-2 font-semibold text-sm bg-blue-50" colSpan={roles.length}>
                       <div className="flex items-center justify-center">
@@ -494,7 +533,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                         Personal
                       </div>
                     </th>
-                    
+
                     {/* Columnas de Equipo y Operación */}
                     <th className="text-center p-4 font-semibold bg-green-50">
                       <div className="flex items-center justify-center">
@@ -508,10 +547,10 @@ const AdminPermissionsPanel = ({ onBack }) => {
                         Operación
                       </div>
                     </th>
-                    
+
                     <th className="text-center p-4 font-semibold">Total</th>
                   </tr>
-                  
+
                   {/* Sub-header para roles de personal */}
                   <tr className="border-b bg-gray-50">
                     <th></th>
@@ -527,47 +566,63 @@ const AdminPermissionsPanel = ({ onBack }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(user => {
+                  {(users
+                    .filter(u => {
+                      const text = searchText.trim().toLowerCase();
+                      if (!text) return true;
+                      return (
+                        u.nombre_completo?.toLowerCase().includes(text) ||
+                        u.username?.toLowerCase().includes(text) ||
+                        u.email?.toLowerCase().includes(text)
+                      );
+                    })
+                    .filter(u => roleFilter === 'all' ? true : u.rol === roleFilter)
+                  ).map(user => {
                     const personalPermissions = getUserPersonalPermissions(user.id);
                     const hasEquipment = hasEquipmentPermission(user.id);
                     const hasOperation = hasOperationPermission(user.id);
-                    const totalPermissions = personalPermissions.length + 
-                                           (hasEquipment ? 1 : 0) + 
+                    const totalPermissions = personalPermissions.length +
+                                           (hasEquipment ? 1 : 0) +
                                            (hasOperation ? 1 : 0);
-                    
+
                     return (
                       <motion.tr
                         key={user.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="border-b hover:bg-gray-50"
+                        className="border-b hover:bg-slate-50"
                       >
                         <td className="p-4">
-                          <div>
-                            <div className="font-medium text-gray-900">{user.nombre_completo}</div>
-                            <div className="text-sm text-gray-500">@{user.username}</div>
+                          <div className="flex items-center">
+                            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-slate-700 mr-3">
+                              {user.nombre_completo?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">{user.nombre_completo}</div>
+                              <div className="text-sm text-gray-500">@{user.username}</div>
+                            </div>
                           </div>
                         </td>
-                        
+
                         <td className="p-4 text-center">
                           {user.rol === 'admin' || (user.permisos_completos && user.rol !== 'supervisor') ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                               <Shield className="w-3 h-3 mr-1" />
                               Admin
                             </span>
                           ) : user.rol === 'supervisor' ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                               <Users className="w-3 h-3 mr-1" />
                               Supervisor
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
                               <Users className="w-3 h-3 mr-1" />
                               Restringido
                             </span>
                           )}
                         </td>
-                        
+
                         {/* Permisos de Personal */}
                         {roles.map(role => (
                           <td key={role.codigo} className="p-2 text-center">
@@ -578,7 +633,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                                 {hasPersonalPermission(user.id, role.codigo) ? (
                                   <button
                                     onClick={() => handleRemovePersonalPermission(user.id, role.codigo)}
-                                    className="p-1 text-green-600 hover:text-red-600 transition-colors"
+                                    className="p-1 text-green-600 hover:text-red-600 transition-colors rounded"
                                     title="Quitar permiso"
                                   >
                                     <Check className="w-4 h-4" />
@@ -586,7 +641,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                                 ) : (
                                   <button
                                     onClick={() => handleAssignPersonalPermission(user.id, role.codigo)}
-                                    className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                                    className="p-1 text-gray-400 hover:text-green-600 transition-colors rounded"
                                     title="Asignar permiso"
                                   >
                                     <Plus className="w-4 h-4" />
@@ -596,7 +651,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             )}
                           </td>
                         ))}
-                        
+
                         {/* Permisos de Equipo */}
                         <td className="p-4 text-center">
                           {(user.rol === 'admin' || (user.permisos_completos && user.rol !== 'supervisor')) ? (
@@ -604,10 +659,10 @@ const AdminPermissionsPanel = ({ onBack }) => {
                           ) : (
                             <button
                               onClick={() => handleToggleEquipmentPermission(user.id, hasEquipment)}
-                              className={`p-2 rounded-lg transition-colors ${
-                                hasEquipment 
-                                  ? 'text-green-600 bg-green-100 hover:bg-red-100 hover:text-red-600' 
-                                  : 'text-gray-400 bg-gray-100 hover:bg-green-100 hover:text-green-600'
+                              className={`p-2 rounded-lg transition-colors border ${
+                                hasEquipment
+                                  ? 'text-green-700 bg-green-50 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200'
+                                  : 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200'
                               }`}
                               title={hasEquipment ? "Quitar permiso de equipo" : "Asignar permiso de equipo"}
                             >
@@ -615,7 +670,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             </button>
                           )}
                         </td>
-                        
+
                         {/* Permisos de Operación */}
                         <td className="p-4 text-center">
                           {(user.rol === 'admin' || (user.permisos_completos && user.rol !== 'supervisor')) ? (
@@ -623,10 +678,10 @@ const AdminPermissionsPanel = ({ onBack }) => {
                           ) : (
                             <button
                               onClick={() => handleToggleOperationPermission(user.id, hasOperation)}
-                              className={`p-2 rounded-lg transition-colors ${
-                                hasOperation 
-                                  ? 'text-green-600 bg-green-100 hover:bg-red-100 hover:text-red-600' 
-                                  : 'text-gray-400 bg-gray-100 hover:bg-green-100 hover:text-green-600'
+                              className={`p-2 rounded-lg transition-colors border ${
+                                hasOperation
+                                  ? 'text-green-700 bg-green-50 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200'
+                                  : 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200'
                               }`}
                               title={hasOperation ? "Quitar permiso de operación" : "Asignar permiso de operación"}
                             >
@@ -634,9 +689,9 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             </button>
                           )}
                         </td>
-                        
+
                         <td className="p-4 text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                             {(user.rol === 'admin' || (user.permisos_completos && user.rol !== 'supervisor')) ? roles.length + 2 : totalPermissions}
                           </span>
                         </td>
@@ -650,7 +705,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
         </Card>
 
         {/* Información adicional */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <div className="mt-8 bg-blue-50/70 border border-blue-200 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Información sobre Permisos</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700">
             <div>
@@ -679,10 +734,10 @@ const AdminPermissionsPanel = ({ onBack }) => {
             <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
               {/* Background overlay */}
               <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowCreateUserModal(false)}></div>
-              
+
               {/* Center modal */}
               <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">​</span>
-              
+
               {/* Modal panel */}
               <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
@@ -701,7 +756,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                           <X className="w-6 h-6" />
                         </button>
                       </div>
-                      
+
                       {/* Formulario */}
                       <div className="space-y-4">
                         <div>
@@ -714,7 +769,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             className="w-full"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
                           <Input
@@ -725,7 +780,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             className="w-full"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                           <Input
@@ -736,7 +791,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             className="w-full"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
                           <select
@@ -749,7 +804,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             <option value="admin">Admin</option>
                           </select>
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
                           <Input
@@ -760,7 +815,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                             className="w-full"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
                           <Input
@@ -775,7 +830,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Footer */}
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                   <Button
@@ -804,10 +859,10 @@ const AdminPermissionsPanel = ({ onBack }) => {
             <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
               {/* Background overlay */}
               <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowPlantManagerUsers(false)}></div>
-              
+
               {/* Center modal */}
               <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">​</span>
-              
+
               {/* Modal panel */}
               <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
@@ -826,7 +881,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                           <X className="w-6 h-6" />
                         </button>
                       </div>
-                      
+
                       {/* Contenido del modal */}
                       <div className="mt-4 overflow-x-auto">
                         {loading ? (
@@ -854,7 +909,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Footer */}
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                   <Button
