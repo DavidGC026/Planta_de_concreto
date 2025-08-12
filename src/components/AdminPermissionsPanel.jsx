@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
-import { Shield, Users, Check, X, Plus, AlertTriangle, Settings, ClipboardCheck, UserCheck, GraduationCap, UserPlus, Search, Filter, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { Shield, Users, Check, X, Plus, AlertTriangle, Settings, ClipboardCheck, UserCheck, GraduationCap, UserPlus, Search, Filter, Link as LinkIcon, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import permissionsService from '@/services/permissionsService';
 import apiService from '@/services/api';
@@ -35,7 +35,8 @@ const AdminPermissionsPanel = ({ onBack }) => {
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [tokens, setTokens] = useState([]);
-  const [newTokenForm, setNewTokenForm] = useState({ page_slug: '', tipo_evaluacion: 'equipo', expires_in_days: '', expires_at: '' });
+  const [newTokenForm, setNewTokenForm] = useState({ page_slug: '', tipo_evaluacion: 'equipo', expires_in_days: '', expires_at: '', never: true });
+  const [resultadosUsers, setResultadosUsers] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -53,6 +54,15 @@ const AdminPermissionsPanel = ({ onBack }) => {
     loadTokens();
   }, []);
 
+  const loadResultadosUsers = async () => {
+    try {
+      const list = await apiService.listarResultadosUsuarios();
+      setResultadosUsers(Array.isArray(list) ? list : []);
+    } catch (e) {
+      setResultadosUsers([]);
+    }
+  };
+
   const handleCreatePermanentToken = async () => {
     if (!newTokenForm.page_slug.trim()) {
       toast({ title: '❌ Error', description: 'Ingresa el nombre de la página' });
@@ -63,7 +73,8 @@ const AdminPermissionsPanel = ({ onBack }) => {
         newTokenForm.page_slug.trim(),
         newTokenForm.tipo_evaluacion,
         newTokenForm.expires_in_days ? parseInt(newTokenForm.expires_in_days, 10) : null,
-        newTokenForm.expires_at || null
+        newTokenForm.expires_at || null,
+        newTokenForm.never === true
       );
       await loadTokens();
       toast({ title: '✅ Token creado', description: 'Enlace permanente generado' });
@@ -454,13 +465,22 @@ const AdminPermissionsPanel = ({ onBack }) => {
 
         {/* Botones de administración de usuarios */}
         <div className="mb-6 flex flex-wrap gap-3">
-          <Button
-            onClick={loadPlantManagerUsers}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
-          >
-            <GraduationCap className="w-4 h-4 mr-2" />
-            Ver Usuarios con Evaluaciones de Jefe de Planta
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={loadPlantManagerUsers}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              <GraduationCap className="w-4 h-4 mr-2" />
+              Permisos Jefe de Planta
+            </Button>
+                        <Button
+              onClick={loadResultadosUsers}
+              variant="outline"
+              className="border-slate-300"
+            >
+              Permisos Jefe de Planta (Resultados)
+            </Button>
+          </div>
 
           <Button
             onClick={() => setShowCreateUserModal(true)}
@@ -768,14 +788,20 @@ const AdminPermissionsPanel = ({ onBack }) => {
                       <option value="operacion">Operación</option>
                     </select>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <input id="never-expire" type="checkbox" checked={newTokenForm.never}
+                      onChange={(e)=> setNewTokenForm(prev => ({ ...prev, never: e.target.checked }))}
+                    />
+                    <label htmlFor="never-expire" className="text-sm text-slate-700">Nunca expira</label>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Expira en (días)</label>
-                      <Input type="number" min="1" placeholder="opcional" value={newTokenForm.expires_in_days} onChange={(e)=> setNewTokenForm(prev=> ({ ...prev, expires_in_days: e.target.value }))} />
+                      <Input type="number" min="1" placeholder="opcional" value={newTokenForm.expires_in_days} onChange={(e)=> setNewTokenForm(prev=> ({ ...prev, expires_in_days: e.target.value }))} disabled={newTokenForm.never} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Expira el (fecha/hora)</label>
-                      <Input type="datetime-local" value={newTokenForm.expires_at} onChange={(e)=> setNewTokenForm(prev => ({ ...prev, expires_at: e.target.value }))} />
+                      <Input type="datetime-local" value={newTokenForm.expires_at} onChange={(e)=> setNewTokenForm(prev => ({ ...prev, expires_at: e.target.value }))} disabled={newTokenForm.never} />
                     </div>
                   </div>
                   <Button onClick={handleCreatePermanentToken} className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -822,7 +848,7 @@ const AdminPermissionsPanel = ({ onBack }) => {
                                   </Button>
                                 </div>
                               </td>
-                              <td className="p-3 text-slate-700 text-sm">{t.expires_at ? new Date(t.expires_at).toLocaleString() : '—'}</td>
+                          <td className="p-3 text-slate-700 text-sm">{t.expires_at ? new Date(t.expires_at).toLocaleString() : 'Nunca'}</td>
                               <td className="p-3 text-center">
                                 {parseInt(t.activo, 10) === 1 ? (
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">Activo</span>
@@ -848,6 +874,64 @@ const AdminPermissionsPanel = ({ onBack }) => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Permisos Jefe de Planta - BD Resultados */}
+        {resultadosUsers.length > 0 && (
+          <Card className="mt-8 border border-slate-200 shadow-sm">
+            <CardHeader className="border-b bg-white/70 backdrop-blur">
+              <CardTitle>Permisos Jefe de Planta (Plataforma Resultados)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b bg-slate-50">
+                      <th className="text-left p-3 text-sm font-semibold">Nombre</th>
+                      <th className="text-left p-3 text-sm font-semibold">Email</th>
+                      <th className="text-left p-3 text-sm font-semibold">Empresa</th>
+                      <th className="text-center p-3 text-sm font-semibold">Permiso</th>
+                      <th className="text-center p-3 text-sm font-semibold">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resultadosUsers.map(u => (
+                      <tr key={u.id} className="border-b hover:bg-slate-50">
+                        <td className="p-3 text-slate-800">{u.nombre}</td>
+                        <td className="p-3 text-slate-700 text-sm">{u.email}</td>
+                        <td className="p-3 text-slate-700 text-sm">{u.empresa || '—'}</td>
+                        <td className="p-3 text-center">
+                          {parseInt(u.permiso, 10) === 1 ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">Bloqueado</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">Permitido</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          <Button
+                            variant="outline"
+                            className={`border-slate-300 ${parseInt(u.permiso, 10) === 1 ? 'hover:bg-green-50' : 'hover:bg-red-50'}`}
+                            onClick={async () => {
+                              const nuevo = parseInt(u.permiso, 10) === 1 ? 0 : 1;
+                              try {
+                                await apiService.actualizarResultadosPermiso(u.id, nuevo);
+                                toast({ title: '✅ Guardado', description: 'Permiso actualizado' });
+                                await loadResultadosUsers();
+                              } catch (e) {
+                                toast({ title: '❌ Error', description: 'No se pudo actualizar' });
+                              }
+                            }}
+                          >
+                            {parseInt(u.permiso, 10) === 1 ? 'Desbloquear' : 'Bloquear'}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Información adicional */}
         <div className="mt-8 bg-blue-50/70 border border-blue-200 rounded-xl p-6">

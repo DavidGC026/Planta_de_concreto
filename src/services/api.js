@@ -285,10 +285,10 @@ class ApiService {
     const res = await this.request('admin/manage-permanent-tokens.php');
     return res.data || [];
   }
-  async crearTokenPermanente(pageSlug, tipoEvaluacion = null, expiresInDays = null, expiresAt = null) {
+  async crearTokenPermanente(pageSlug, tipoEvaluacion = null, expiresInDays = null, expiresAt = null, never = false) {
     const res = await this.request('admin/manage-permanent-tokens.php', {
       method: 'POST',
-      body: JSON.stringify({ page_slug: pageSlug, tipo_evaluacion: tipoEvaluacion, expires_in_days: expiresInDays, expires_at: expiresAt }),
+      body: JSON.stringify({ page_slug: pageSlug, tipo_evaluacion: tipoEvaluacion, expires_in_days: never ? null : expiresInDays, expires_at: never ? null : expiresAt }),
     });
     return res.data;
   }
@@ -388,6 +388,19 @@ class ApiService {
       console.error('Error getting all exam statuses:', error);
       return [];
     }
+  }
+
+  // Permisos en BD de Resultados (externa)
+  async listarResultadosUsuarios() {
+    const res = await this.request('admin/manage-resultados-permisos.php');
+    return res.data || [];
+  }
+  async actualizarResultadosPermiso(usuarioId, permiso) {
+    const res = await this.request('admin/manage-resultados-permisos.php', {
+      method: 'PATCH',
+      body: JSON.stringify({ usuario_id: usuarioId, permiso: permiso ? 1 : 0 })
+    });
+    return res.data;
   }
 }
 
